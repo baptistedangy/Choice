@@ -68,8 +68,9 @@ Output ONLY the JSON response, nothing else.`;
     console.log('📤 Sending dish analysis request to OpenAI...');
     console.log('Prompt length:', prompt.length);
     
+    // Optimized for cost reduction
     const completion = await openai.chat.completions.create({
-      model: "gpt-4",
+      model: "gpt-4o-mini",
       messages: [
         { 
           role: "system", 
@@ -78,7 +79,7 @@ Output ONLY the JSON response, nothing else.`;
         { role: "user", content: prompt }
       ],
       temperature: 0.7,
-      max_tokens: 800
+      max_tokens: 200
     });
     
     console.log('📥 Raw dish analysis response:', completion);

@@ -58,8 +58,9 @@ Provide the analysis and explanation in English. Avoid French or other languages
 Please return only valid JSON, no additional text.`;
 
     // Appel à l'API OpenAI
+    // Optimized for cost reduction
     const completion = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
+      model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
@@ -71,7 +72,7 @@ Please return only valid JSON, no additional text.`;
         }
       ],
       temperature: 0.7,
-      max_tokens: 500
+      max_tokens: 200
     });
 
     // Extraction de la réponse
