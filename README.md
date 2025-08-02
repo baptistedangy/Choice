@@ -88,6 +88,25 @@ L'application utilise TailwindCSS pour un design moderne et responsive :
 
 ## 🔧 Configuration
 
+### Variables d'environnement
+1. **Copier le fichier d'exemple** :
+```bash
+cp .env.example .env
+```
+
+2. **Configurer les clés API** dans le fichier `.env` :
+```bash
+# Google Cloud Vision API Key
+VITE_GOOGLE_VISION_API_KEY=your_google_vision_api_key_here
+
+# OpenAI API Key
+VITE_OPENAI_API_KEY=your_openai_api_key_here
+```
+
+3. **Obtenir les clés API** :
+- **Google Cloud Vision** : Créez un projet sur [Google Cloud Console](https://console.cloud.google.com/) et activez l'API Vision
+- **OpenAI** : Créez une clé API sur [OpenAI Platform](https://platform.openai.com/api-keys)
+
 ### TailwindCSS
 Le projet est configuré avec TailwindCSS dans `tailwind.config.js` et `postcss.config.js`.
 
