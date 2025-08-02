@@ -1,12 +1,17 @@
 import React, { useState, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Webcam from 'react-webcam';
 import { getRecommendationsFromMenu, getDefaultUserProfile, getAdditionalRecommendations } from '../services/recommendations';
+import { extractMenuText } from '../services/visionService';
+import { getTopRecommendations } from '../../openai';
 
 const Camera = () => {
+  const navigate = useNavigate();
   const [capturedImage, setCapturedImage] = useState(null);
   const [isCaptured, setIsCaptured] = useState(false);
   const [cameraError, setCameraError] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [processingStep, setProcessingStep] = useState(''); // 'ocr' ou 'analyzing'
   const [menuText, setMenuText] = useState(null);
   const [recommendations, setRecommendations] = useState(null);
   const [allRecommendations, setAllRecommendations] = useState(null);
@@ -29,21 +34,54 @@ const Camera = () => {
     setRecommendations(null);
     setAllRecommendations(null);
     setShowMoreOptions(false);
+    setProcessingStep('');
   };
 
-  const analyzeMenu = () => {
+  const analyzeMenu = async () => {
+    if (!capturedImage) {
+      console.error('Aucune image capturée');
+      return;
+    }
+
     setIsProcessing(true);
-    
-    // Simulation du traitement OCR (3 secondes)
-    setTimeout(() => {
-      // Texte fictif extrait du menu
-      const extractedText = 'Salade de quinoa, Poulet rôti, Tarte aux pommes, Soupe à l\'oignon, Steak frites, Crème brûlée';
-      setMenuText(extractedText);
-      setIsProcessing(false);
+    setProcessingStep('ocr');
+
+    try {
+      console.log('Début de l\'extraction de texte...');
       
-      // Génération des recommandations après l'OCR
-      generateRecommendations(extractedText);
-    }, 3000);
+      // Extraction du texte avec Google Vision API
+      const extractedText = await extractMenuText(capturedImage);
+      
+      console.log('Texte extrait:', extractedText);
+      
+      // Stocker le texte extrait
+      setMenuText(extractedText);
+      setProcessingStep('analyzing');
+      
+      // Obtenir le profil utilisateur
+      const userProfile = getDefaultUserProfile();
+      
+      // Génération des recommandations avec OpenAI
+      console.log('Génération des recommandations avec OpenAI...');
+      const aiRecommendations = await getTopRecommendations(extractedText, userProfile);
+      
+      console.log('Recommandations générées:', aiRecommendations);
+      
+      // Redirection vers la page Recommendations avec les données
+      navigate('/recommendations', { 
+        state: { 
+          recommendations: aiRecommendations,
+          menuText: extractedText,
+          source: 'scan'
+        } 
+      });
+      
+    } catch (error) {
+      console.error('Erreur lors de l\'analyse du menu:', error);
+      setMenuText('Erreur lors de l\'extraction du texte: ' + error.message);
+      setIsProcessing(false);
+      setProcessingStep('');
+    }
   };
 
   const generateRecommendations = (text) => {
@@ -332,16 +370,22 @@ const Camera = () => {
               
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Analyse en cours...
+                  {processingStep === 'ocr' ? 'Extraction du texte...' : 'Analyse des plats pour recommandations...'}
                 </h3>
                 <p className="text-gray-600 text-sm">
-                  Extraction du texte du menu
+                  {processingStep === 'ocr' 
+                    ? 'Extraction du texte du menu avec Google Vision API'
+                    : 'Analyse des plats avec IA pour générer des recommandations personnalisées'
+                  }
                 </p>
               </div>
               
               {/* Barre de progression */}
               <div className="w-full bg-gray-200 rounded-full h-2">
-                <div className="bg-primary-600 h-2 rounded-full animate-pulse" style={{ width: '60%' }}></div>
+                <div 
+                  className="bg-primary-600 h-2 rounded-full animate-pulse" 
+                  style={{ width: processingStep === 'ocr' ? '60%' : '90%' }}
+                ></div>
               </div>
             </div>
           </div>

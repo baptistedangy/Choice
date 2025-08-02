@@ -6,6 +6,7 @@ const Navigation = () => {
 
   const navItems = [
     { path: '/profile', name: 'Profil', icon: '👤' },
+    { path: '/extended-profile', name: 'Profil Étendu', icon: '⚙️' },
     { path: '/menu-scan', name: 'Scanner Menu', icon: '📷' },
     { path: '/recommendations', name: 'Recommandations', icon: '⭐' },
   ];

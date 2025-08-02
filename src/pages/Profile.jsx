@@ -1,6 +1,8 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const Profile = () => {
+  const navigate = useNavigate();
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -65,15 +67,17 @@ const Profile = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-3">
-                    Préférences alimentaires
+                    Informations détaillées
                   </label>
-                  <select className="input">
-                    <option>Toutes</option>
-                    <option>Végétarien</option>
-                    <option>Végan</option>
-                    <option>Sans gluten</option>
-                    <option>Halal</option>
-                  </select>
+                  <button
+                    onClick={() => navigate('/extended-profile')}
+                    className="w-full btn btn-secondary py-4 text-base font-semibold shadow-medium hover:shadow-large transition-all duration-200 transform hover:-translate-y-1"
+                  >
+                    Complete my information
+                  </button>
+                  <p className="text-sm text-gray-500 mt-2">
+                    Ajoutez votre âge, poids, objectifs et préférences alimentaires pour des recommandations personnalisées
+                  </p>
                 </div>
 
                 <button className="w-full btn btn-primary py-4 text-base">
