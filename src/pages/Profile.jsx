@@ -9,8 +9,8 @@ const Profile = () => {
         <div className="card overflow-hidden">
           {/* Header */}
           <div className="bg-gradient-to-r from-primary-600 to-primary-700 px-8 py-10">
-            <h1 className="text-3xl font-bold text-white mb-2">Profil Utilisateur</h1>
-            <p className="text-primary-100 text-lg">Gérez vos informations personnelles</p>
+            <h1 className="text-3xl font-bold text-white mb-2">User Profile</h1>
+                          <p className="text-primary-100 text-lg">Manage your personal information</p>
           </div>
 
           {/* Profile Content */}
@@ -76,12 +76,12 @@ const Profile = () => {
                     Complete my information
                   </button>
                   <p className="text-sm text-gray-500 mt-2">
-                    Ajoutez votre âge, poids, objectifs et préférences alimentaires pour des recommandations personnalisées
+                    Add your age, weight, goals and dietary preferences for personalized recommendations
                   </p>
                 </div>
 
                 <button className="w-full btn btn-primary py-4 text-base">
-                  Sauvegarder les modifications
+                  Save changes
                 </button>
               </div>
             </div>

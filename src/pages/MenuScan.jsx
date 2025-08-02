@@ -8,8 +8,8 @@ const MenuScan = () => {
         <div className="card overflow-hidden">
           {/* Header */}
           <div className="bg-gradient-to-r from-green-600 to-emerald-600 px-8 py-10">
-            <h1 className="text-3xl font-bold text-white mb-2">Scanner de Menu</h1>
-            <p className="text-green-100 text-lg">Scannez et analysez les menus de restaurants</p>
+            <h1 className="text-3xl font-bold text-white mb-2">Menu Scanner</h1>
+                          <p className="text-green-100 text-lg">Scan and analyze restaurant menus</p>
           </div>
 
           {/* Camera Section */}

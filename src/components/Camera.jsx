@@ -52,7 +52,11 @@ const Camera = () => {
       // Extraction du texte avec Google Vision API
       const extractedText = await extractMenuText(capturedImage);
       
-      console.log('Texte extrait:', extractedText);
+      console.log('=== MENU TEXT EXTRACTION ===');
+      console.log('Extracted text length:', extractedText?.length);
+      console.log('Extracted text preview:', extractedText?.substring(0, 200) + '...');
+      console.log('Full extracted text:', extractedText);
+      console.log('=== END MENU TEXT ===');
       
       // Stocker le texte extrait
       setMenuText(extractedText);
@@ -126,13 +130,13 @@ const Camera = () => {
               <span className="text-2xl">📷</span>
             </div>
             <p className="text-gray-600">
-              Pour utiliser le scanner, autorisez l'accès à la caméra dans votre navigateur.
+              To use the scanner, allow camera access in your browser.
             </p>
             <button
               onClick={() => window.location.reload()}
               className="btn btn-primary"
             >
-              Réessayer
+              Retry
             </button>
           </div>
         </div>

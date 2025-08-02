@@ -5,10 +5,10 @@ const Navigation = () => {
   const location = useLocation();
 
   const navItems = [
-    { path: '/profile', name: 'Profil', icon: '👤' },
-    { path: '/extended-profile', name: 'Profil Étendu', icon: '⚙️' },
-    { path: '/menu-scan', name: 'Scanner Menu', icon: '📷' },
-    { path: '/recommendations', name: 'Recommandations', icon: '⭐' },
+    { path: '/profile', name: 'Profile', icon: '👤' },
+    { path: '/extended-profile', name: 'Extended Profile', icon: '⚙️' },
+    { path: '/menu-scan', name: 'Scan Menu', icon: '📷' },
+    { path: '/recommendations', name: 'Recommendations', icon: '⭐' },
   ];
 
   return (

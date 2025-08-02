@@ -1,15 +1,121 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { analyzeDish } from '../aiAnalysis';
+import { analyzeDish } from '../dishAnalysis';
 import DishDetailsModal from '../components/DishDetailsModal';
 
 const Recommendations = () => {
+  // Default recommendations (fallback)
+  const defaultRecommendations = [
+    {
+      id: 1,
+      name: 'Caesar Salad',
+      restaurant: 'The Parisian Bistro',
+      price: '14.50€',
+      rating: 4.8,
+      category: 'healthy',
+      description: 'Fresh salad with grilled chicken, parmesan and croutons',
+      image: '🥗',
+      tags: ['Vegetarian', 'Gluten-free'],
+      aiScore: 8.5,
+      calories: 320,
+      protein: 25,
+      carbs: 15,
+      fats: 18,
+      shortJustification: 'High protein content with fresh ingredients, perfect for a healthy meal.'
+    },
+    {
+      id: 2,
+      name: 'Vegetarian Burger',
+      restaurant: 'Green Kitchen',
+      price: '16.00€',
+      rating: 4.6,
+      category: 'vegetarian',
+      description: 'Vegetable burger with quinoa patty and goat cheese',
+      image: '🍔',
+      tags: ['Vegetarian', 'Organic'],
+      aiScore: 7.8,
+      calories: 450,
+      protein: 18,
+      carbs: 35,
+      fats: 22,
+      shortJustification: 'Plant-based protein with organic ingredients, great for vegetarian diets.'
+    },
+    {
+      id: 3,
+      name: 'Salmon Poke Bowl',
+      restaurant: 'Sushi Express',
+      price: '18.50€',
+      rating: 4.9,
+      category: 'healthy',
+      description: 'Rice bowl with fresh salmon, avocado and vegetables',
+      image: '🍣',
+      tags: ['Fish', 'Healthy'],
+      aiScore: 9.2,
+      calories: 380,
+      protein: 28,
+      carbs: 25,
+      fats: 16,
+      shortJustification: 'Rich in omega-3 fatty acids and lean protein, excellent nutritional balance.'
+    },
+    {
+      id: 4,
+      name: 'Margherita Pizza',
+      restaurant: 'Pizza Roma',
+      price: '13.00€',
+      rating: 4.5,
+      category: 'classic',
+      description: 'Traditional pizza with mozzarella and fresh basil',
+      image: '🍕',
+      tags: ['Vegetarian', 'Italian'],
+      aiScore: 6.5,
+      calories: 520,
+      protein: 20,
+      carbs: 45,
+      fats: 25,
+      shortJustification: 'Classic Italian dish with balanced macronutrients and authentic flavors.'
+    },
+    {
+      id: 5,
+      name: 'Carbonara Pasta',
+      restaurant: 'Trattoria Bella',
+      price: '15.50€',
+      rating: 4.7,
+      category: 'classic',
+      description: 'Pasta with eggs, bacon and parmesan',
+      image: '🍝',
+      tags: ['Italian', 'Classic'],
+      aiScore: 7.0,
+      calories: 580,
+      protein: 22,
+      carbs: 55,
+      fats: 28,
+      shortJustification: 'Rich in protein and carbs, perfect for energy replenishment.'
+    },
+    {
+      id: 6,
+      name: 'Smoothie Bowl',
+      restaurant: 'Fresh & Co',
+      price: '12.00€',
+      rating: 4.4,
+      category: 'healthy',
+      description: 'Smoothie bowl with fresh fruits and granola',
+      image: '🥣',
+      tags: ['Vegetarian', 'Vegan', 'Healthy'],
+      aiScore: 8.8,
+      calories: 280,
+      protein: 8,
+      carbs: 35,
+      fats: 12,
+      shortJustification: 'Low calorie option with natural sugars and fiber, ideal for light meals.'
+    }
+  ];
+
   const location = useLocation();
   const navigate = useNavigate();
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [recommendations, setRecommendations] = useState([]);
+  const [recommendations, setRecommendations] = useState(defaultRecommendations);
   const [menuText, setMenuText] = useState('');
-  const [source, setSource] = useState('');
+  const [source, setSource] = useState('default');
   const [showProfileBanner, setShowProfileBanner] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [selectedDish, setSelectedDish] = useState(null);
@@ -41,30 +147,35 @@ const Recommendations = () => {
 
   // Fonction pour analyser les plats avec AI
   const analyzeDishes = async (dishes, userProfile) => {
+    console.log('Starting dish analysis for', dishes.length, 'dishes');
     setIsAnalyzing(true);
     
     try {
       const analyzedDishes = await Promise.all(
         dishes.map(async (dish) => {
           try {
+            console.log('Analyzing dish:', dish.name);
             // Créer un texte de description pour l'analyse
             const dishText = `${dish.name}: ${dish.description}`;
             
             // Analyser le plat
             const analysis = await analyzeDish(dishText, userProfile);
+            console.log('Analysis result for', dish.name, ':', analysis);
             
             // Retourner le plat avec les informations d'analyse
             return {
               ...dish,
               aiScore: analysis.aiScore,
               calories: analysis.calories,
-              protein: analysis.protein,
-              carbs: analysis.carbs,
-              fats: analysis.fats,
-              shortJustification: analysis.shortJustification
+              protein: analysis.macros.protein,
+              carbs: analysis.macros.carbs,
+              fats: analysis.macros.fats,
+              shortJustification: analysis.shortJustification,
+              longJustification: analysis.longJustification,
+              error: analysis.error // Inclure l'erreur si elle existe
             };
           } catch (error) {
-            console.error(`Erreur lors de l'analyse du plat ${dish.name}:`, error);
+            console.error(`Error analyzing dish ${dish.name}:`, error);
             // Retourner le plat sans analyse en cas d'erreur
             return {
               ...dish,
@@ -73,7 +184,8 @@ const Recommendations = () => {
               protein: 0,
               carbs: 0,
               fats: 0,
-              shortJustification: 'Analyse non disponible'
+              shortJustification: 'Analysis not available',
+              error: `Analysis failed: ${error.message}`
             };
           }
         })
@@ -81,9 +193,15 @@ const Recommendations = () => {
       
       setRecommendations(analyzedDishes);
       console.log('Plats analysés:', analyzedDishes);
+      
+      // Sauvegarder les recommandations analysées
+      saveRecommendationsToStorage(analyzedDishes, menuText, source);
     } catch (error) {
       console.error('Erreur lors de l\'analyse des plats:', error);
       setRecommendations(dishes); // Utiliser les plats non analysés
+      
+      // Sauvegarder même les plats non analysés
+      saveRecommendationsToStorage(dishes, menuText, source);
     } finally {
       setIsAnalyzing(false);
     }
@@ -100,92 +218,80 @@ const Recommendations = () => {
     setSelectedDish(null);
   };
 
-  // Recommandations par défaut (fallback)
-  const defaultRecommendations = [
-    {
-      id: 1,
-      name: 'Salade César',
-      restaurant: 'Le Bistrot Parisien',
-      price: '14.50€',
-      rating: 4.8,
-      category: 'healthy',
-      description: 'Salade fraîche avec poulet grillé, parmesan et croûtons',
-      image: '🥗',
-      tags: ['Végétarien', 'Sans gluten']
-    },
-    {
-      id: 2,
-      name: 'Burger Végétarien',
-      restaurant: 'Green Kitchen',
-      price: '16.00€',
-      rating: 4.6,
-      category: 'vegetarian',
-      description: 'Burger aux légumes avec galette de quinoa et fromage de chèvre',
-      image: '🍔',
-      tags: ['Végétarien', 'Bio']
-    },
-    {
-      id: 3,
-      name: 'Poke Bowl Saumon',
-      restaurant: 'Sushi Express',
-      price: '18.50€',
-      rating: 4.9,
-      category: 'healthy',
-      description: 'Bowl de riz avec saumon frais, avocat et légumes',
-      image: '🍣',
-      tags: ['Poisson', 'Sain']
-    },
-    {
-      id: 4,
-      name: 'Pizza Margherita',
-      restaurant: 'Pizza Roma',
-      price: '13.00€',
-      rating: 4.5,
-      category: 'classic',
-      description: 'Pizza traditionnelle avec mozzarella et basilic frais',
-      image: '🍕',
-      tags: ['Végétarien', 'Italien']
-    },
-    {
-      id: 5,
-      name: 'Pasta Carbonara',
-      restaurant: 'Trattoria Bella',
-      price: '15.50€',
-      rating: 4.7,
-      category: 'classic',
-      description: 'Pâtes aux œufs, lardons et parmesan',
-      image: '🍝',
-      tags: ['Italien', 'Classique']
-    },
-    {
-      id: 6,
-      name: 'Smoothie Bowl',
-      restaurant: 'Fresh & Co',
-      price: '12.00€',
-      rating: 4.4,
-      category: 'healthy',
-      description: 'Bowl de smoothie avec fruits frais et granola',
-      image: '🥣',
-      tags: ['Végétarien', 'Végan', 'Sain']
+  // Fonctions pour la persistance localStorage
+  const saveRecommendationsToStorage = (recommendations, menuText, source) => {
+    try {
+      const dataToSave = {
+        recommendations,
+        menuText,
+        source,
+        timestamp: Date.now()
+      };
+      localStorage.setItem('lastRecommendations', JSON.stringify(dataToSave));
+      console.log('Recommandations sauvegardées dans localStorage');
+    } catch (error) {
+      console.error('Erreur lors de la sauvegarde des recommandations:', error);
     }
-  ];
+  };
+
+  const loadRecommendationsFromStorage = () => {
+    try {
+      const savedData = localStorage.getItem('lastRecommendations');
+      if (savedData) {
+        const parsedData = JSON.parse(savedData);
+        const { recommendations, menuText, source, timestamp } = parsedData;
+        
+        // Vérifier si les données ne sont pas trop anciennes (24h)
+        const isDataFresh = Date.now() - timestamp < 24 * 60 * 60 * 1000;
+        
+        if (isDataFresh && recommendations && recommendations.length > 0) {
+          setRecommendations(recommendations);
+          setMenuText(menuText || '');
+          setSource(source || '');
+          console.log('Recommandations chargées depuis localStorage');
+          return true;
+        } else {
+          console.log('Données localStorage expirées ou invalides');
+          localStorage.removeItem('lastRecommendations');
+        }
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des recommandations:', error);
+      localStorage.removeItem('lastRecommendations');
+    }
+    return false;
+  };
+
+  const clearStoredRecommendations = () => {
+    try {
+      localStorage.removeItem('lastRecommendations');
+      console.log('Recommandations localStorage supprimées');
+    } catch (error) {
+      console.error('Erreur lors de la suppression des recommandations:', error);
+    }
+  };
 
   // Récupérer les données passées via navigation et vérifier le profil étendu
   useEffect(() => {
+    console.log('Recommendations component mounted');
+    console.log('Location state:', location.state);
+    
     // Vérifier le profil étendu
     checkExtendedProfile();
 
     const processRecommendations = async () => {
+      // Si de nouvelles données sont passées via navigation (nouveau scan)
       if (location.state) {
         const { recommendations: aiRecommendations, menuText: scannedMenuText, source: scanSource } = location.state;
         
         if (aiRecommendations && aiRecommendations.length > 0) {
+          console.log('AI Recommendations received:', aiRecommendations);
           // Convertir le format OpenAI vers le format d'affichage
           const formattedRecommendations = aiRecommendations.map((dish, index) => ({
             id: index + 1,
             name: dish.title,
-            restaurant: 'Menu scanné',
-            price: dish.price ? `${dish.price.toFixed(2)}€` : 'Prix non indiqué',
+            restaurant: 'Scanned Menu',
+            price: dish.price ? `${dish.price.toFixed(2)}€` : 'Price not indicated',
             rating: 4.5 + (Math.random() * 0.5), // Rating aléatoire entre 4.5 et 5.0
             category: 'ai-recommendation',
             description: dish.description,
@@ -205,22 +311,27 @@ const Recommendations = () => {
             spiceTolerance: "medium"
           };
           
-          // Analyser les plats avec AI
+          // Analyser les plats avec AI et sauvegarder
           await analyzeDishes(formattedRecommendations, userProfile);
           
-          console.log('Recommandations reçues:', formattedRecommendations);
+          console.log('Nouvelles recommandations reçues et sauvegardées');
         }
       } else {
-        // Utiliser les recommandations par défaut si aucune donnée n'est passée
-        const userProfile = {
-          dietaryRestrictions: [],
-          budget: "medium",
-          cuisinePreferences: [],
-          allergies: [],
-          spiceTolerance: "medium"
-        };
+        // Aucune nouvelle donnée - essayer de charger depuis localStorage
+        console.log('No new scan data, checking localStorage...');
+        const loadedFromStorage = loadRecommendationsFromStorage();
         
-        await analyzeDishes(defaultRecommendations, userProfile);
+        if (loadedFromStorage) {
+          console.log('Successfully loaded recommendations from localStorage');
+        } else {
+          console.log('No data in localStorage, using default recommendations');
+          // Aucune donnée en localStorage - utiliser les recommandations par défaut
+          console.log('Default recommendations:', defaultRecommendations);
+          // Les recommandations par défaut ont déjà des scores AI, pas besoin de les analyser à nouveau
+          setRecommendations(defaultRecommendations);
+          setSource('default');
+          console.log('Set recommendations to default, count:', defaultRecommendations.length);
+        }
       }
     };
 
@@ -232,11 +343,11 @@ const Recommendations = () => {
     : recommendations.filter(item => item.category === selectedCategory);
 
   const categories = [
-    { id: 'all', name: 'Toutes', color: 'bg-gray-500' },
-    { id: 'healthy', name: 'Sain', color: 'bg-green-500' },
-    { id: 'vegetarian', name: 'Végétarien', color: 'bg-emerald-500' },
-    { id: 'classic', name: 'Classique', color: 'bg-blue-500' },
-    { id: 'ai-recommendation', name: 'IA', color: 'bg-purple-500' }
+    { id: 'all', name: 'All', color: 'bg-gray-500' },
+    { id: 'healthy', name: 'Healthy', color: 'bg-green-500' },
+    { id: 'vegetarian', name: 'Vegetarian', color: 'bg-emerald-500' },
+    { id: 'classic', name: 'Classic', color: 'bg-blue-500' },
+    { id: 'ai-recommendation', name: 'AI', color: 'bg-purple-500' }
   ];
 
   return (
@@ -245,8 +356,21 @@ const Recommendations = () => {
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
           {/* Header */}
           <div className="bg-gradient-to-r from-purple-600 to-pink-600 px-6 py-8">
-            <h1 className="text-3xl font-bold text-white">Recommandations</h1>
-            <p className="text-purple-100 mt-2">Découvrez nos suggestions personnalisées</p>
+            <div className="flex items-center justify-between">
+              <div>
+                            <h1 className="text-3xl font-bold text-white">Recommendations</h1>
+            <p className="text-purple-100 mt-2">Discover our personalized suggestions</p>
+              </div>
+                            {source === 'scan' && (
+                <button
+                  onClick={clearStoredRecommendations}
+                  className="bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                  title="Clear saved recommendations"
+                >
+                  🗑️ Clear
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Profile Completion Banner */}
@@ -285,7 +409,7 @@ const Recommendations = () => {
 
           {/* Filters */}
           <div className="p-6 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Filtrer par catégorie</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Filter by category</h2>
             <div className="flex flex-wrap gap-3">
               {categories.map((category) => (
                 <button
@@ -310,23 +434,64 @@ const Recommendations = () => {
               <div className="text-center py-8 mb-6">
                 <div className="inline-flex items-center space-x-3">
                   <div className="w-6 h-6 border-2 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
-                  <span className="text-purple-600 font-medium">Analyse des plats en cours...</span>
+                  <span className="text-purple-600 font-medium">Analyzing dishes...</span>
                 </div>
               </div>
             )}
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredRecommendations.map((item) => (
-                <div key={item.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden hover:shadow-lg transition-shadow">
+                <div key={item.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden hover:shadow-lg transition-shadow relative">
                   <div className="p-6">
-                    {/* Top section: Dish name + Price */}
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex-1">
-                        <h3 className="text-xl font-bold text-gray-900 mb-1">{item.name}</h3>
-                        <p className="text-sm text-gray-600">{item.restaurant}</p>
+                    {/* Error Banner - Display if there's an error */}
+                    {item.error && (
+                      <div className="mb-4">
+                        <div className="bg-red-500 text-white px-4 py-2 rounded-lg text-center">
+                          <div className="font-bold mb-1">⚠️ Error</div>
+                          <div className="text-sm">{item.error}</div>
+                        </div>
                       </div>
-                      <span className="text-lg font-bold text-green-600">{item.price}</span>
+                    )}
+                    
+                    {/* AI Score - Prominent display at the top (only if no error) */}
+                    {!item.error && item.aiScore !== undefined && (
+                      <div className="mb-4">
+                        <div className={`text-white px-4 py-2 rounded-lg text-lg font-bold text-center ${
+                          item.aiScore < 5 
+                            ? 'bg-red-500' 
+                            : item.aiScore <= 7 
+                              ? 'bg-orange-500' 
+                              : 'bg-green-500'
+                        }`}>
+                          AI Score: {item.aiScore.toFixed(1)}/10
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Dish name and restaurant */}
+                    <div className="mb-3">
+                      <h3 className="text-xl font-bold text-gray-900 mb-1">{item.name}</h3>
+                      <p className="text-sm text-gray-600">{item.restaurant}</p>
                     </div>
+                    
+                    {/* Calories - Clear display */}
+                    {item.calories !== undefined && (
+                      <div className="mb-4 text-center">
+                        <div className="text-2xl font-bold text-gray-900">
+                          {item.calories || 0} kcal
+                        </div>
+                        <div className="text-sm text-gray-600">Calories</div>
+                      </div>
+                    )}
+                    
+                    {/* Why this dish - shortJustification */}
+                    {item.shortJustification && (
+                      <div className="mb-4">
+                        <p className="text-sm text-gray-600 italic">
+                          "{item.shortJustification}"
+                        </p>
+                      </div>
+                    )}
                     
                     {/* Description */}
                     <p className="text-sm text-gray-700 mb-4">{item.description}</p>
@@ -343,49 +508,29 @@ const Recommendations = () => {
                       ))}
                     </div>
                     
-                    {/* Middle section: AI Score and Calories */}
-                    {item.aiScore !== undefined && (
-                      <div className="mb-4">
-                        <div className="text-center mb-3">
-                          <div className="text-2xl font-bold text-purple-600 mb-1">
-                            Score IA: {item.aiScore}/10
-                          </div>
-                          <div className="text-sm text-gray-600">
-                            Calories: {item.calories || 0} kcal
-                          </div>
-                        </div>
-                        
-                        {/* Bottom section: Macronutrients as colored tags */}
-                        <div className="flex flex-wrap gap-2 mb-4">
-                          <span className="px-3 py-1 bg-red-100 text-red-800 text-xs rounded-full font-medium">
-                            Protein: {item.protein || 0}g
-                          </span>
-                          <span className="px-3 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full font-medium">
-                            Carbs: {item.carbs || 0}g
-                          </span>
-                          <span className="px-3 py-1 bg-orange-100 text-orange-800 text-xs rounded-full font-medium">
-                            Fats: {item.fats || 0}g
-                          </span>
-                        </div>
-                        
-                        {/* Justification */}
-                        {item.shortJustification && (
-                          <div className="mb-4 p-3 bg-purple-50 rounded-lg">
-                            <p className="text-xs text-purple-700 italic">
-                              "{item.shortJustification}"
-                            </p>
-                          </div>
-                        )}
+                    {/* Macronutrients as colored pill tags */}
+                    {item.protein !== undefined && (
+                      <div className="flex flex-wrap gap-2 mb-4">
+                        <span className="px-3 py-1 bg-red-100 text-red-800 text-xs rounded-full font-medium">
+                          Protein: {item.protein || 0}g
+                        </span>
+                        <span className="px-3 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full font-medium">
+                          Carbs: {item.carbs || 0}g
+                        </span>
+                        <span className="px-3 py-1 bg-orange-100 text-orange-800 text-xs rounded-full font-medium">
+                          Fats: {item.fats || 0}g
+                        </span>
                       </div>
                     )}
                     
-                    {/* Bottom: Voir détails button */}
-                    <div className="flex justify-center">
+                    {/* Price and Voir détails button */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-lg font-bold text-green-600">{item.price}</span>
                       <button 
                         onClick={() => openModal(item)}
-                        className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg text-sm font-medium transition-colors"
+                        className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
                       >
-                        Voir détails
+                        View details
                       </button>
                     </div>
                   </div>
@@ -396,8 +541,8 @@ const Recommendations = () => {
             {filteredRecommendations.length === 0 && (
               <div className="text-center py-12">
                 <div className="text-6xl mb-4">🍽️</div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">Aucune recommandation trouvée</h3>
-                <p className="text-gray-600">Essayez de modifier vos filtres pour voir plus d'options</p>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">No recommendations found</h3>
+                <p className="text-gray-600">Try adjusting your filters to see more options</p>
               </div>
             )}
           </div>
