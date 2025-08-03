@@ -52,17 +52,24 @@ Otherwise, return a JSON object with exactly these fields:
     "carbs": integer (grams), 
     "fats": integer (grams)
   },
-  "shortJustification": "One sentence explaining why this dish was recommended",
+  "shortJustification": "Maximum 2 sentences in English, focusing on nutritional data and user preferences. Use ONLY real data: calories, macros, dietary preferences, allergies, constraints. Do NOT reference activity data, workouts, or energy expenditure. Examples: 'High in protein and fully plant-based, perfectly matching your vegan preference.' or 'Balanced meal with moderate carbs and healthy fats, great for a light lunch.'",
   "longJustification": [
-    "First bullet point about nutritional benefits",
-    "Second bullet point about user preference match",
-    "Third bullet point about health goals alignment"
+    "First bullet point about nutritional benefits (based on macros/calories)",
+    "Second bullet point about user preference match (dietary preferences/allergies)",
+    "Third bullet point about dietary constraints alignment (if applicable)"
   ]
 }
 
+IMPORTANT RULES FOR JUSTIFICATIONS:
+- Write in English only
+- Maximum 2 sentences for shortJustification
+- Use ONLY real data: dish nutritional info (calories, macros) and user profile (dietary preferences, allergies, constraints)
+- Do NOT invent or reference activity data, workouts, energy expenditure, or fitness goals
+- Be impactful and concise
+- Focus on what we actually know about the dish and user preferences
+
 Dish: ${menuText}
 
-Provide all analysis and explanations in English. Avoid French or other languages.
 Output ONLY the JSON response, nothing else.`;
 
     console.log('📤 Sending dish analysis request to OpenAI...');
@@ -74,7 +81,7 @@ Output ONLY the JSON response, nothing else.`;
       messages: [
         { 
           role: "system", 
-          content: "You are a nutrition expert that analyzes dishes for personalized recommendations. You must respond with ONLY valid JSON format. No additional text, commentary, or explanations outside the JSON. If analysis is not possible, return { \"error\": \"Unable to analyze\" }. Be precise with nutritional values and provide meaningful justifications. Provide all analysis and explanations in English only." 
+          content: "You are a nutrition expert that analyzes dishes for personalized recommendations. You must respond with ONLY valid JSON format. No additional text, commentary, or explanations outside the JSON. If analysis is not possible, return { \"error\": \"Unable to analyze\" }. Be precise with nutritional values and provide meaningful justifications. Write all justifications in English only, maximum 2 sentences, using ONLY real data (nutritional info and user preferences). Do NOT invent or reference activity data, workouts, or energy expenditure." 
         },
         { role: "user", content: prompt }
       ],
