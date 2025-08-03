@@ -147,23 +147,26 @@ const Recommendations = () => {
 
   // Fonction pour analyser les plats avec AI
   const analyzeDishes = async (dishes, userProfile) => {
-    console.log('Starting dish analysis for', dishes.length, 'dishes');
+    console.log('🔍 Starting dish analysis for', dishes.length, 'dishes');
+    console.log('📋 Dishes to analyze:', dishes);
+    console.log('👤 User profile:', userProfile);
     setIsAnalyzing(true);
     
     try {
       const analyzedDishes = await Promise.all(
-        dishes.map(async (dish) => {
+        dishes.map(async (dish, index) => {
           try {
-            console.log('Analyzing dish:', dish.name);
+            console.log(`🍽️ Analyzing dish ${index + 1}/${dishes.length}:`, dish.name);
             // Créer un texte de description pour l'analyse
             const dishText = `${dish.name}: ${dish.description}`;
+            console.log('📝 Dish text for analysis:', dishText);
             
             // Analyser le plat
             const analysis = await analyzeDish(dishText, userProfile);
-            console.log('Analysis result for', dish.name, ':', analysis);
+            console.log('✅ Analysis result for', dish.name, ':', analysis);
             
             // Retourner le plat avec les informations d'analyse
-            return {
+            const analyzedDish = {
               ...dish,
               aiScore: analysis.aiScore,
               calories: analysis.calories,
@@ -174,8 +177,11 @@ const Recommendations = () => {
               longJustification: analysis.longJustification,
               error: analysis.error // Inclure l'erreur si elle existe
             };
+            
+            console.log('🎯 Final analyzed dish:', analyzedDish);
+            return analyzedDish;
           } catch (error) {
-            console.error(`Error analyzing dish ${dish.name}:`, error);
+            console.error(`❌ Error analyzing dish ${dish.name}:`, error);
             // Retourner le plat sans analyse en cas d'erreur
             return {
               ...dish,
@@ -191,13 +197,13 @@ const Recommendations = () => {
         })
       );
       
+      console.log('🎉 All dishes analyzed successfully:', analyzedDishes);
       setRecommendations(analyzedDishes);
-      console.log('Plats analysés:', analyzedDishes);
       
       // Sauvegarder les recommandations analysées
       saveRecommendationsToStorage(analyzedDishes, menuText, source);
     } catch (error) {
-      console.error('Erreur lors de l\'analyse des plats:', error);
+      console.error('❌ Erreur lors de l\'analyse des plats:', error);
       setRecommendations(dishes); // Utiliser les plats non analysés
       
       // Sauvegarder même les plats non analysés

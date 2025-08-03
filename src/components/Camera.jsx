@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Webcam from 'react-webcam';
 import { getRecommendationsFromMenu, getDefaultUserProfile, getAdditionalRecommendations } from '../services/recommendations';
 import { extractMenuText } from '../services/visionService';
-import { getTopRecommendations } from '../../openai';
+import { getTopRecommendations } from '../../openai.js';
 
 const Camera = () => {
   const navigate = useNavigate();
