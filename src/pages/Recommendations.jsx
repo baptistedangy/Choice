@@ -516,6 +516,15 @@ const Recommendations = () => {
                             <div className="text-xs opacity-90 mb-1">AI SCORE</div>
                             <div className="text-xl">{item.aiScore.toFixed(1)}/10</div>
                           </div>
+                          
+                          {/* Justification directly under AI Score */}
+                          {item.shortJustification && (
+                            <div className="mt-3 text-center">
+                              <p className="text-xs italic text-gray-500 leading-relaxed line-clamp-2">
+                                "{item.shortJustification}"
+                              </p>
+                            </div>
+                          )}
                         </div>
                       )}
                       
@@ -563,14 +572,7 @@ const Recommendations = () => {
                         </div>
                       )}
                       
-                      {/* BOTTOM SECTION: Short justification (max 2 lines) */}
-                      {item.shortJustification && (
-                        <div className="mb-4">
-                          <p className="text-xs text-gray-600 italic leading-relaxed line-clamp-2">
-                            "{item.shortJustification}"
-                          </p>
-                        </div>
-                      )}
+
                       
                       {/* Additional info: Description and Tags */}
                       <div className="mb-4">
