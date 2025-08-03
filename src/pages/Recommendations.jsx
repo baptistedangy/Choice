@@ -482,20 +482,24 @@ const Recommendations = () => {
                 return (
                   <div 
                     key={item.id} 
-                    className={`bg-white border rounded-xl overflow-hidden hover:shadow-lg transition-all relative ${
+                    className={`bg-white border-2 rounded-2xl overflow-hidden hover:shadow-xl transition-all duration-300 relative ${
                       isFirstPlace 
-                        ? 'border-2 border-purple-500 shadow-xl scale-105' 
-                        : 'border-gray-200'
+                        ? 'border-green-500 shadow-2xl scale-110 transform' 
+                        : index === 1
+                        ? 'border-blue-300 shadow-lg scale-105 transform'
+                        : index === 2
+                        ? 'border-orange-300 shadow-md scale-102 transform'
+                        : 'border-gray-200 shadow-sm'
                     }`}
                   >
                     {/* Ranking Badge */}
                     {rankingBadge && (
                       <div className="absolute top-4 left-4 z-10">
-                        <div className="text-2xl drop-shadow-lg">{rankingBadge}</div>
+                        <div className="text-3xl drop-shadow-lg filter brightness-110">{rankingBadge}</div>
                       </div>
                     )}
-                  <div className="p-6">
-                    {/* Error Banner - Display if there's an error */}
+                                      <div className="p-8">
+                      {/* Error Banner - Display if there's an error */}
                     {item.error && (
                       <div className="mb-4">
                         <div className="bg-red-500 text-white px-4 py-2 rounded-lg text-center">
@@ -505,39 +509,42 @@ const Recommendations = () => {
                       </div>
                     )}
                     
-                    {/* AI Score - Prominent display at the top (only if no error) */}
+                    {/* AI Score - Enhanced prominent display at the top (only if no error) */}
                     {!item.error && item.aiScore !== undefined && (
-                      <div className="mb-4">
-                        <div className={`text-white px-4 py-2 rounded-lg text-lg font-bold text-center ${
+                      <div className="mb-6">
+                        <div className={`text-white px-6 py-3 rounded-xl text-xl font-bold text-center shadow-lg border-2 ${
                           item.aiScore < 5 
-                            ? 'bg-red-500' 
+                            ? 'bg-gradient-to-r from-red-500 to-red-600 border-red-400' 
                             : item.aiScore <= 7 
-                              ? 'bg-orange-500' 
-                              : 'bg-green-500'
+                              ? 'bg-gradient-to-r from-orange-500 to-orange-600 border-orange-400'
+                              : 'bg-gradient-to-r from-green-500 to-green-600 border-green-400'
                         }`}>
-                          AI Score: {item.aiScore.toFixed(1)}/10
+                          <div className="text-sm opacity-90 mb-1">AI SCORE</div>
+                          <div className="text-2xl">{item.aiScore.toFixed(1)}/10</div>
                         </div>
                       </div>
                     )}
                     
                     {/* Dish name and restaurant */}
-                    <div className="mb-3">
-                      <h3 className="text-xl font-bold text-gray-900 mb-1">{item.name}</h3>
-                      <p className="text-sm text-gray-600">{item.restaurant}</p>
+                    <div className="mb-4">
+                      <h3 className="text-2xl font-bold text-gray-900 mb-2">{item.name}</h3>
+                      <p className="text-sm text-gray-600 mb-2">{item.restaurant}</p>
                       {isFirstPlace && (
-                        <p className="text-xs text-purple-600 font-medium mt-1">
-                          Chosen as the best match for your profile & preferences.
-                        </p>
+                        <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-3">
+                          <p className="text-sm text-green-700 font-medium">
+                            🎯 Chosen as the best match for your profile & preferences.
+                          </p>
+                        </div>
                       )}
                     </div>
                     
-                    {/* Calories - Clear display */}
+                    {/* Calories - Enhanced display */}
                     {item.calories !== undefined && (
-                      <div className="mb-4 text-center">
-                        <div className="text-2xl font-bold text-gray-900">
-                          {item.calories || 0} kcal
+                      <div className="mb-6 text-center bg-gray-50 rounded-xl p-4">
+                        <div className="text-3xl font-bold text-gray-900">
+                          {item.calories || 0}
                         </div>
-                        <div className="text-sm text-gray-600">Calories</div>
+                        <div className="text-sm text-gray-600 font-medium">CALORIES</div>
                       </div>
                     )}
                     
@@ -565,27 +572,33 @@ const Recommendations = () => {
                       ))}
                     </div>
                     
-                    {/* Macronutrients as colored pill tags */}
+                    {/* Macronutrients as enhanced pill tags */}
                     {item.protein !== undefined && (
-                      <div className="flex flex-wrap gap-2 mb-4">
-                        <span className="px-3 py-1 bg-red-100 text-red-800 text-xs rounded-full font-medium">
-                          Protein: {item.protein || 0}g
-                        </span>
-                        <span className="px-3 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full font-medium">
-                          Carbs: {item.carbs || 0}g
-                        </span>
-                        <span className="px-3 py-1 bg-orange-100 text-orange-800 text-xs rounded-full font-medium">
-                          Fats: {item.fats || 0}g
-                        </span>
+                      <div className="grid grid-cols-3 gap-3 mb-6">
+                        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-center">
+                          <div className="text-lg font-bold text-red-700">{item.protein || 0}g</div>
+                          <div className="text-xs text-red-600 font-medium">PROTEIN</div>
+                        </div>
+                        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-center">
+                          <div className="text-lg font-bold text-yellow-700">{item.carbs || 0}g</div>
+                          <div className="text-xs text-yellow-600 font-medium">CARBS</div>
+                        </div>
+                        <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 text-center">
+                          <div className="text-lg font-bold text-orange-700">{item.fats || 0}g</div>
+                          <div className="text-xs text-orange-600 font-medium">FATS</div>
+                        </div>
                       </div>
                     )}
                     
-                    {/* Price and Voir détails button */}
-                    <div className="flex items-center justify-between">
-                      <span className="text-lg font-bold text-green-600">{item.price}</span>
+                    {/* Price and View details button */}
+                    <div className="flex items-center justify-between bg-gray-50 rounded-xl p-4">
+                      <div>
+                        <div className="text-sm text-gray-600 font-medium">PRICE</div>
+                        <div className="text-xl font-bold text-green-600">{item.price}</div>
+                      </div>
                       <button 
                         onClick={() => openModal(item)}
-                        className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                        className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white px-6 py-3 rounded-xl text-sm font-bold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
                       >
                         View details
                       </button>
