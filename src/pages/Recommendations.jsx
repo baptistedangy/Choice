@@ -480,87 +480,84 @@ const Recommendations = () => {
                 const rankingBadge = index < 3 ? ['🥇', '🥈', '🥉'][index] : null;
                 
                 return (
-                  <div 
-                    key={item.id} 
-                    className={`bg-white border-2 rounded-2xl overflow-hidden hover:shadow-xl transition-all duration-300 relative ${
-                      isFirstPlace 
-                        ? 'border-green-500 shadow-2xl scale-110 transform' 
-                        : index === 1
-                        ? 'border-blue-300 shadow-lg scale-105 transform'
-                        : index === 2
-                        ? 'border-orange-300 shadow-md scale-102 transform'
-                        : 'border-gray-200 shadow-sm'
-                    }`}
-                  >
-                                        <div className="p-8">
+                                  <div 
+                  key={item.id} 
+                  className={`bg-white border-2 rounded-xl overflow-hidden hover:shadow-lg transition-all duration-300 relative ${
+                    isFirstPlace 
+                      ? 'border-green-500 shadow-xl scale-105 transform' 
+                      : index === 1
+                      ? 'border-blue-300 shadow-md scale-102 transform'
+                      : index === 2
+                      ? 'border-orange-300 shadow-sm scale-101 transform'
+                      : 'border-gray-200 shadow-sm'
+                  }`}
+                >
+                                                            <div className="p-6">
                       {/* Error Banner - Display if there's an error */}
                       {item.error && (
-                        <div className="mb-4">
-                          <div className="bg-red-500 text-white px-4 py-2 rounded-lg text-center">
+                        <div className="mb-3">
+                          <div className="bg-red-500 text-white px-3 py-2 rounded-lg text-center">
                             <div className="font-bold mb-1">⚠️ Error</div>
                             <div className="text-sm">{item.error}</div>
                           </div>
                         </div>
                       )}
                       
-                      {/* TOP SECTION: Dish name, ranking badge, price */}
-                      <div className="flex items-start justify-between mb-6">
+                      {/* TOP SECTION: AI Score at the very top */}
+                      {!item.error && item.aiScore !== undefined && (
+                        <div className="mb-4">
+                          <div className={`text-white px-4 py-2 rounded-lg text-lg font-bold text-center shadow-md border ${
+                            item.aiScore < 5 
+                              ? 'bg-gradient-to-r from-red-500 to-red-600 border-red-400' 
+                              : item.aiScore <= 7 
+                                ? 'bg-gradient-to-r from-orange-500 to-orange-600 border-orange-400'
+                                : 'bg-gradient-to-r from-green-500 to-green-600 border-green-400'
+                          }`}>
+                            <div className="text-xs opacity-90 mb-1">AI SCORE</div>
+                            <div className="text-xl">{item.aiScore.toFixed(1)}/10</div>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Dish name, ranking badge, price */}
+                      <div className="flex items-start justify-between mb-4">
                         <div className="flex-1">
-                          <h3 className="text-2xl font-bold text-gray-900 mb-1">{item.name}</h3>
+                          <h3 className="text-xl font-bold text-gray-900 mb-1">{item.name}</h3>
                           <p className="text-sm text-gray-600">{item.restaurant}</p>
                         </div>
                         <div className="flex flex-col items-end space-y-2">
                           {/* Ranking Badge */}
                           {rankingBadge && (
-                            <div className="text-3xl drop-shadow-lg filter brightness-110">{rankingBadge}</div>
+                            <div className="text-2xl drop-shadow-lg filter brightness-110">{rankingBadge}</div>
                           )}
                           {/* Price */}
                           <div className="text-right">
-                            <div className="text-sm text-gray-600 font-medium">PRICE</div>
-                            <div className="text-xl font-bold text-green-600">{item.price}</div>
+                            <div className="text-xs text-gray-600 font-medium">PRICE</div>
+                            <div className="text-lg font-bold text-green-600">{item.price}</div>
                           </div>
                         </div>
                       </div>
-                    
-                                          {/* MIDDLE SECTION: AI Score and Calories */}
-                      <div className="mb-6">
-                        {/* AI Score - Enhanced prominent display (only if no error) */}
-                        {!item.error && item.aiScore !== undefined && (
-                          <div className="mb-4">
-                            <div className={`text-white px-6 py-3 rounded-xl text-xl font-bold text-center shadow-lg border-2 ${
-                              item.aiScore < 5 
-                                ? 'bg-gradient-to-r from-red-500 to-red-600 border-red-400' 
-                                : item.aiScore <= 7 
-                                  ? 'bg-gradient-to-r from-orange-500 to-orange-600 border-orange-400'
-                                  : 'bg-gradient-to-r from-green-500 to-green-600 border-green-400'
-                            }`}>
-                              <div className="text-sm opacity-90 mb-1">AI SCORE</div>
-                              <div className="text-2xl">{item.aiScore.toFixed(1)}/10</div>
-                            </div>
+                      
+                      {/* Calories */}
+                      {item.calories !== undefined && (
+                        <div className="text-center bg-gray-50 rounded-lg p-3 mb-4">
+                          <div className="text-2xl font-bold text-gray-900">
+                            {item.calories || 0}
                           </div>
-                        )}
-                        
-                        {/* Calories */}
-                        {item.calories !== undefined && (
-                          <div className="text-center bg-gray-50 rounded-xl p-4">
-                            <div className="text-3xl font-bold text-gray-900">
-                              {item.calories || 0}
-                            </div>
-                            <div className="text-sm text-gray-600 font-medium">CALORIES</div>
-                          </div>
-                        )}
-                      </div>
+                          <div className="text-xs text-gray-600 font-medium">CALORIES</div>
+                        </div>
+                      )}
                     
-                                          {/* MACRONUTRIENTS SECTION: Protein, Carbs, Fats as pills */}
+                                                                {/* MACRONUTRIENTS SECTION: Protein, Carbs, Fats as pills */}
                       {item.protein !== undefined && (
-                        <div className="flex flex-wrap gap-2 mb-6">
-                          <span className="px-4 py-2 bg-red-100 text-red-800 text-sm rounded-full font-medium border border-red-200">
+                        <div className="flex flex-wrap gap-2 mb-4">
+                          <span className="px-3 py-1 bg-red-100 text-red-800 text-xs rounded-full font-medium border border-red-200">
                             Protein: {item.protein || 0}g
                           </span>
-                          <span className="px-4 py-2 bg-yellow-100 text-yellow-800 text-sm rounded-full font-medium border border-yellow-200">
+                          <span className="px-3 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full font-medium border border-yellow-200">
                             Carbs: {item.carbs || 0}g
                           </span>
-                          <span className="px-4 py-2 bg-orange-100 text-orange-800 text-sm rounded-full font-medium border border-orange-200">
+                          <span className="px-3 py-1 bg-orange-100 text-orange-800 text-xs rounded-full font-medium border border-orange-200">
                             Fats: {item.fats || 0}g
                           </span>
                         </div>
@@ -568,17 +565,17 @@ const Recommendations = () => {
                       
                       {/* BOTTOM SECTION: Short justification (max 2 lines) */}
                       {item.shortJustification && (
-                        <div className="mb-6">
-                          <p className="text-sm text-gray-600 italic leading-relaxed line-clamp-2">
+                        <div className="mb-4">
+                          <p className="text-xs text-gray-600 italic leading-relaxed line-clamp-2">
                             "{item.shortJustification}"
                           </p>
                         </div>
                       )}
                       
                       {/* Additional info: Description and Tags */}
-                      <div className="mb-6">
-                        <p className="text-sm text-gray-700 mb-3">{item.description}</p>
-                        <div className="flex flex-wrap gap-2">
+                      <div className="mb-4">
+                        <p className="text-xs text-gray-700 mb-2">{item.description}</p>
+                        <div className="flex flex-wrap gap-1">
                           {item.tags.map((tag, index) => (
                             <span
                               key={index}
@@ -589,12 +586,12 @@ const Recommendations = () => {
                           ))}
                         </div>
                       </div>
-                    
-                                          {/* BOTTOM: View details button */}
+                      
+                      {/* BOTTOM: View details button */}
                       <div className="text-center">
                         <button 
                           onClick={() => openModal(item)}
-                          className="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white px-6 py-3 rounded-xl text-sm font-bold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+                          className="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105"
                         >
                           View details
                         </button>
