@@ -56,6 +56,11 @@ const Camera = () => {
       console.log('Extracted text length:', extractedText?.length);
       console.log('Extracted text preview:', extractedText?.substring(0, 200) + '...');
       console.log('Full extracted text:', extractedText);
+      console.log('Text quality check:');
+      console.log('- Contains numbers:', /\d/.test(extractedText));
+      console.log('- Contains currency symbols:', /[€$£¥]/.test(extractedText));
+      console.log('- Contains food words:', /(menu|plat|entrée|dessert|salade|viande|poisson|pasta|pizza)/i.test(extractedText));
+      console.log('- Contains prices:', /\d+[€$£¥]/.test(extractedText));
       console.log('=== END MENU TEXT ===');
       
       // Stocker le texte extrait

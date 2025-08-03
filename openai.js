@@ -7,6 +7,81 @@ const openai = new OpenAI({
 });
 
 /**
+ * Extrait des plats basiques du texte du menu quand l'IA ne peut pas analyser
+ * @param {string} menuText - Texte du menu
+ * @returns {Array} - Liste de plats basiques
+ */
+function extractBasicDishesFromText(menuText) {
+  if (!menuText) return [];
+  
+  const dishes = [];
+  const lines = menuText.split('\n').filter(line => line.trim());
+  
+  // Patterns pour détecter des plats
+  const dishPatterns = [
+    // Pattern: "Nom du plat - Prix€"
+    /^([^-€\d]+?)\s*[-–]\s*(\d+[€$£¥]?)/i,
+    // Pattern: "Nom du plat Prix€"
+    /^([^-€\d]+?)\s+(\d+[€$£¥]?)/i,
+    // Pattern: "- Nom du plat"
+    /^[-–]\s*([^-€\d]+?)(?:\s*[-–]\s*(\d+[€$£¥]?))?/i,
+    // Pattern: "Nom du plat: Description"
+    /^([^:]+?):\s*([^-€\d]+?)(?:\s*[-–]\s*(\d+[€$£¥]?))?/i
+  ];
+  
+  // Mots-clés pour identifier des plats
+  const foodKeywords = [
+    'salade', 'soupe', 'steak', 'poisson', 'poulet', 'veau', 'agneau',
+    'pasta', 'pâtes', 'risotto', 'pizza', 'burger', 'sandwich',
+    'crème', 'tarte', 'dessert', 'glace', 'gâteau', 'mousse',
+    'entrée', 'plat', 'dessert', 'fromage', 'charcuterie'
+  ];
+  
+  for (const line of lines) {
+    const trimmedLine = line.trim();
+    if (trimmedLine.length < 3) continue;
+    
+    // Vérifier si la ligne contient des mots-clés de nourriture
+    const hasFoodKeyword = foodKeywords.some(keyword => 
+      trimmedLine.toLowerCase().includes(keyword)
+    );
+    
+    if (hasFoodKeyword) {
+      // Essayer d'extraire le nom et le prix
+      let dishName = trimmedLine;
+      let price = null;
+      
+      for (const pattern of dishPatterns) {
+        const match = trimmedLine.match(pattern);
+        if (match) {
+          dishName = match[1]?.trim() || trimmedLine;
+          price = match[2] || match[3] || null;
+          break;
+        }
+      }
+      
+      // Nettoyer le nom du plat
+      dishName = dishName
+        .replace(/^[-–•]\s*/, '') // Enlever les tirets au début
+        .replace(/\s*[-–]\s*\d+[€$£¥]?\s*$/, '') // Enlever le prix à la fin
+        .trim();
+      
+      if (dishName.length > 2) {
+        dishes.push({
+          title: dishName,
+          description: `Extracted from menu: ${dishName}`,
+          tags: ["extracted", "basic"],
+          price: price
+        });
+      }
+    }
+  }
+  
+  // Limiter à 3 plats maximum
+  return dishes.slice(0, 3);
+}
+
+/**
  * Obtient les 3 meilleures recommandations de plats basées sur le menu et le profil utilisateur
  * @param {string} menuText - Texte extrait du menu
  * @param {Object} userProfile - Profil utilisateur avec préférences
@@ -56,7 +131,7 @@ User Profile:
 
 CRITICAL: You must respond with ONLY valid JSON. No additional text, commentary, or explanations outside the JSON.
 
-If analysis is not possible or the menu is unclear, respond with:
+If the menu text is unclear, incomplete, or contains no recognizable dishes, respond with:
 { "error": "Unable to analyze" }
 
 Otherwise, return exactly 3 dishes in this exact JSON format:
@@ -68,6 +143,8 @@ Otherwise, return exactly 3 dishes in this exact JSON format:
     "price": "price if mentioned"
   }
 ]
+
+IMPORTANT: Even if the menu text is partially unclear, try to identify any recognizable dishes. If you can identify at least one dish, return it with the best possible information.
 
 Provide all analysis and explanations in English. Avoid French or other languages.
 Output ONLY the JSON response, nothing else.`;
@@ -173,6 +250,15 @@ Output ONLY the JSON response, nothing else.`;
     // Vérifier si l'API a retourné une erreur
     if (typeof recommendations === 'object' && recommendations.error) {
       console.error('❌ API returned error:', recommendations.error);
+      
+      // Essayer d'extraire des plats basiques du texte même si l'IA ne peut pas analyser
+      const basicDishes = extractBasicDishesFromText(menuText);
+      
+      if (basicDishes.length > 0) {
+        console.log('🔄 Using basic dish extraction as fallback:', basicDishes);
+        return basicDishes;
+      }
+      
       return [
         {
           title: "Analysis Failed",
