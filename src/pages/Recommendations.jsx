@@ -492,117 +492,113 @@ const Recommendations = () => {
                         : 'border-gray-200 shadow-sm'
                     }`}
                   >
-                    {/* Ranking Badge */}
-                    {rankingBadge && (
-                      <div className="absolute top-4 left-4 z-10">
-                        <div className="text-3xl drop-shadow-lg filter brightness-110">{rankingBadge}</div>
-                      </div>
-                    )}
-                                      <div className="p-8">
+                                        <div className="p-8">
                       {/* Error Banner - Display if there's an error */}
-                    {item.error && (
-                      <div className="mb-4">
-                        <div className="bg-red-500 text-white px-4 py-2 rounded-lg text-center">
-                          <div className="font-bold mb-1">⚠️ Error</div>
-                          <div className="text-sm">{item.error}</div>
+                      {item.error && (
+                        <div className="mb-4">
+                          <div className="bg-red-500 text-white px-4 py-2 rounded-lg text-center">
+                            <div className="font-bold mb-1">⚠️ Error</div>
+                            <div className="text-sm">{item.error}</div>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* TOP SECTION: Dish name, ranking badge, price */}
+                      <div className="flex items-start justify-between mb-6">
+                        <div className="flex-1">
+                          <h3 className="text-2xl font-bold text-gray-900 mb-1">{item.name}</h3>
+                          <p className="text-sm text-gray-600">{item.restaurant}</p>
+                        </div>
+                        <div className="flex flex-col items-end space-y-2">
+                          {/* Ranking Badge */}
+                          {rankingBadge && (
+                            <div className="text-3xl drop-shadow-lg filter brightness-110">{rankingBadge}</div>
+                          )}
+                          {/* Price */}
+                          <div className="text-right">
+                            <div className="text-sm text-gray-600 font-medium">PRICE</div>
+                            <div className="text-xl font-bold text-green-600">{item.price}</div>
+                          </div>
                         </div>
                       </div>
-                    )}
                     
-                    {/* AI Score - Enhanced prominent display at the top (only if no error) */}
-                    {!item.error && item.aiScore !== undefined && (
+                                          {/* MIDDLE SECTION: AI Score and Calories */}
                       <div className="mb-6">
-                        <div className={`text-white px-6 py-3 rounded-xl text-xl font-bold text-center shadow-lg border-2 ${
-                          item.aiScore < 5 
-                            ? 'bg-gradient-to-r from-red-500 to-red-600 border-red-400' 
-                            : item.aiScore <= 7 
-                              ? 'bg-gradient-to-r from-orange-500 to-orange-600 border-orange-400'
-                              : 'bg-gradient-to-r from-green-500 to-green-600 border-green-400'
-                        }`}>
-                          <div className="text-sm opacity-90 mb-1">AI SCORE</div>
-                          <div className="text-2xl">{item.aiScore.toFixed(1)}/10</div>
-                        </div>
+                        {/* AI Score - Enhanced prominent display (only if no error) */}
+                        {!item.error && item.aiScore !== undefined && (
+                          <div className="mb-4">
+                            <div className={`text-white px-6 py-3 rounded-xl text-xl font-bold text-center shadow-lg border-2 ${
+                              item.aiScore < 5 
+                                ? 'bg-gradient-to-r from-red-500 to-red-600 border-red-400' 
+                                : item.aiScore <= 7 
+                                  ? 'bg-gradient-to-r from-orange-500 to-orange-600 border-orange-400'
+                                  : 'bg-gradient-to-r from-green-500 to-green-600 border-green-400'
+                            }`}>
+                              <div className="text-sm opacity-90 mb-1">AI SCORE</div>
+                              <div className="text-2xl">{item.aiScore.toFixed(1)}/10</div>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Calories */}
+                        {item.calories !== undefined && (
+                          <div className="text-center bg-gray-50 rounded-xl p-4">
+                            <div className="text-3xl font-bold text-gray-900">
+                              {item.calories || 0}
+                            </div>
+                            <div className="text-sm text-gray-600 font-medium">CALORIES</div>
+                          </div>
+                        )}
                       </div>
-                    )}
                     
-                    {/* Dish name and restaurant */}
-                    <div className="mb-4">
-                      <h3 className="text-2xl font-bold text-gray-900 mb-2">{item.name}</h3>
-                      <p className="text-sm text-gray-600 mb-2">{item.restaurant}</p>
-                      {isFirstPlace && (
-                        <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-3">
-                          <p className="text-sm text-green-700 font-medium">
-                            🎯 Chosen as the best match for your profile & preferences.
+                                          {/* MACRONUTRIENTS SECTION: Protein, Carbs, Fats as pills */}
+                      {item.protein !== undefined && (
+                        <div className="flex flex-wrap gap-2 mb-6">
+                          <span className="px-4 py-2 bg-red-100 text-red-800 text-sm rounded-full font-medium border border-red-200">
+                            Protein: {item.protein || 0}g
+                          </span>
+                          <span className="px-4 py-2 bg-yellow-100 text-yellow-800 text-sm rounded-full font-medium border border-yellow-200">
+                            Carbs: {item.carbs || 0}g
+                          </span>
+                          <span className="px-4 py-2 bg-orange-100 text-orange-800 text-sm rounded-full font-medium border border-orange-200">
+                            Fats: {item.fats || 0}g
+                          </span>
+                        </div>
+                      )}
+                      
+                      {/* BOTTOM SECTION: Short justification (max 2 lines) */}
+                      {item.shortJustification && (
+                        <div className="mb-6">
+                          <p className="text-sm text-gray-600 italic leading-relaxed line-clamp-2">
+                            "{item.shortJustification}"
                           </p>
                         </div>
                       )}
-                    </div>
-                    
-                    {/* Calories - Enhanced display */}
-                    {item.calories !== undefined && (
-                      <div className="mb-6 text-center bg-gray-50 rounded-xl p-4">
-                        <div className="text-3xl font-bold text-gray-900">
-                          {item.calories || 0}
+                      
+                      {/* Additional info: Description and Tags */}
+                      <div className="mb-6">
+                        <p className="text-sm text-gray-700 mb-3">{item.description}</p>
+                        <div className="flex flex-wrap gap-2">
+                          {item.tags.map((tag, index) => (
+                            <span
+                              key={index}
+                              className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"
+                            >
+                              {tag}
+                            </span>
+                          ))}
                         </div>
-                        <div className="text-sm text-gray-600 font-medium">CALORIES</div>
                       </div>
-                    )}
                     
-                    {/* Why this dish - shortJustification */}
-                    {item.shortJustification && (
-                      <div className="mb-4">
-                        <p className="text-sm text-gray-600 italic">
-                          "{item.shortJustification}"
-                        </p>
-                      </div>
-                    )}
-                    
-                    {/* Description */}
-                    <p className="text-sm text-gray-700 mb-4">{item.description}</p>
-                    
-                    {/* Tags */}
-                    <div className="flex flex-wrap gap-2 mb-4">
-                      {item.tags.map((tag, index) => (
-                        <span
-                          key={index}
-                          className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"
+                                          {/* BOTTOM: View details button */}
+                      <div className="text-center">
+                        <button 
+                          onClick={() => openModal(item)}
+                          className="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white px-6 py-3 rounded-xl text-sm font-bold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
                         >
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                    
-                    {/* Macronutrients as enhanced pill tags */}
-                    {item.protein !== undefined && (
-                      <div className="grid grid-cols-3 gap-3 mb-6">
-                        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-center">
-                          <div className="text-lg font-bold text-red-700">{item.protein || 0}g</div>
-                          <div className="text-xs text-red-600 font-medium">PROTEIN</div>
-                        </div>
-                        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-center">
-                          <div className="text-lg font-bold text-yellow-700">{item.carbs || 0}g</div>
-                          <div className="text-xs text-yellow-600 font-medium">CARBS</div>
-                        </div>
-                        <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 text-center">
-                          <div className="text-lg font-bold text-orange-700">{item.fats || 0}g</div>
-                          <div className="text-xs text-orange-600 font-medium">FATS</div>
-                        </div>
+                          View details
+                        </button>
                       </div>
-                    )}
-                    
-                    {/* Price and View details button */}
-                    <div className="flex items-center justify-between bg-gray-50 rounded-xl p-4">
-                      <div>
-                        <div className="text-sm text-gray-600 font-medium">PRICE</div>
-                        <div className="text-xl font-bold text-green-600">{item.price}</div>
-                      </div>
-                      <button 
-                        onClick={() => openModal(item)}
-                        className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white px-6 py-3 rounded-xl text-sm font-bold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
-                      >
-                        View details
-                      </button>
-                    </div>
                   </div>
                 </div>
               );
