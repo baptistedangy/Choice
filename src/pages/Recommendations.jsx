@@ -366,9 +366,16 @@ const Recommendations = () => {
     processRecommendations();
   }, [location.state]);
 
+  // Sort recommendations by AI score (descending) and add ranking
+  const sortedRecommendations = [...recommendations].sort((a, b) => {
+    const scoreA = a.aiScore || 0;
+    const scoreB = b.aiScore || 0;
+    return scoreB - scoreA;
+  });
+
   const filteredRecommendations = selectedCategory === 'all' 
-    ? recommendations 
-    : recommendations.filter(item => item.category === selectedCategory);
+    ? sortedRecommendations 
+    : sortedRecommendations.filter(item => item.category === selectedCategory);
 
   const categories = [
     { id: 'all', name: 'All', color: 'bg-gray-500' },
@@ -468,8 +475,25 @@ const Recommendations = () => {
             )}
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredRecommendations.map((item) => (
-                <div key={item.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden hover:shadow-lg transition-shadow relative">
+              {filteredRecommendations.map((item, index) => {
+                const isFirstPlace = index === 0;
+                const rankingBadge = index < 3 ? ['🥇', '🥈', '🥉'][index] : null;
+                
+                return (
+                  <div 
+                    key={item.id} 
+                    className={`bg-white border rounded-xl overflow-hidden hover:shadow-lg transition-all relative ${
+                      isFirstPlace 
+                        ? 'border-2 border-purple-500 shadow-xl scale-105' 
+                        : 'border-gray-200'
+                    }`}
+                  >
+                    {/* Ranking Badge */}
+                    {rankingBadge && (
+                      <div className="absolute top-4 left-4 z-10">
+                        <div className="text-2xl drop-shadow-lg">{rankingBadge}</div>
+                      </div>
+                    )}
                   <div className="p-6">
                     {/* Error Banner - Display if there's an error */}
                     {item.error && (
@@ -500,6 +524,11 @@ const Recommendations = () => {
                     <div className="mb-3">
                       <h3 className="text-xl font-bold text-gray-900 mb-1">{item.name}</h3>
                       <p className="text-sm text-gray-600">{item.restaurant}</p>
+                      {isFirstPlace && (
+                        <p className="text-xs text-purple-600 font-medium mt-1">
+                          Chosen as the best match for your profile & preferences.
+                        </p>
+                      )}
                     </div>
                     
                     {/* Calories - Clear display */}
@@ -563,7 +592,8 @@ const Recommendations = () => {
                     </div>
                   </div>
                 </div>
-              ))}
+              );
+              })}
             </div>
 
             {filteredRecommendations.length === 0 && (
