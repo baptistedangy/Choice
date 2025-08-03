@@ -518,13 +518,15 @@ const Recommendations = () => {
                           </div>
                           
                           {/* Justification directly under AI Score */}
-                          {item.shortJustification && (
-                            <div className="mt-3 text-center">
-                              <p className="text-xs italic text-gray-500 leading-relaxed line-clamp-2">
-                                "{item.shortJustification}"
-                              </p>
-                            </div>
-                          )}
+                          <div className="mt-3 text-center">
+                            <p className="text-xs italic text-gray-500 leading-relaxed line-clamp-2">
+                              {item.shortJustification ? (
+                                `"${item.shortJustification}"`
+                              ) : (
+                                "AI could not generate a personalized reason for this dish."
+                              )}
+                            </p>
+                          </div>
                         </div>
                       )}
                       
