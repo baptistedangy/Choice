@@ -121,6 +121,13 @@ const Recommendations = () => {
   const [selectedDish, setSelectedDish] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  // Log quand les recommandations changent
+  useEffect(() => {
+    console.log('🔄 Recommendations state changed:', recommendations.length, 'dishes');
+    console.log('🔄 Source state changed:', source);
+    console.log('🔄 Current recommendations:', recommendations);
+  }, [recommendations, source]);
+
   // Fonction pour vérifier si le profil étendu est complet
   const checkExtendedProfile = () => {
     try {
@@ -198,10 +205,13 @@ const Recommendations = () => {
       );
       
       console.log('🎉 All dishes analyzed successfully:', analyzedDishes);
+      console.log('💾 Setting recommendations state with:', analyzedDishes.length, 'dishes');
       setRecommendations(analyzedDishes);
       
       // Sauvegarder les recommandations analysées
+      console.log('💾 Saving to localStorage...');
       saveRecommendationsToStorage(analyzedDishes, menuText, source);
+      console.log('✅ Recommendations saved to localStorage');
     } catch (error) {
       console.error('❌ Erreur lors de l\'analyse des plats:', error);
       setRecommendations(dishes); // Utiliser les plats non analysés
@@ -279,8 +289,10 @@ const Recommendations = () => {
 
   // Récupérer les données passées via navigation et vérifier le profil étendu
   useEffect(() => {
-    console.log('Recommendations component mounted');
-    console.log('Location state:', location.state);
+    console.log('🎯 Recommendations component mounted');
+    console.log('📍 Location state:', location.state);
+    console.log('📍 Location state type:', typeof location.state);
+    console.log('📍 Location state keys:', location.state ? Object.keys(location.state) : 'null');
     
     // Vérifier le profil étendu
     checkExtendedProfile();
@@ -288,10 +300,15 @@ const Recommendations = () => {
     const processRecommendations = async () => {
       // Si de nouvelles données sont passées via navigation (nouveau scan)
       if (location.state) {
+        console.log('📥 Processing new scan data...');
         const { recommendations: aiRecommendations, menuText: scannedMenuText, source: scanSource } = location.state;
         
+        console.log('📋 AI Recommendations:', aiRecommendations);
+        console.log('📋 Menu Text:', scannedMenuText);
+        console.log('📋 Source:', scanSource);
+        
         if (aiRecommendations && aiRecommendations.length > 0) {
-          console.log('AI Recommendations received:', aiRecommendations);
+          console.log('✅ AI Recommendations received, count:', aiRecommendations.length);
           // Convertir le format OpenAI vers le format d'affichage
           const formattedRecommendations = aiRecommendations.map((dish, index) => ({
             id: index + 1,
@@ -304,6 +321,8 @@ const Recommendations = () => {
             image: '🤖',
             tags: dish.tags || []
           }));
+          
+          console.log('🔄 Formatted recommendations:', formattedRecommendations);
           
           setMenuText(scannedMenuText || '');
           setSource(scanSource || '');
@@ -318,25 +337,28 @@ const Recommendations = () => {
           };
           
           // Analyser les plats avec AI et sauvegarder
+          console.log('🔍 Starting dish analysis...');
           await analyzeDishes(formattedRecommendations, userProfile);
           
-          console.log('Nouvelles recommandations reçues et sauvegardées');
+          console.log('✅ Nouvelles recommandations reçues et sauvegardées');
+        } else {
+          console.log('❌ No AI recommendations in location state');
         }
       } else {
         // Aucune nouvelle donnée - essayer de charger depuis localStorage
-        console.log('No new scan data, checking localStorage...');
+        console.log('📂 No new scan data, checking localStorage...');
         const loadedFromStorage = loadRecommendationsFromStorage();
         
         if (loadedFromStorage) {
-          console.log('Successfully loaded recommendations from localStorage');
+          console.log('✅ Successfully loaded recommendations from localStorage');
         } else {
-          console.log('No data in localStorage, using default recommendations');
+          console.log('📋 No data in localStorage, using default recommendations');
           // Aucune donnée en localStorage - utiliser les recommandations par défaut
-          console.log('Default recommendations:', defaultRecommendations);
+          console.log('📋 Default recommendations:', defaultRecommendations);
           // Les recommandations par défaut ont déjà des scores AI, pas besoin de les analyser à nouveau
           setRecommendations(defaultRecommendations);
           setSource('default');
-          console.log('Set recommendations to default, count:', defaultRecommendations.length);
+          console.log('✅ Set recommendations to default, count:', defaultRecommendations.length);
         }
       }
     };
