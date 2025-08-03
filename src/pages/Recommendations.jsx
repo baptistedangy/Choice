@@ -314,7 +314,7 @@ const Recommendations = () => {
             id: index + 1,
             name: dish.title,
             restaurant: 'Scanned Menu',
-            price: dish.price ? `${dish.price.toFixed(2)}€` : 'Price not indicated',
+            price: dish.price && typeof dish.price === 'number' ? `${dish.price.toFixed(2)}€` : (dish.price || 'Price not indicated'),
             rating: 4.5 + (Math.random() * 0.5), // Rating aléatoire entre 4.5 et 5.0
             category: 'ai-recommendation',
             description: dish.description,

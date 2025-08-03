@@ -67,12 +67,12 @@ function extractBasicDishesFromText(menuText) {
         .trim();
       
       if (dishName.length > 2) {
-        dishes.push({
-          title: dishName,
-          description: `Extracted from menu: ${dishName}`,
-          tags: ["extracted", "basic"],
-          price: price
-        });
+                  dishes.push({
+            title: dishName,
+            description: `Extracted from menu: ${dishName}`,
+            tags: ["extracted", "basic"],
+            price: price || null
+          });
       }
     }
   }
