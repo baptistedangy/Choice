@@ -530,7 +530,7 @@ const Recommendations = () => {
                     {/* TOP SECTION: Vertically-stacked Personalized Match Score badge */}
                     {!item.error && item.aiScore !== undefined && (
                       <div className="mb-4">
-                        <div className="relative inline-block">
+                        <div className="relative inline-block z-10">
                           <div className="bg-green-500 text-white px-3 py-2 rounded-lg shadow-md">
                             <div className="flex flex-col items-center gap-0.5">
                               <div className="flex items-center gap-1">
@@ -548,7 +548,7 @@ const Recommendations = () => {
                               <div className="text-xl font-bold">{item.aiScore.toFixed(1)}/10</div>
                             </div>
                           </div>
-                          <div className={`absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3.5 py-2.5 bg-black text-white text-sm rounded-lg transition-opacity duration-150 pointer-events-none z-20 max-w-65 shadow-lg ${
+                          <div className={`absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3.5 py-2.5 bg-black text-white text-sm rounded-lg transition-opacity duration-150 pointer-events-none z-50 max-w-65 shadow-lg ${
                             tooltipVisible === item.id ? 'opacity-100' : 'opacity-0'
                           }`}>
                             <div className="text-center leading-relaxed">
