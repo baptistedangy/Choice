@@ -195,7 +195,7 @@ const Recommendations = () => {
   const [selectedDish, setSelectedDish] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [tooltipVisible, setTooltipVisible] = useState(null);
-  const tooltipRef = useRef(null);
+  const tooltipRefs = useRef({});
 
   // Log quand les recommandations changent
   useEffect(() => {
@@ -598,7 +598,7 @@ const Recommendations = () => {
                                 <span className="text-xs font-medium uppercase tracking-wide">Personalized Match Score</span>
                                 <div className="relative">
                                   <Info 
-                                    ref={tooltipRef}
+                                    ref={(el) => tooltipRefs.current[item.id] = el}
                                     size={14}
                                     className="text-white cursor-help hover:text-gray-200 transition-colors"
                                     onMouseEnter={() => setTooltipVisible(item.id)}
@@ -612,7 +612,7 @@ const Recommendations = () => {
                           </div>
                           <Tooltip 
                             isVisible={tooltipVisible === item.id}
-                            targetRef={tooltipRef}
+                            targetRef={{ current: tooltipRefs.current[item.id] }}
                           >
                             This score reflects how well this dish matches your dietary profile, preferences, and estimated nutritional needs.
                           </Tooltip>
