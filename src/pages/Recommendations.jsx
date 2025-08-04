@@ -527,35 +527,33 @@ const Recommendations = () => {
                       </div>
                     )}
                     
-                    {/* TOP SECTION: Personalized Match Score with label and info icon */}
+                    {/* TOP SECTION: Merged Personalized Match Score badge with info icon */}
                     {!item.error && item.aiScore !== undefined && (
                       <div className="mb-4">
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="text-sm font-medium text-gray-700">Personalized Match Score</span>
-                          <div className="relative" ref={tooltipRef}>
-                            <Info 
-                              size={16}
-                              className="text-gray-500 cursor-help hover:text-gray-700 transition-colors"
-                              onMouseEnter={() => setTooltipVisible(item.id)}
-                              onMouseLeave={() => setTooltipVisible(null)}
-                              onClick={() => setTooltipVisible(tooltipVisible === item.id ? null : item.id)}
-                            />
-                            <div className={`absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-100 text-gray-800 text-xs rounded-lg transition-opacity duration-200 pointer-events-none whitespace-nowrap z-20 max-w-xs ${
-                              tooltipVisible === item.id ? 'opacity-100' : 'opacity-0'
-                            }`}>
-                              This score reflects how well this dish matches your dietary profile, preferences, and nutritional needs.
-                              <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-100"></div>
+                        <div className="relative inline-block">
+                          <div className="bg-green-500 text-white px-3 py-3 rounded-lg shadow-md relative">
+                            <div className="text-center">
+                              <div className="text-xs font-bold mb-1">Personalized Match Score</div>
+                              <div className="text-xl font-bold">{item.aiScore.toFixed(1)}/10</div>
+                            </div>
+                            <div className="absolute top-2 right-2" ref={tooltipRef}>
+                              <Info 
+                                size={16}
+                                className="text-white cursor-help hover:text-gray-200 transition-colors"
+                                onMouseEnter={() => setTooltipVisible(item.id)}
+                                onMouseLeave={() => setTooltipVisible(null)}
+                                onClick={() => setTooltipVisible(tooltipVisible === item.id ? null : item.id)}
+                              />
                             </div>
                           </div>
-                        </div>
-                        <div className={`inline-block text-white px-4 py-2 rounded-full text-lg font-bold shadow-md ${
-                          item.aiScore < 5 
-                            ? 'bg-red-500' 
-                            : item.aiScore <= 7 
-                              ? 'bg-orange-500'
-                              : 'bg-green-500'
-                        }`}>
-                          {item.aiScore.toFixed(1)}/10
+                          <div className={`absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-2 bg-gray-800 text-white text-xs rounded-md transition-opacity duration-200 pointer-events-none z-20 max-w-60 ${
+                            tooltipVisible === item.id ? 'opacity-100' : 'opacity-0'
+                          }`}>
+                            <div className="text-center">
+                              This score reflects how well this dish matches your dietary profile, preferences, and nutritional needs.
+                            </div>
+                            <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
+                          </div>
                         </div>
                       </div>
                     )}
