@@ -503,9 +503,9 @@ const Recommendations = () => {
                         </div>
                       )}
                       
-                                          {/* TOP SECTION: AI Score pill in top-left */}
+                                                                {/* TOP SECTION: AI Score pill in top-left */}
                     {!item.error && item.aiScore !== undefined && (
-                      <div className="mb-4">
+                      <div className="mb-3">
                         <div className={`inline-block text-white px-3 py-1 rounded-full text-sm font-bold shadow-sm ${
                           item.aiScore < 5 
                             ? 'bg-red-500' 
@@ -520,12 +520,12 @@ const Recommendations = () => {
                     
                     {/* Dish name - immediately below AI Score */}
                     <div className="mb-3">
-                      <h3 className="text-2xl font-bold text-gray-900 mb-2">{item.name}</h3>
+                      <h3 className="text-2xl font-bold text-gray-900">{item.name}</h3>
                     </div>
                     
                     {/* Calories - below dish name */}
                     {item.calories !== undefined && (
-                      <div className="mb-4">
+                      <div className="mb-3">
                         <div className="text-xl font-bold text-gray-900">
                           {item.calories || 0} kcal
                         </div>
@@ -533,7 +533,7 @@ const Recommendations = () => {
                     )}
                     
                     {/* Justification */}
-                    <div className="mb-4">
+                    <div className="mb-3">
                       <p className="text-sm italic text-gray-500 leading-relaxed line-clamp-2">
                         {item.shortJustification ? (
                           `"${item.shortJustification}"`
@@ -544,7 +544,7 @@ const Recommendations = () => {
                     </div>
                     
                     {/* Price and ranking badge - right side */}
-                    <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-start justify-between mb-3">
                       <div className="flex-1">
                         <p className="text-sm text-gray-600">{item.restaurant}</p>
                       </div>
@@ -561,53 +561,51 @@ const Recommendations = () => {
                       </div>
                     </div>
                     
-                                                                {/* MACRONUTRIENTS SECTION: Horizontal line with icons */}
-                      {item.protein !== undefined && (
-                        <div className="flex gap-2 mb-4">
-                          <div className="flex-1 bg-red-50 rounded-lg px-3 py-2 text-center border border-red-100">
-                            <div className="text-sm mb-1">🥩</div>
-                            <div className="text-sm font-bold text-red-700">{item.protein || 0}g</div>
-                            <div className="text-xs text-red-600">Protein</div>
-                          </div>
-                          <div className="flex-1 bg-yellow-50 rounded-lg px-3 py-2 text-center border border-yellow-100">
-                            <div className="text-sm mb-1">🍞</div>
-                            <div className="text-sm font-bold text-yellow-700">{item.carbs || 0}g</div>
-                            <div className="text-xs text-yellow-600">Carbs</div>
-                          </div>
-                          <div className="flex-1 bg-orange-50 rounded-lg px-3 py-2 text-center border border-orange-100">
-                            <div className="text-sm mb-1">🥑</div>
-                            <div className="text-sm font-bold text-orange-700">{item.fats || 0}g</div>
-                            <div className="text-xs text-orange-600">Fats</div>
-                          </div>
+                    {/* MACRONUTRIENTS SECTION: Horizontal line with icons */}
+                    {item.protein !== undefined && (
+                      <div className="flex gap-2 mb-3">
+                        <div className="flex-1 bg-red-50 rounded-lg px-3 py-2 text-center border border-red-100">
+                          <div className="text-sm mb-1">🥩</div>
+                          <div className="text-sm font-bold text-red-700">{item.protein || 0}g</div>
+                          <div className="text-xs text-red-600">Protein</div>
                         </div>
-                      )}
-                      
-
-                      
-                      {/* Additional info: Description and Tags */}
-                      <div className="mb-4">
-                        <p className="text-xs text-gray-700 mb-2">{item.description}</p>
-                        <div className="flex flex-wrap gap-1">
-                          {item.tags.map((tag, index) => (
-                            <span
-                              key={index}
-                              className="px-1.5 py-0.5 bg-blue-50 text-blue-600 text-xs rounded-md"
-                            >
-                              {tag}
-                            </span>
-                          ))}
+                        <div className="flex-1 bg-yellow-50 rounded-lg px-3 py-2 text-center border border-yellow-100">
+                          <div className="text-sm mb-1">🍞</div>
+                          <div className="text-sm font-bold text-yellow-700">{item.carbs || 0}g</div>
+                          <div className="text-xs text-yellow-600">Carbs</div>
+                        </div>
+                        <div className="flex-1 bg-orange-50 rounded-lg px-3 py-2 text-center border border-orange-100">
+                          <div className="text-sm mb-1">🥑</div>
+                          <div className="text-sm font-bold text-orange-700">{item.fats || 0}g</div>
+                          <div className="text-xs text-orange-600">Fats</div>
                         </div>
                       </div>
-                      
-                      {/* BOTTOM: View details button */}
-                      <div className="text-center">
-                        <button 
-                          onClick={() => openModal(item)}
-                          className="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105"
-                        >
-                          View details
-                        </button>
+                    )}
+                    
+                    {/* Additional info: Description and Tags */}
+                    <div className="mb-4">
+                      <p className="text-xs text-gray-700 mb-2">{item.description}</p>
+                      <div className="flex flex-wrap gap-1">
+                        {item.tags.map((tag, index) => (
+                          <span
+                            key={index}
+                            className="px-1.5 py-0.5 bg-blue-50 text-blue-600 text-xs rounded-md"
+                          >
+                            {tag}
+                          </span>
+                        ))}
                       </div>
+                    </div>
+                    
+                    {/* BOTTOM: View details button */}
+                    <div>
+                      <button 
+                        onClick={() => openModal(item)}
+                        className="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105"
+                      >
+                        View details
+                      </button>
+                    </div>
                   </div>
                 </div>
               );
