@@ -591,7 +591,7 @@ const Recommendations = () => {
                           {item.tags.map((tag, index) => (
                             <span
                               key={index}
-                              className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"
+                              className="px-1.5 py-0.5 bg-blue-50 text-blue-600 text-xs rounded-md"
                             >
                               {tag}
                             </span>
