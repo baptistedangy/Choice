@@ -480,7 +480,7 @@ const Recommendations = () => {
                 const rankingBadge = index < 3 ? ['🥇', '🥈', '🥉'][index] : null;
                 
                 return (
-                                  <div 
+                                                    <div 
                   key={item.id} 
                   className={`bg-white border-2 rounded-xl overflow-hidden hover:shadow-lg transition-all duration-300 relative ${
                     isFirstPlace 
@@ -492,21 +492,28 @@ const Recommendations = () => {
                       : 'border-gray-200 shadow-sm'
                   }`}
                 >
-                                                            <div className="p-6">
-                      {/* Error Banner - Display if there's an error */}
-                      {item.error && (
-                        <div className="mb-3">
-                          <div className="bg-red-500 text-white px-3 py-2 rounded-lg text-center">
-                            <div className="font-bold mb-1">⚠️ Error</div>
-                            <div className="text-sm">{item.error}</div>
-                          </div>
+                  {/* Big Podium Badge - Top Right */}
+                  {rankingBadge && (
+                    <div className="absolute top-4 right-4 z-10">
+                      <div className="text-3xl drop-shadow-lg filter brightness-110">{rankingBadge}</div>
+                    </div>
+                  )}
+                  
+                  <div className="p-8">
+                    {/* Error Banner - Display if there's an error */}
+                    {item.error && (
+                      <div className="mb-4">
+                        <div className="bg-red-500 text-white px-4 py-2 rounded-lg text-center">
+                          <div className="font-bold mb-1">⚠️ Error</div>
+                          <div className="text-sm">{item.error}</div>
                         </div>
-                      )}
-                      
-                                                                {/* TOP SECTION: AI Score pill in top-left */}
+                      </div>
+                    )}
+                    
+                    {/* TOP SECTION: Large AI Score pill at top-left */}
                     {!item.error && item.aiScore !== undefined && (
-                      <div className="mb-3">
-                        <div className={`inline-block text-white px-3 py-1 rounded-full text-sm font-bold shadow-sm ${
+                      <div className="mb-4">
+                        <div className={`inline-block text-white px-4 py-2 rounded-full text-lg font-bold shadow-md ${
                           item.aiScore < 5 
                             ? 'bg-red-500' 
                             : item.aiScore <= 7 
@@ -519,82 +526,69 @@ const Recommendations = () => {
                     )}
                     
                     {/* Dish name - immediately below AI Score */}
-                    <div className="mb-3">
+                    <div className="mb-4">
                       <h3 className="text-2xl font-bold text-gray-900">{item.name}</h3>
                     </div>
                     
                     {/* Calories - below dish name */}
                     {item.calories !== undefined && (
-                      <div className="mb-3">
+                      <div className="mb-4">
                         <div className="text-xl font-bold text-gray-900">
                           {item.calories || 0} kcal
                         </div>
                       </div>
                     )}
                     
-                    {/* Justification */}
-                    <div className="mb-3">
-                      <p className="text-sm italic text-gray-500 leading-relaxed line-clamp-2">
+                    {/* Price - below calories (only if exists) */}
+                    {item.price && item.price !== 'Price not indicated' && (
+                      <div className="mb-4">
+                        <div className="text-lg font-bold text-green-600">
+                          {item.price}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* MACRONUTRIENTS SECTION: Pills with icons */}
+                    {item.protein !== undefined && (
+                      <div className="flex gap-3 mb-6">
+                        <div className="bg-red-100 rounded-full px-4 py-2 flex items-center gap-2">
+                          <span className="text-sm">🥩</span>
+                          <span className="text-sm font-bold text-red-700">{item.protein || 0}g</span>
+                        </div>
+                        <div className="bg-yellow-100 rounded-full px-4 py-2 flex items-center gap-2">
+                          <span className="text-sm">🍞</span>
+                          <span className="text-sm font-bold text-yellow-700">{item.carbs || 0}g</span>
+                        </div>
+                        <div className="bg-orange-100 rounded-full px-4 py-2 flex items-center gap-2">
+                          <span className="text-sm">🥑</span>
+                          <span className="text-sm font-bold text-orange-700">{item.fats || 0}g</span>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Tags - before button */}
+                    <div className="mb-4">
+                      <div className="flex flex-wrap gap-2">
+                        {item.tags.map((tag, index) => (
+                          <span
+                            key={index}
+                            className="px-2 py-1 bg-blue-50 text-blue-600 text-xs rounded-full"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    {/* Justification - at bottom, smaller and lighter */}
+                    <div className="mb-4">
+                      <p className="text-xs italic text-gray-400 leading-relaxed line-clamp-2">
                         {item.shortJustification ? (
                           `"${item.shortJustification}"`
                         ) : (
                           "AI could not generate a personalized reason for this dish."
                         )}
                       </p>
-                    </div>
-                    
-                    {/* Price and ranking badge - right side */}
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1">
-                        <p className="text-sm text-gray-600">{item.restaurant}</p>
-                      </div>
-                      <div className="flex flex-col items-end space-y-2">
-                        {/* Ranking Badge */}
-                        {rankingBadge && (
-                          <div className="text-2xl drop-shadow-lg filter brightness-110">{rankingBadge}</div>
-                        )}
-                        {/* Price */}
-                        <div className="text-right">
-                          <div className="text-xs text-gray-600 font-medium">PRICE</div>
-                          <div className="text-lg font-bold text-green-600">{item.price}</div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* MACRONUTRIENTS SECTION: Horizontal line with icons */}
-                    {item.protein !== undefined && (
-                      <div className="flex gap-2 mb-3">
-                        <div className="flex-1 bg-red-50 rounded-lg px-3 py-2 text-center border border-red-100">
-                          <div className="text-sm mb-1">🥩</div>
-                          <div className="text-sm font-bold text-red-700">{item.protein || 0}g</div>
-                          <div className="text-xs text-red-600">Protein</div>
-                        </div>
-                        <div className="flex-1 bg-yellow-50 rounded-lg px-3 py-2 text-center border border-yellow-100">
-                          <div className="text-sm mb-1">🍞</div>
-                          <div className="text-sm font-bold text-yellow-700">{item.carbs || 0}g</div>
-                          <div className="text-xs text-yellow-600">Carbs</div>
-                        </div>
-                        <div className="flex-1 bg-orange-50 rounded-lg px-3 py-2 text-center border border-orange-100">
-                          <div className="text-sm mb-1">🥑</div>
-                          <div className="text-sm font-bold text-orange-700">{item.fats || 0}g</div>
-                          <div className="text-xs text-orange-600">Fats</div>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {/* Additional info: Description and Tags */}
-                    <div className="mb-4">
-                      <p className="text-xs text-gray-700 mb-2">{item.description}</p>
-                      <div className="flex flex-wrap gap-1">
-                        {item.tags.map((tag, index) => (
-                          <span
-                            key={index}
-                            className="px-1.5 py-0.5 bg-blue-50 text-blue-600 text-xs rounded-md"
-                          >
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
                     </div>
                     
                     {/* BOTTOM: View details button */}
@@ -606,6 +600,7 @@ const Recommendations = () => {
                         View details
                       </button>
                     </div>
+                  </div>
                   </div>
                 </div>
               );
