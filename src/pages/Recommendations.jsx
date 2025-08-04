@@ -570,12 +570,19 @@ const Recommendations = () => {
                       : 'border-gray-200 shadow-sm'
                   }`}
                 >
-                  {/* Big Podium Badge - Top Right */}
-                  {rankingBadge && (
-                    <div className="absolute top-4 right-4 z-10">
+                  {/* Top Right Section: Podium Badge and Price */}
+                  <div className="absolute top-4 right-4 z-10 flex flex-col items-end gap-2">
+                    {/* Price Badge */}
+                    {item.price && item.price !== 'Price not indicated' && (
+                      <div className="bg-green-500 text-white px-3 py-1.5 rounded-lg shadow-md">
+                        <span className="text-sm font-bold">{item.price}</span>
+                      </div>
+                    )}
+                    {/* Podium Badge */}
+                    {rankingBadge && (
                       <div className="text-3xl drop-shadow-lg filter brightness-110">{rankingBadge}</div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                   
                   <div className="p-8 flex flex-col h-full">
                     {/* Error Banner - Display if there's an error */}
@@ -634,14 +641,7 @@ const Recommendations = () => {
                       </div>
                     )}
                     
-                    {/* Price - below calories (only if exists) */}
-                    {item.price && item.price !== 'Price not indicated' && (
-                      <div className="mb-4">
-                        <div className="text-lg font-bold text-green-600">
-                          {item.price}
-                        </div>
-                      </div>
-                    )}
+
                     
                     {/* MACRONUTRIENTS SECTION: Pills with icons */}
                     {item.protein !== undefined && (
