@@ -503,61 +503,63 @@ const Recommendations = () => {
                         </div>
                       )}
                       
-                      {/* TOP SECTION: AI Score at the very top */}
-                      {!item.error && item.aiScore !== undefined && (
-                        <div className="mb-4">
-                          <div className={`text-white px-4 py-2 rounded-lg text-lg font-bold text-center shadow-md border ${
-                            item.aiScore < 5 
-                              ? 'bg-gradient-to-r from-red-500 to-red-600 border-red-400' 
-                              : item.aiScore <= 7 
-                                ? 'bg-gradient-to-r from-orange-500 to-orange-600 border-orange-400'
-                                : 'bg-gradient-to-r from-green-500 to-green-600 border-green-400'
-                          }`}>
-                            <div className="text-xs opacity-90 mb-1">AI SCORE</div>
-                            <div className="text-xl">{item.aiScore.toFixed(1)}/10</div>
-                          </div>
-                          
-                          {/* Justification directly under AI Score */}
-                          <div className="mt-3 text-center">
-                            <p className="text-xs italic text-gray-500 leading-relaxed line-clamp-2">
-                              {item.shortJustification ? (
-                                `"${item.shortJustification}"`
-                              ) : (
-                                "AI could not generate a personalized reason for this dish."
-                              )}
-                            </p>
-                          </div>
-                        </div>
-                      )}
-                      
-                      {/* Dish name, ranking badge, price */}
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex-1">
-                          <h3 className="text-xl font-bold text-gray-900 mb-1">{item.name}</h3>
-                          <p className="text-sm text-gray-600">{item.restaurant}</p>
-                        </div>
-                        <div className="flex flex-col items-end space-y-2">
-                          {/* Ranking Badge */}
-                          {rankingBadge && (
-                            <div className="text-2xl drop-shadow-lg filter brightness-110">{rankingBadge}</div>
-                          )}
-                          {/* Price */}
-                          <div className="text-right">
-                            <div className="text-xs text-gray-600 font-medium">PRICE</div>
-                            <div className="text-lg font-bold text-green-600">{item.price}</div>
-                          </div>
+                                          {/* TOP SECTION: AI Score pill in top-left */}
+                    {!item.error && item.aiScore !== undefined && (
+                      <div className="mb-4">
+                        <div className={`inline-block text-white px-3 py-1 rounded-full text-sm font-bold shadow-sm ${
+                          item.aiScore < 5 
+                            ? 'bg-red-500' 
+                            : item.aiScore <= 7 
+                              ? 'bg-orange-500'
+                              : 'bg-green-500'
+                        }`}>
+                          {item.aiScore.toFixed(1)}/10
                         </div>
                       </div>
-                      
-                      {/* Calories */}
-                      {item.calories !== undefined && (
-                        <div className="text-center bg-gray-50 rounded-lg p-3 mb-4">
-                          <div className="text-2xl font-bold text-gray-900">
-                            {item.calories || 0}
-                          </div>
-                          <div className="text-xs text-gray-600 font-medium">CALORIES</div>
+                    )}
+                    
+                    {/* Dish name - immediately below AI Score */}
+                    <div className="mb-3">
+                      <h3 className="text-2xl font-bold text-gray-900 mb-2">{item.name}</h3>
+                    </div>
+                    
+                    {/* Calories - below dish name */}
+                    {item.calories !== undefined && (
+                      <div className="mb-4">
+                        <div className="text-xl font-bold text-gray-900">
+                          {item.calories || 0} kcal
                         </div>
-                      )}
+                      </div>
+                    )}
+                    
+                    {/* Justification */}
+                    <div className="mb-4">
+                      <p className="text-sm italic text-gray-500 leading-relaxed line-clamp-2">
+                        {item.shortJustification ? (
+                          `"${item.shortJustification}"`
+                        ) : (
+                          "AI could not generate a personalized reason for this dish."
+                        )}
+                      </p>
+                    </div>
+                    
+                    {/* Price and ranking badge - right side */}
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex-1">
+                        <p className="text-sm text-gray-600">{item.restaurant}</p>
+                      </div>
+                      <div className="flex flex-col items-end space-y-2">
+                        {/* Ranking Badge */}
+                        {rankingBadge && (
+                          <div className="text-2xl drop-shadow-lg filter brightness-110">{rankingBadge}</div>
+                        )}
+                        {/* Price */}
+                        <div className="text-right">
+                          <div className="text-xs text-gray-600 font-medium">PRICE</div>
+                          <div className="text-lg font-bold text-green-600">{item.price}</div>
+                        </div>
+                      </div>
+                    </div>
                     
                                                                 {/* MACRONUTRIENTS SECTION: Protein, Carbs, Fats as pills */}
                       {item.protein !== undefined && (
