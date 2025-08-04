@@ -548,13 +548,13 @@ const Recommendations = () => {
                               <div className="text-xl font-bold">{item.aiScore.toFixed(1)}/10</div>
                             </div>
                           </div>
-                          <div className={`absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3.5 py-2.5 bg-black text-white text-sm rounded-lg transition-opacity duration-150 pointer-events-none z-50 max-w-65 shadow-lg ${
+                          <div className={`absolute bottom-full right-0 mb-2 px-3.5 py-2.5 bg-black text-white text-sm rounded-lg transition-opacity duration-150 pointer-events-none z-50 max-w-80 shadow-lg ${
                             tooltipVisible === item.id ? 'opacity-100' : 'opacity-0'
                           }`}>
                             <div className="text-center leading-relaxed">
                               This score reflects how well this dish matches your dietary profile, preferences, and estimated nutritional needs.
                             </div>
-                            <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-black"></div>
+                            <div className="absolute top-full right-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-black"></div>
                           </div>
                         </div>
                       </div>
