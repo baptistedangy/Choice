@@ -3,6 +3,79 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Info } from 'lucide-react';
 import { analyzeDish } from '../dishAnalysis';
 import DishDetailsModal from '../components/DishDetailsModal';
+import { createPortal } from 'react-dom';
+
+// Tooltip Component using Portal
+const Tooltip = ({ isVisible, targetRef, children }) => {
+  const [position, setPosition] = useState({ top: 0, left: 0, placement: 'top' });
+
+  useEffect(() => {
+    if (isVisible && targetRef.current) {
+      const rect = targetRef.current.getBoundingClientRect();
+      const tooltipWidth = 260; // max-width of tooltip
+      const tooltipHeight = 80; // estimated height
+      const offset = 8;
+      
+      // Calculate available space
+      const spaceAbove = rect.top;
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceLeft = rect.left;
+      const spaceRight = window.innerWidth - rect.right;
+      
+      // Determine placement
+      let placement = 'top';
+      if (spaceAbove < tooltipHeight + offset && spaceBelow > tooltipHeight + offset) {
+        placement = 'bottom';
+      }
+      
+      // Calculate horizontal position
+      let left = rect.left + (rect.width / 2) - (tooltipWidth / 2);
+      if (left < 10) left = 10;
+      if (left + tooltipWidth > window.innerWidth - 10) {
+        left = window.innerWidth - tooltipWidth - 10;
+      }
+      
+      // Calculate vertical position
+      let top;
+      if (placement === 'top') {
+        top = rect.top - tooltipHeight - offset;
+      } else {
+        top = rect.bottom + offset;
+      }
+      
+      setPosition({ top, left, placement });
+    }
+  }, [isVisible, targetRef]);
+
+  if (!isVisible) return null;
+
+  return createPortal(
+    <div
+      className="fixed z-[9999] pointer-events-none"
+      style={{
+        top: position.top,
+        left: position.left,
+        maxWidth: '260px'
+      }}
+    >
+      <div className="bg-black text-white px-3.5 py-2.5 rounded-lg shadow-lg text-sm leading-relaxed">
+        {children}
+        <div 
+          className={`absolute w-0 h-0 border-l-4 border-r-4 border-transparent ${
+            position.placement === 'top' 
+              ? 'top-full border-t-4 border-t-black' 
+              : 'bottom-full border-b-4 border-b-black'
+          }`}
+          style={{
+            left: '50%',
+            transform: 'translateX(-50%)'
+          }}
+        />
+      </div>
+    </div>,
+    document.body
+  );
+};
 
 const Recommendations = () => {
   // Default recommendations (fallback)
@@ -290,19 +363,7 @@ const Recommendations = () => {
     }
   };
 
-  // Handle clicks outside tooltip
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (tooltipRef.current && !tooltipRef.current.contains(event.target)) {
-        setTooltipVisible(null);
-      }
-    };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
 
   // Récupérer les données passées via navigation et vérifier le profil étendu
   useEffect(() => {
@@ -530,13 +591,14 @@ const Recommendations = () => {
                     {/* TOP SECTION: Vertically-stacked Personalized Match Score badge */}
                     {!item.error && item.aiScore !== undefined && (
                       <div className="mb-4">
-                        <div className="relative inline-block z-50">
+                        <div className="relative inline-block">
                           <div className="bg-green-500 text-white px-3 py-2 rounded-lg shadow-md">
                             <div className="flex flex-col items-center gap-0.5">
                               <div className="flex items-center gap-1">
                                 <span className="text-xs font-medium uppercase tracking-wide">Personalized Match Score</span>
-                                <div className="relative" ref={tooltipRef}>
+                                <div className="relative">
                                   <Info 
+                                    ref={tooltipRef}
                                     size={14}
                                     className="text-white cursor-help hover:text-gray-200 transition-colors"
                                     onMouseEnter={() => setTooltipVisible(item.id)}
@@ -548,14 +610,12 @@ const Recommendations = () => {
                               <div className="text-xl font-bold">{item.aiScore.toFixed(1)}/10</div>
                             </div>
                           </div>
-                          <div className={`absolute bottom-full right-0 mb-2 px-3.5 py-2.5 bg-black text-white text-sm rounded-lg transition-opacity duration-150 pointer-events-none z-[9999] max-w-80 shadow-lg ${
-                            tooltipVisible === item.id ? 'opacity-100' : 'opacity-0'
-                          }`}>
-                            <div className="text-center leading-relaxed">
-                              This score reflects how well this dish matches your dietary profile, preferences, and estimated nutritional needs.
-                            </div>
-                            <div className="absolute top-full right-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-black"></div>
-                          </div>
+                          <Tooltip 
+                            isVisible={tooltipVisible === item.id}
+                            targetRef={tooltipRef}
+                          >
+                            This score reflects how well this dish matches your dietary profile, preferences, and estimated nutritional needs.
+                          </Tooltip>
                         </div>
                       </div>
                     )}
