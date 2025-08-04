@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { Info } from 'lucide-react';
 import { analyzeDish } from '../dishAnalysis';
 import DishDetailsModal from '../components/DishDetailsModal';
 
@@ -121,6 +122,7 @@ const Recommendations = () => {
   const [selectedDish, setSelectedDish] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [tooltipVisible, setTooltipVisible] = useState(null);
+  const tooltipRef = useRef(null);
 
   // Log quand les recommandations changent
   useEffect(() => {
@@ -287,6 +289,20 @@ const Recommendations = () => {
       console.error('Erreur lors de la suppression des recommandations:', error);
     }
   };
+
+  // Handle clicks outside tooltip
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (tooltipRef.current && !tooltipRef.current.contains(event.target)) {
+        setTooltipVisible(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   // Récupérer les données passées via navigation et vérifier le profil étendu
   useEffect(() => {
@@ -511,35 +527,35 @@ const Recommendations = () => {
                       </div>
                     )}
                     
-                    {/* TOP SECTION: Large Personalized Match Score pill at top-left */}
+                    {/* TOP SECTION: Personalized Match Score with label and info icon */}
                     {!item.error && item.aiScore !== undefined && (
                       <div className="mb-4">
-                        <div className="flex items-center gap-2">
-                          <div className={`inline-block text-white px-4 py-2 rounded-full text-lg font-bold shadow-md ${
-                            item.aiScore < 5 
-                              ? 'bg-red-500' 
-                              : item.aiScore <= 7 
-                                ? 'bg-orange-500'
-                                : 'bg-green-500'
-                          }`}>
-                            {item.aiScore.toFixed(1)}/10
-                          </div>
-                          <div className="relative">
-                            <span 
-                              className="text-gray-500 cursor-help text-lg"
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-sm font-medium text-gray-700">Personalized Match Score</span>
+                          <div className="relative" ref={tooltipRef}>
+                            <Info 
+                              size={16}
+                              className="text-gray-500 cursor-help hover:text-gray-700 transition-colors"
                               onMouseEnter={() => setTooltipVisible(item.id)}
                               onMouseLeave={() => setTooltipVisible(null)}
                               onClick={() => setTooltipVisible(tooltipVisible === item.id ? null : item.id)}
-                            >
-                              ℹ️
-                            </span>
-                            <div className={`absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-xs rounded-lg transition-opacity duration-200 pointer-events-none whitespace-nowrap z-20 ${
+                            />
+                            <div className={`absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-100 text-gray-800 text-xs rounded-lg transition-opacity duration-200 pointer-events-none whitespace-nowrap z-20 max-w-xs ${
                               tooltipVisible === item.id ? 'opacity-100' : 'opacity-0'
                             }`}>
                               This score reflects how well this dish matches your dietary profile, preferences, and nutritional needs.
-                              <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
+                              <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-100"></div>
                             </div>
                           </div>
+                        </div>
+                        <div className={`inline-block text-white px-4 py-2 rounded-full text-lg font-bold shadow-md ${
+                          item.aiScore < 5 
+                            ? 'bg-red-500' 
+                            : item.aiScore <= 7 
+                              ? 'bg-orange-500'
+                              : 'bg-green-500'
+                        }`}>
+                          {item.aiScore.toFixed(1)}/10
                         </div>
                       </div>
                     )}
