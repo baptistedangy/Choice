@@ -527,30 +527,32 @@ const Recommendations = () => {
                       </div>
                     )}
                     
-                    {/* TOP SECTION: Merged Personalized Match Score badge with info icon */}
+                    {/* TOP SECTION: Simplified Personalized Match Score badge with improved info icon */}
                     {!item.error && item.aiScore !== undefined && (
                       <div className="mb-4">
                         <div className="relative inline-block">
-                          <div className="bg-green-500 text-white px-3 py-3 rounded-lg shadow-md relative">
+                          <div className="bg-green-500 text-white px-4 py-3 rounded-lg shadow-md relative">
                             <div className="text-center">
-                              <div className="text-xs font-bold mb-1">Personalized Match Score</div>
-                              <div className="text-xl font-bold">{item.aiScore.toFixed(1)}/10</div>
+                              <div className="text-2xl font-bold">{item.aiScore.toFixed(1)}/10</div>
                             </div>
                             <div className="absolute top-2 right-2" ref={tooltipRef}>
-                              <Info 
-                                size={16}
-                                className="text-white cursor-help hover:text-gray-200 transition-colors"
-                                onMouseEnter={() => setTooltipVisible(item.id)}
-                                onMouseLeave={() => setTooltipVisible(null)}
-                                onClick={() => setTooltipVisible(tooltipVisible === item.id ? null : item.id)}
-                              />
+                              <div className="bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full p-1 transition-all duration-200">
+                                <Info 
+                                  size={18}
+                                  className="text-white cursor-help"
+                                  onMouseEnter={() => setTooltipVisible(item.id)}
+                                  onMouseLeave={() => setTooltipVisible(null)}
+                                  onClick={() => setTooltipVisible(tooltipVisible === item.id ? null : item.id)}
+                                />
+                              </div>
                             </div>
                           </div>
-                          <div className={`absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-2 bg-gray-800 text-white text-xs rounded-md transition-opacity duration-200 pointer-events-none z-20 max-w-60 ${
+                          <div className={`absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-xs rounded-md transition-opacity duration-200 pointer-events-none z-20 max-w-64 ${
                             tooltipVisible === item.id ? 'opacity-100' : 'opacity-0'
                           }`}>
                             <div className="text-center">
-                              This score reflects how well this dish matches your dietary profile, preferences, and nutritional needs.
+                              <div className="font-semibold mb-1">Personalized Match Score</div>
+                              <div>This score reflects how well this dish matches your dietary profile, preferences, and nutritional needs.</div>
                             </div>
                             <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
                           </div>
