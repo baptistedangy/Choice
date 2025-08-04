@@ -560,7 +560,7 @@ const Recommendations = () => {
                 return (
                                                     <div 
                   key={item.id} 
-                  className={`bg-white border-2 rounded-xl overflow-hidden hover:shadow-lg transition-all duration-300 relative z-10 ${
+                  className={`bg-white border-2 rounded-xl overflow-hidden hover:shadow-lg transition-all duration-300 relative z-10 flex flex-col h-full ${
                     isFirstPlace 
                       ? 'border-green-500 shadow-xl scale-105 transform' 
                       : index === 1
@@ -577,7 +577,7 @@ const Recommendations = () => {
                     </div>
                   )}
                   
-                  <div className="p-8">
+                  <div className="p-8 flex flex-col h-full">
                     {/* Error Banner - Display if there's an error */}
                     {item.error && (
                       <div className="mb-4">
@@ -661,33 +661,36 @@ const Recommendations = () => {
                       </div>
                     )}
                     
+                    {/* Spacer to push content to bottom */}
+                    <div className="flex-grow"></div>
+                    
                     {/* Tags - before button */}
-                    <div className="mb-4">
-                      <div className="flex flex-wrap gap-2">
-                        {item.tags.map((tag, index) => (
-                          <span
-                            key={index}
-                            className="px-2 py-1 bg-blue-50 text-blue-600 text-xs rounded-full"
-                          >
-                            {tag}
-                          </span>
-                        ))}
+                    {item.tags && item.tags.length > 0 && (
+                      <div className="mb-4">
+                        <div className="flex flex-wrap gap-2">
+                          {item.tags.map((tag, index) => (
+                            <span
+                              key={index}
+                              className="px-2 py-1 bg-blue-50 text-blue-600 text-xs rounded-full"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
                       </div>
-                    </div>
+                    )}
                     
                     {/* Justification - at bottom, smaller and lighter */}
-                    <div className="mb-4">
-                      <p className="text-xs italic text-gray-400 leading-relaxed line-clamp-2">
-                        {item.shortJustification ? (
-                          `"${item.shortJustification}"`
-                        ) : (
-                          "AI could not generate a personalized reason for this dish."
-                        )}
-                      </p>
-                    </div>
+                    {item.shortJustification && (
+                      <div className="mb-4">
+                        <p className="text-xs italic text-gray-400 leading-relaxed line-clamp-2">
+                          {item.shortJustification}
+                        </p>
+                      </div>
+                    )}
                     
-                    {/* BOTTOM: View details button */}
-                    <div>
+                    {/* BOTTOM: View details button - always at bottom */}
+                    <div className="mt-auto">
                       <button 
                         onClick={() => openModal(item)}
                         className="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105"
