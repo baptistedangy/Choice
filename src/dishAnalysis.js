@@ -45,7 +45,7 @@ If analysis is not possible or the dish description is unclear, respond with:
 Otherwise, return a JSON object with exactly these fields:
 
 {
-  "aiScore": 0-10 (float, relevance to user profile & needs),
+  "aiScore": 0-10 (float, personalized match score based on user profile & needs),
   "calories": integer (kcal),
   "macros": {
     "protein": integer (grams),
@@ -81,7 +81,7 @@ Output ONLY the JSON response, nothing else.`;
       messages: [
         { 
           role: "system", 
-          content: "You are a nutrition expert that analyzes dishes for personalized recommendations. You must respond with ONLY valid JSON format. No additional text, commentary, or explanations outside the JSON. If analysis is not possible, return { \"error\": \"Unable to analyze\" }. Be precise with nutritional values and provide meaningful justifications. Write all justifications in English only, maximum 2 sentences, using ONLY real data (nutritional info and user preferences). Do NOT invent or reference activity data, workouts, or energy expenditure." 
+          content: "You are a nutrition expert that analyzes dishes for personalized recommendations. You must respond with ONLY valid JSON format. No additional text, commentary, or explanations outside the JSON. If analysis is not possible, return { \"error\": \"Unable to analyze\" }. Be precise with nutritional values and provide meaningful justifications. Write all justifications in English only, maximum 2 sentences, using ONLY real data (nutritional info and user preferences). Do NOT invent or reference activity data, workouts, or energy expenditure. The aiScore represents a personalized match score (0-10) based on how well the dish aligns with the user's dietary profile and preferences." 
         },
         { role: "user", content: prompt }
       ],

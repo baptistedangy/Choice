@@ -120,6 +120,7 @@ const Recommendations = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [selectedDish, setSelectedDish] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [tooltipVisible, setTooltipVisible] = useState(null);
 
   // Log quand les recommandations changent
   useEffect(() => {
@@ -510,17 +511,35 @@ const Recommendations = () => {
                       </div>
                     )}
                     
-                    {/* TOP SECTION: Large AI Score pill at top-left */}
+                    {/* TOP SECTION: Large Personalized Match Score pill at top-left */}
                     {!item.error && item.aiScore !== undefined && (
                       <div className="mb-4">
-                        <div className={`inline-block text-white px-4 py-2 rounded-full text-lg font-bold shadow-md ${
-                          item.aiScore < 5 
-                            ? 'bg-red-500' 
-                            : item.aiScore <= 7 
-                              ? 'bg-orange-500'
-                              : 'bg-green-500'
-                        }`}>
-                          {item.aiScore.toFixed(1)}/10
+                        <div className="flex items-center gap-2">
+                          <div className={`inline-block text-white px-4 py-2 rounded-full text-lg font-bold shadow-md ${
+                            item.aiScore < 5 
+                              ? 'bg-red-500' 
+                              : item.aiScore <= 7 
+                                ? 'bg-orange-500'
+                                : 'bg-green-500'
+                          }`}>
+                            {item.aiScore.toFixed(1)}/10
+                          </div>
+                          <div className="relative">
+                            <span 
+                              className="text-gray-500 cursor-help text-lg"
+                              onMouseEnter={() => setTooltipVisible(item.id)}
+                              onMouseLeave={() => setTooltipVisible(null)}
+                              onClick={() => setTooltipVisible(tooltipVisible === item.id ? null : item.id)}
+                            >
+                              ℹ️
+                            </span>
+                            <div className={`absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-xs rounded-lg transition-opacity duration-200 pointer-events-none whitespace-nowrap z-20 ${
+                              tooltipVisible === item.id ? 'opacity-100' : 'opacity-0'
+                            }`}>
+                              This score reflects how well this dish matches your dietary profile, preferences, and nutritional needs.
+                              <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     )}
