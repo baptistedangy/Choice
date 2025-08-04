@@ -561,18 +561,24 @@ const Recommendations = () => {
                       </div>
                     </div>
                     
-                                                                {/* MACRONUTRIENTS SECTION: Protein, Carbs, Fats as pills */}
+                                                                {/* MACRONUTRIENTS SECTION: Horizontal line with icons */}
                       {item.protein !== undefined && (
-                        <div className="flex flex-wrap gap-2 mb-4">
-                          <span className="px-3 py-1 bg-red-100 text-red-800 text-xs rounded-full font-medium border border-red-200">
-                            Protein: {item.protein || 0}g
-                          </span>
-                          <span className="px-3 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full font-medium border border-yellow-200">
-                            Carbs: {item.carbs || 0}g
-                          </span>
-                          <span className="px-3 py-1 bg-orange-100 text-orange-800 text-xs rounded-full font-medium border border-orange-200">
-                            Fats: {item.fats || 0}g
-                          </span>
+                        <div className="flex gap-2 mb-4">
+                          <div className="flex-1 bg-red-50 rounded-lg px-3 py-2 text-center border border-red-100">
+                            <div className="text-sm mb-1">🥩</div>
+                            <div className="text-sm font-bold text-red-700">{item.protein || 0}g</div>
+                            <div className="text-xs text-red-600">Protein</div>
+                          </div>
+                          <div className="flex-1 bg-yellow-50 rounded-lg px-3 py-2 text-center border border-yellow-100">
+                            <div className="text-sm mb-1">🍞</div>
+                            <div className="text-sm font-bold text-yellow-700">{item.carbs || 0}g</div>
+                            <div className="text-xs text-yellow-600">Carbs</div>
+                          </div>
+                          <div className="flex-1 bg-orange-50 rounded-lg px-3 py-2 text-center border border-orange-100">
+                            <div className="text-sm mb-1">🥑</div>
+                            <div className="text-sm font-bold text-orange-700">{item.fats || 0}g</div>
+                            <div className="text-xs text-orange-600">Fats</div>
+                          </div>
                         </div>
                       )}
                       
