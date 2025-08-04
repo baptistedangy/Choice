@@ -601,7 +601,6 @@ const Recommendations = () => {
                       </button>
                     </div>
                   </div>
-                  </div>
                 </div>
               );
               })}
