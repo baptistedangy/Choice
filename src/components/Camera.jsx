@@ -20,10 +20,23 @@ const Camera = () => {
   const [isGeneratingRecommendations, setIsGeneratingRecommendations] = useState(false);
   const webcamRef = useRef(null);
 
+  // Debug effect to monitor capturedImages changes
+  useEffect(() => {
+    console.log('📊 capturedImages state updated:', {
+      count: capturedImages.length,
+      currentIndex: currentImageIndex,
+      isCaptured
+    });
+  }, [capturedImages, currentImageIndex, isCaptured]);
+
   const capture = useCallback(() => {
     if (webcamRef.current) {
       const imageSrc = webcamRef.current.getScreenshot();
-      setCapturedImages(prev => [...prev, imageSrc]);
+      setCapturedImages(prev => {
+        const newImages = [...prev, imageSrc];
+        console.log(`📸 Image captured, total count: ${newImages.length}`);
+        return newImages;
+      });
       setIsCaptured(true);
       // Keep webcam active for additional captures
       console.log('📸 First image captured, keeping webcam active');
@@ -70,10 +83,20 @@ const Camera = () => {
   }, [capturedImages.length]);
 
   const deleteImage = (index) => {
-    setCapturedImages(prev => prev.filter((_, i) => i !== index));
-    if (capturedImages.length === 1) {
-      setIsCaptured(false);
-    }
+    setCapturedImages(prev => {
+      const newImages = prev.filter((_, i) => i !== index);
+      console.log(`🗑️ Deleting image at index ${index}, new count: ${newImages.length}`);
+      
+      // Adjust currentImageIndex if necessary
+      if (newImages.length === 0) {
+        setIsCaptured(false);
+        setCurrentImageIndex(0);
+      } else if (currentImageIndex >= newImages.length) {
+        setCurrentImageIndex(newImages.length - 1);
+      }
+      
+      return newImages;
+    });
   };
 
   const retake = () => {
@@ -373,7 +396,7 @@ const Camera = () => {
               </div>
               
               {/* Miniatures des pages */}
-              {capturedImages.length > 1 && (
+              {capturedImages.length > 0 && (
                 <div className="flex justify-center">
                   <div className="flex space-x-2 overflow-x-auto max-w-full">
                     {capturedImages.map((image, index) => (
@@ -394,6 +417,10 @@ const Camera = () => {
                         >
                           ×
                         </button>
+                        {/* Indicateur de page sur miniature */}
+                        <div className="absolute bottom-0 right-0 bg-black bg-opacity-50 text-white text-xs px-1 rounded">
+                          {index + 1}
+                        </div>
                       </div>
                     ))}
                   </div>
