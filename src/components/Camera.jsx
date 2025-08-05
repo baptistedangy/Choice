@@ -322,56 +322,6 @@ const Camera = () => {
                 </button>
               </div>
             )}
-              // Images capturées avec carousel
-              <div className="relative">
-                {capturedImages.length > 0 && (
-                  <>
-                    {/* Image principale */}
-                    <img
-                      src={capturedImages[currentImageIndex]}
-                      alt={`Menu capturé - Page ${currentImageIndex + 1}`}
-                      className="w-full h-auto max-w-2xl"
-                    />
-                    
-                    {/* Indicateur de page */}
-                    <div className="absolute top-4 right-4">
-                      <div className="bg-green-500 text-white px-3 py-1 rounded-full text-sm font-medium shadow-medium">
-                        ✓ Page {currentImageIndex + 1} sur {capturedImages.length}
-                      </div>
-                    </div>
-                    
-                    {/* Navigation du carousel */}
-                    {capturedImages.length > 1 && (
-                      <div className="absolute inset-0 flex items-center justify-between p-4">
-                        <button
-                          onClick={() => setCurrentImageIndex(prev => Math.max(0, prev - 1))}
-                          disabled={currentImageIndex === 0}
-                          className="bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-70 disabled:opacity-30 disabled:cursor-not-allowed"
-                        >
-                          ‹
-                        </button>
-                        <button
-                          onClick={() => setCurrentImageIndex(prev => Math.min(capturedImages.length - 1, prev + 1))}
-                          disabled={currentImageIndex === capturedImages.length - 1}
-                          className="bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-70 disabled:opacity-30 disabled:cursor-not-allowed"
-                        >
-                          ›
-                        </button>
-                      </div>
-                    )}
-                    
-                    {/* Bouton supprimer */}
-                    <button
-                      onClick={() => deleteImage(currentImageIndex)}
-                      className="absolute top-4 left-4 bg-red-500 text-white p-2 rounded-full hover:bg-red-600 shadow-medium"
-                      title="Supprimer cette page"
-                    >
-                      ×
-                    </button>
-                  </>
-                )}
-              </div>
-            )}
           </div>
           
           {/* Indicateur d'état et contrôles */}
