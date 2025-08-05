@@ -668,15 +668,15 @@ const Recommendations = () => {
                     {item.tags && item.tags.length > 0 && (
                       <div className="mb-4">
                         <div className="flex flex-wrap gap-2">
-                          {item.tags.map((tag, index) => (
-                            <span
-                              key={index}
+                      {item.tags.map((tag, index) => (
+                        <span
+                          key={index}
                               className="px-2 py-1 bg-blue-50 text-blue-600 text-xs rounded-full"
-                            >
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
                       </div>
                     )}
                     
