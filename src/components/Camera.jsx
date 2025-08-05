@@ -7,7 +7,8 @@ import { getTopRecommendations } from '../../openai.js';
 
 const Camera = () => {
   const navigate = useNavigate();
-  const [capturedImage, setCapturedImage] = useState(null);
+  const [capturedImages, setCapturedImages] = useState([]);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isCaptured, setIsCaptured] = useState(false);
   const [cameraError, setCameraError] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -22,13 +23,28 @@ const Camera = () => {
   const capture = useCallback(() => {
     if (webcamRef.current) {
       const imageSrc = webcamRef.current.getScreenshot();
-      setCapturedImage(imageSrc);
+      setCapturedImages(prev => [...prev, imageSrc]);
       setIsCaptured(true);
     }
   }, []);
 
+  const addAnotherPage = useCallback(() => {
+    if (webcamRef.current) {
+      const imageSrc = webcamRef.current.getScreenshot();
+      setCapturedImages(prev => [...prev, imageSrc]);
+    }
+  }, []);
+
+  const deleteImage = (index) => {
+    setCapturedImages(prev => prev.filter((_, i) => i !== index));
+    if (capturedImages.length === 1) {
+      setIsCaptured(false);
+    }
+  };
+
   const retake = () => {
-    setCapturedImage(null);
+    setCapturedImages([]);
+    setCurrentImageIndex(0);
     setIsCaptured(false);
     setMenuText(null);
     setRecommendations(null);
@@ -38,7 +54,7 @@ const Camera = () => {
   };
 
   const analyzeMenu = async () => {
-    if (!capturedImage) {
+    if (capturedImages.length === 0) {
       console.error('Aucune image capturée');
       return;
     }
@@ -47,24 +63,34 @@ const Camera = () => {
     setProcessingStep('ocr');
 
     try {
-      console.log('Début de l\'extraction de texte...');
+      console.log(`Début de l'extraction de texte pour ${capturedImages.length} page(s)...`);
       
-      // Extraction du texte avec Google Vision API
-      const extractedText = await extractMenuText(capturedImage);
+      // Extraction du texte de toutes les images avec Google Vision API
+      const extractedTexts = await Promise.all(
+        capturedImages.map(async (image, index) => {
+          console.log(`Extraction de la page ${index + 1}...`);
+          const text = await extractMenuText(image);
+          return text;
+        })
+      );
+      
+      // Combiner tous les textes extraits
+      const combinedText = extractedTexts.join('\n\n--- PAGE SUIVANTE ---\n\n');
       
       console.log('=== MENU TEXT EXTRACTION ===');
-      console.log('Extracted text length:', extractedText?.length);
-      console.log('Extracted text preview:', extractedText?.substring(0, 200) + '...');
-      console.log('Full extracted text:', extractedText);
+      console.log('Number of pages processed:', capturedImages.length);
+      console.log('Combined text length:', combinedText?.length);
+      console.log('Combined text preview:', combinedText?.substring(0, 200) + '...');
+      console.log('Full combined text:', combinedText);
       console.log('Text quality check:');
-      console.log('- Contains numbers:', /\d/.test(extractedText));
-      console.log('- Contains currency symbols:', /[€$£¥]/.test(extractedText));
-      console.log('- Contains food words:', /(menu|plat|entrée|dessert|salade|viande|poisson|pasta|pizza)/i.test(extractedText));
-      console.log('- Contains prices:', /\d+[€$£¥]/.test(extractedText));
+      console.log('- Contains numbers:', /\d/.test(combinedText));
+      console.log('- Contains currency symbols:', /[€$£¥]/.test(combinedText));
+      console.log('- Contains food words:', /(menu|plat|entrée|dessert|salade|viande|poisson|pasta|pizza)/i.test(combinedText));
+      console.log('- Contains prices:', /\d+[€$£¥]/.test(combinedText));
       console.log('=== END MENU TEXT ===');
       
       // Stocker le texte extrait
-      setMenuText(extractedText);
+      setMenuText(combinedText);
       setProcessingStep('analyzing');
       
       // Obtenir le profil utilisateur
@@ -72,7 +98,7 @@ const Camera = () => {
       
       // Génération des recommandations avec OpenAI
       console.log('Génération des recommandations avec OpenAI...');
-      const aiRecommendations = await getTopRecommendations(extractedText, userProfile);
+      const aiRecommendations = await getTopRecommendations(combinedText, userProfile);
       
       console.log('Recommandations générées:', aiRecommendations);
       
@@ -80,7 +106,7 @@ const Camera = () => {
       navigate('/recommendations', { 
         state: { 
           recommendations: aiRecommendations,
-          menuText: extractedText,
+          menuText: combinedText,
           source: 'scan'
         } 
       });
@@ -192,28 +218,110 @@ const Camera = () => {
                 </div>
               </div>
             ) : (
-              // Image capturée
+              // Images capturées avec carousel
               <div className="relative">
-                <img
-                  src={capturedImage}
-                  alt="Menu capturé"
-                  className="w-full h-auto max-w-2xl"
-                />
-                <div className="absolute top-4 right-4">
-                  <div className="bg-green-500 text-white px-3 py-1 rounded-full text-sm font-medium shadow-medium animate-pulse">
-                    ✓ Capturé
-                  </div>
-                </div>
+                {capturedImages.length > 0 && (
+                  <>
+                    {/* Image principale */}
+                    <img
+                      src={capturedImages[currentImageIndex]}
+                      alt={`Menu capturé - Page ${currentImageIndex + 1}`}
+                      className="w-full h-auto max-w-2xl"
+                    />
+                    
+                    {/* Indicateur de page */}
+                    <div className="absolute top-4 right-4">
+                      <div className="bg-green-500 text-white px-3 py-1 rounded-full text-sm font-medium shadow-medium">
+                        ✓ Page {currentImageIndex + 1} sur {capturedImages.length}
+                      </div>
+                    </div>
+                    
+                    {/* Navigation du carousel */}
+                    {capturedImages.length > 1 && (
+                      <div className="absolute inset-0 flex items-center justify-between p-4">
+                        <button
+                          onClick={() => setCurrentImageIndex(prev => Math.max(0, prev - 1))}
+                          disabled={currentImageIndex === 0}
+                          className="bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-70 disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                          ‹
+                        </button>
+                        <button
+                          onClick={() => setCurrentImageIndex(prev => Math.min(capturedImages.length - 1, prev + 1))}
+                          disabled={currentImageIndex === capturedImages.length - 1}
+                          className="bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-70 disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                          ›
+                        </button>
+                      </div>
+                    )}
+                    
+                    {/* Bouton supprimer */}
+                    <button
+                      onClick={() => deleteImage(currentImageIndex)}
+                      className="absolute top-4 left-4 bg-red-500 text-white p-2 rounded-full hover:bg-red-600 shadow-medium"
+                      title="Supprimer cette page"
+                    >
+                      ×
+                    </button>
+                  </>
+                )}
               </div>
             )}
           </div>
           
-          {/* Indicateur d'état */}
+          {/* Indicateur d'état et contrôles */}
           {isCaptured && (
-            <div className="mt-4 text-center animate-fade-in">
-              <div className="inline-flex items-center space-x-2 bg-green-50 text-green-700 px-4 py-2 rounded-lg border border-green-200">
-                <span className="text-green-500">✓</span>
-                <span className="text-sm font-medium">Photo capturée avec succès</span>
+            <div className="mt-4 space-y-4 animate-fade-in">
+              {/* Indicateur de pages */}
+              <div className="text-center">
+                <div className="inline-flex items-center space-x-2 bg-green-50 text-green-700 px-4 py-2 rounded-lg border border-green-200">
+                  <span className="text-green-500">✓</span>
+                  <span className="text-sm font-medium">
+                    {capturedImages.length === 1 
+                      ? '1 page capturée' 
+                      : `${capturedImages.length} pages capturées`
+                    }
+                  </span>
+                </div>
+              </div>
+              
+              {/* Miniatures des pages */}
+              {capturedImages.length > 1 && (
+                <div className="flex justify-center">
+                  <div className="flex space-x-2 overflow-x-auto max-w-full">
+                    {capturedImages.map((image, index) => (
+                      <div key={index} className="relative flex-shrink-0">
+                        <img
+                          src={image}
+                          alt={`Miniature page ${index + 1}`}
+                          className={`w-16 h-12 object-cover rounded-lg cursor-pointer border-2 transition-all ${
+                            index === currentImageIndex 
+                              ? 'border-green-500' 
+                              : 'border-gray-300 hover:border-gray-400'
+                          }`}
+                          onClick={() => setCurrentImageIndex(index)}
+                        />
+                        <button
+                          onClick={() => deleteImage(index)}
+                          className="absolute -top-1 -right-1 bg-red-500 text-white w-5 h-5 rounded-full text-xs hover:bg-red-600"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {/* Bouton Ajouter une autre page */}
+              <div className="text-center">
+                <button
+                  onClick={addAnotherPage}
+                  className="btn btn-secondary px-6 py-3 text-sm font-medium shadow-medium"
+                >
+                  📄 + Ajouter une autre page
+                </button>
               </div>
             </div>
           )}
@@ -442,7 +550,7 @@ const Camera = () => {
               onClick={retake}
               className="btn btn-secondary px-6 py-4 text-base font-medium w-full sm:w-auto"
             >
-              🔄 Nouvelle photo
+              🔄 Nouveau scan
             </button>
             <button
               onClick={() => {
@@ -490,7 +598,7 @@ const Camera = () => {
               disabled={isProcessing}
               className="btn btn-primary px-6 py-4 text-base font-medium w-full sm:w-auto shadow-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isProcessing ? '⏳ Analyse...' : '✅ Analyser le menu'}
+              {isProcessing ? '⏳ Analyse...' : `✅ Analyser le menu (${capturedImages.length} page${capturedImages.length > 1 ? 's' : ''})`}
             </button>
           </>
         )}
