@@ -2,9 +2,7 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Webcam from 'react-webcam';
 import { getRecommendationsFromMenu, getDefaultUserProfile, getAdditionalRecommendations } from '../services/recommendations';
-import { extractMenuText } from '../services/visionService';
-import { extractMenuTextBackend, getRecommendationsBackend, checkBackendHealth } from '../services/backendService';
-import { getTopRecommendations } from '../../openai.js';
+import { analyzeMenuImage, checkBackendHealth } from '../services/backendService';
 
 const Camera = () => {
   console.log("🎬 Camera component rendering");
@@ -107,14 +105,17 @@ const Camera = () => {
   };
 
   const retake = () => {
+    console.log('🔄 retake called');
     setCapturedImages([]);
     setCurrentImageIndex(0);
     setIsCaptured(false);
-    startCamera(); // Use startCamera for consistency
+    setIsCameraActive(true);
     setMenuText(null);
     setRecommendations(null);
     setAllRecommendations(null);
     setShowMoreOptions(false);
+    setIsGeneratingRecommendations(false);
+    setIsProcessing(false);
     setProcessingStep('');
   };
 
@@ -128,79 +129,56 @@ const Camera = () => {
     setProcessingStep('ocr');
 
     try {
-      console.log(`Début de l'extraction de texte pour ${capturedImages.length} page(s)...`);
+      console.log(`Début de l'analyse pour ${capturedImages.length} page(s)...`);
       
       // Vérifier si le backend est disponible
       const backendAvailable = await checkBackendHealth();
       console.log('Backend available:', backendAvailable);
       
-      // Extraction du texte de toutes les images
-      const extractedTexts = await Promise.all(
-        capturedImages.map(async (image, index) => {
-          console.log(`Extraction de la page ${index + 1}...`);
-          
-          if (backendAvailable) {
-            // Utiliser le backend si disponible
-            const text = await extractMenuTextBackend(image);
-            return text;
-          } else {
-            // Fallback vers le service frontend
-            console.log('Using frontend service as fallback');
-            const text = await extractMenuText(image);
-            return text;
-          }
-        })
-      );
-      
-      // Combiner tous les textes extraits
-      const combinedText = extractedTexts.join('\n\n--- PAGE SUIVANTE ---\n\n');
-      
-      console.log('=== MENU TEXT EXTRACTION ===');
-      console.log('Number of pages processed:', capturedImages.length);
-      console.log('Combined text length:', combinedText?.length);
-      console.log('Combined text preview:', combinedText?.substring(0, 200) + '...');
-      console.log('Full combined text:', combinedText);
-      console.log('Text quality check:');
-      console.log('- Contains numbers:', /\d/.test(combinedText));
-      console.log('- Contains currency symbols:', /[€$£¥]/.test(combinedText));
-      console.log('- Contains food words:', /(menu|plat|entrée|dessert|salade|viande|poisson|pasta|pizza)/i.test(combinedText));
-      console.log('- Contains prices:', /\d+[€$£¥]/.test(combinedText));
-      console.log('=== END MENU TEXT ===');
-      
-      // Stocker le texte extrait
-      setMenuText(combinedText);
-      setProcessingStep('analyzing');
+      if (!backendAvailable) {
+        throw new Error('Backend service not available. Please ensure the server is running.');
+      }
       
       // Obtenir le profil utilisateur
       const userProfile = getDefaultUserProfile();
       
-      // Génération des recommandations
-      console.log('Génération des recommandations...');
-      let aiRecommendations;
+      // Analyse complète de la première image (pour l'instant, on analyse une seule image)
+      // TODO: Étendre pour analyser plusieurs images
+      const firstImage = capturedImages[0];
+      console.log('Analyzing first image...');
       
-      if (backendAvailable) {
-        // Utiliser le backend si disponible
-        aiRecommendations = await getRecommendationsBackend(combinedText, userProfile);
-      } else {
-        // Fallback vers le service frontend
-        console.log('Using frontend OpenAI service as fallback');
-        aiRecommendations = await getTopRecommendations(combinedText, userProfile);
-      }
+      const analysisResult = await analyzeMenuImage(firstImage, userProfile);
       
-      console.log('Recommandations générées:', aiRecommendations);
+      console.log('=== MENU ANALYSIS RESULT ===');
+      console.log('Extracted text length:', analysisResult.extractedText?.length);
+      console.log('Extracted text preview:', analysisResult.extractedText?.substring(0, 200) + '...');
+      console.log('Recommendations count:', analysisResult.recommendations?.length);
+      console.log('Full extracted text:', analysisResult.extractedText);
+      console.log('Text quality check:');
+      console.log('- Contains numbers:', /\d/.test(analysisResult.extractedText));
+      console.log('- Contains currency symbols:', /[€$£¥]/.test(analysisResult.extractedText));
+      console.log('- Contains food words:', /(menu|plat|entrée|dessert|salade|viande|poisson|pasta|pizza)/i.test(analysisResult.extractedText));
+      console.log('- Contains prices:', /\d+[€$£¥]/.test(analysisResult.extractedText));
+      console.log('=== END MENU ANALYSIS ===');
+      
+      // Stocker le texte extrait
+      setMenuText(analysisResult.extractedText);
+      setProcessingStep('analyzing');
+      
+      console.log('Recommandations générées:', analysisResult.recommendations);
       
       // Redirection vers la page Recommendations avec les données
       navigate('/recommendations', { 
         state: { 
-          recommendations: aiRecommendations,
-          menuText: combinedText,
+          recommendations: analysisResult.recommendations,
+          menuText: analysisResult.extractedText,
           source: 'scan'
         } 
       });
       
     } catch (error) {
       console.error('Erreur lors de l\'analyse du menu:', error);
-      setMenuText('Erreur lors de l\'extraction du texte: ' + error.message);
+      setMenuText('Erreur lors de l\'analyse: ' + error.message);
       setIsProcessing(false);
       setProcessingStep('');
     }
@@ -220,7 +198,9 @@ const Camera = () => {
   };
 
   const handleCameraError = () => {
+    console.error('❌ Camera error occurred');
     setCameraError(true);
+    setIsCameraActive(false);
   };
 
   const videoConstraints = {

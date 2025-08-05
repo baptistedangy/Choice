@@ -5,7 +5,6 @@ import Profile from './pages/Profile';
 import MenuScan from './pages/MenuScan';
 import Recommendations from './pages/Recommendations';
 import ExtendedProfile from './pages/ExtendedProfile';
-import { extractMenuText } from './services/visionService';
 import { checkBackendHealth } from './services/backendService';
 
 function App() {
@@ -15,9 +14,6 @@ function App() {
     // Test d'initialisation des services
     console.log('Test d\'initialisation des services...');
     console.log('Frontend API Key disponible:', !!import.meta.env.VITE_GOOGLE_VISION_API_KEY);
-    
-    // Test du service d'extraction de texte frontend
-    console.log('Service d\'extraction de texte frontend disponible:', !!extractMenuText);
     
     // Test de la disponibilité du backend
     checkBackendHealth().then(available => {

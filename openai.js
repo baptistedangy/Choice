@@ -7,6 +7,103 @@ const openai = new OpenAI({
 });
 
 /**
+ * Safe JSON parser with error handling and cleaning
+ * @param {string} jsonString - The JSON string to parse
+ * @returns {Object} - Parsed JSON or fallback error object
+ */
+function safeJsonParse(jsonString) {
+  try {
+    return JSON.parse(jsonString);
+  } catch (parseError) {
+    console.error('❌ JSON parsing error:', parseError);
+    console.error('Failed to parse:', jsonString);
+    
+    // Attempt to clean the JSON string
+    let cleanedString = jsonString.trim();
+    
+    // Remove markdown code blocks
+    if (cleanedString.startsWith('```json')) {
+      cleanedString = cleanedString.replace(/```json\n?/, '').replace(/```\n?/, '');
+    } else if (cleanedString.startsWith('```')) {
+      cleanedString = cleanedString.replace(/```\n?/, '').replace(/```\n?/, '');
+    }
+    
+    // Remove trailing commas
+    cleanedString = cleanedString.replace(/,(\s*[}\]])/g, '$1');
+    
+    // Fix unclosed strings
+    let braceCount = 0;
+    let bracketCount = 0;
+    let inString = false;
+    let escapeNext = false;
+    let cleanedChars = [];
+    
+    for (let i = 0; i < cleanedString.length; i++) {
+      const char = cleanedString[i];
+      
+      if (escapeNext) {
+        cleanedChars.push(char);
+        escapeNext = false;
+        continue;
+      }
+      
+      if (char === '\\') {
+        escapeNext = true;
+        cleanedChars.push(char);
+        continue;
+      }
+      
+      if (char === '"' && !escapeNext) {
+        inString = !inString;
+        cleanedChars.push(char);
+        continue;
+      }
+      
+      if (!inString) {
+        if (char === '{') braceCount++;
+        if (char === '}') braceCount--;
+        if (char === '[') bracketCount++;
+        if (char === ']') bracketCount--;
+      }
+      
+      cleanedChars.push(char);
+    }
+    
+    // Close unclosed strings and structures
+    if (inString) {
+      cleanedChars.push('"');
+    }
+    
+    while (braceCount > 0) {
+      cleanedChars.push('}');
+      braceCount--;
+    }
+    
+    while (bracketCount > 0) {
+      cleanedChars.push(']');
+      bracketCount--;
+    }
+    
+    cleanedString = cleanedChars.join('');
+    
+    // Try parsing again
+    try {
+      return JSON.parse(cleanedString);
+    } catch (secondError) {
+      console.error('❌ Second JSON parsing attempt failed:', secondError);
+      console.error('Raw response that failed to parse:', jsonString);
+      
+      // Return fallback error object
+      return {
+        status: "error",
+        message: "Unable to analyze menu",
+        error: parseError.message
+      };
+    }
+  }
+}
+
+/**
  * Extrait des plats basiques du texte du menu quand l'IA ne peut pas analyser
  * @param {string} menuText - Texte du menu
  * @returns {Array} - Liste de plats basiques
@@ -219,131 +316,16 @@ Output ONLY the JSON response, nothing else.`;
       throw new Error('No response received from OpenAI API');
     }
 
-    let cleanedResponse = responseText.trim();
-    console.log('🧹 Cleaned response:', cleanedResponse);
-
-    // Supprimer les backticks et "json" si présents
-    if (cleanedResponse.startsWith('```json')) {
-      cleanedResponse = cleanedResponse.replace(/```json\n?/, '').replace(/```\n?/, '');
-    } else if (cleanedResponse.startsWith('```')) {
-      cleanedResponse = cleanedResponse.replace(/```\n?/, '').replace(/```\n?/, '');
-    }
-
-    // Nettoyer les chaînes non terminées et autres problèmes JSON
-    console.log('🔧 Cleaning JSON response...');
+    // Use safe JSON parsing
+    const recommendations = safeJsonParse(responseText);
     
-    // Trouver et corriger les chaînes non terminées
-    let braceCount = 0;
-    let bracketCount = 0;
-    let inString = false;
-    let escapeNext = false;
-    let cleanedChars = [];
-    
-    for (let i = 0; i < cleanedResponse.length; i++) {
-      const char = cleanedResponse[i];
-      
-      if (escapeNext) {
-        cleanedChars.push(char);
-        escapeNext = false;
-        continue;
-      }
-      
-      if (char === '\\') {
-        escapeNext = true;
-        cleanedChars.push(char);
-        continue;
-      }
-      
-      if (char === '"' && !escapeNext) {
-        inString = !inString;
-        cleanedChars.push(char);
-        continue;
-      }
-      
-      if (!inString) {
-        if (char === '{') braceCount++;
-        if (char === '}') braceCount--;
-        if (char === '[') bracketCount++;
-        if (char === ']') bracketCount--;
-      }
-      
-      cleanedChars.push(char);
-    }
-    
-    // Si on est encore dans une chaîne, fermer la chaîne
-    if (inString) {
-      cleanedChars.push('"');
-    }
-    
-    // Ajouter les accolades manquantes
-    while (braceCount > 0) {
-      cleanedChars.push('}');
-      braceCount--;
-    }
-    
-    // Ajouter les crochets manquants
-    while (bracketCount > 0) {
-      cleanedChars.push(']');
-      bracketCount--;
-    }
-    
-    cleanedResponse = cleanedChars.join('');
-    
-    // Nettoyer les virgules trailing
-    cleanedResponse = cleanedResponse.replace(/,(\s*[}\]])/g, '$1');
-    
-    // Nettoyer les chaînes tronquées dans les descriptions
-    cleanedResponse = cleanedResponse.replace(/"([^"]*?)(?=\s*[,}\]])/g, (match, content) => {
-      // Si la chaîne semble tronquée, la compléter
-      if (content.length > 0 && !content.endsWith('.') && !content.endsWith('!') && !content.endsWith('?')) {
-        return `"${content}..."`;
-      }
-      return match;
-    });
-    
-    console.log('🔧 Final cleaned response for parsing:', cleanedResponse);
-    console.log('🔧 JSON structure check:');
-    console.log('- Open braces:', openBraces, 'Close braces:', closeBraces);
-    console.log('- Open brackets:', openBrackets, 'Close brackets:', closeBrackets);
-
-    // Validation JSON avant parsing
-    if (!cleanedResponse.trim().startsWith('[') && !cleanedResponse.trim().startsWith('{')) {
-      console.error('❌ Invalid JSON format - response does not start with [ or {');
-      console.error('Raw response:', cleanedResponse);
-      return [
-        {
-          title: "Invalid Response",
-          description: "AI returned invalid response format. Please try again.",
-          tags: ["error", "format"],
-          price: null
-        },
-        {
-          title: "Check API",
-          description: "Verify your OpenAI API key and try scanning again.",
-          tags: ["error", "api"],
-          price: null
-        },
-        {
-          title: "Contact Support",
-          description: "If the problem persists, contact our support team.",
-          tags: ["error", "support"],
-          price: null
-        }
-      ];
-    }
-
-    // Parsing du JSON
-    let recommendations;
-    try {
-      recommendations = JSON.parse(cleanedResponse);
-      console.log('✅ JSON parsed successfully:', recommendations);
-    } catch (parseError) {
-      console.error('❌ JSON parsing error:', parseError);
-      console.error('Failed to parse:', cleanedResponse);
+    // Check if parsing returned an error
+    if (recommendations.status === "error") {
+      console.error('❌ JSON parsing failed:', recommendations.message);
       return [
         {
           title: "Parse Error",
-          description: `Failed to parse AI response: ${parseError.message}`,
+          description: `Failed to parse AI response: ${recommendations.message}`,
           tags: ["error", "parse"],
           price: null
         },

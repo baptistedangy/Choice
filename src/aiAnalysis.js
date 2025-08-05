@@ -1,10 +1,4 @@
-import OpenAI from 'openai';
-
-// Initialisation du client OpenAI
-const openai = new OpenAI({
-  apiKey: import.meta.env.VITE_OPENAI_API_KEY,
-  dangerouslyAllowBrowser: true // Nécessaire pour Vite/React
-});
+import { analyzeDishBackend, analyzeMultipleDishesBackend } from './services/backendService';
 
 /**
  * Analyse un plat pour un utilisateur avec un profil spécifique
@@ -40,77 +34,19 @@ export async function analyzeDish(dishText, userProfile) {
       ...extendedProfile
     };
 
-    // Construction du prompt pour OpenAI
-    const prompt = `Analyze this dish for a user with the following profile: ${JSON.stringify(completeUserProfile, null, 2)}.
-
-Return a JSON object with:
-
-aiScore (0–10, relevance to user profile & needs),
-calories (kcal),
-protein (g),
-carbs (g),
-fats (g),
-shortJustification (1 sentence explaining why it was recommended).
-
-Dish: ${dishText}
-
-Provide the analysis and explanation in English. Avoid French or other languages.
-Please return only valid JSON, no additional text.`;
-
-    // Appel à l'API OpenAI
-    // Optimized for cost reduction
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "system",
-          content: "You are a nutrition expert that analyzes dishes for personalized recommendations. Always respond with valid JSON format containing nutritional analysis and scoring. Provide all analysis and explanations in English only."
-        },
-        {
-          role: "user",
-          content: prompt
-        }
-      ],
-      temperature: 0.7,
-      max_tokens: 200
-    });
-
-    // Extraction de la réponse
-    const responseText = completion.choices[0]?.message?.content;
+    console.log('📤 Sending dish analysis request to backend...');
     
-    if (!responseText) {
-      throw new Error('Aucune réponse reçue d\'OpenAI');
-    }
-
-    // Nettoyage et parsing de la réponse JSON
-    let cleanedResponse = responseText.trim();
+    // Use backend service instead of direct OpenAI call
+    const analysis = await analyzeDishBackend(dishText, completeUserProfile);
     
-    // Supprimer les backticks et "json" si présents
-    if (cleanedResponse.startsWith('```json')) {
-      cleanedResponse = cleanedResponse.replace(/```json\n?/, '').replace(/```\n?/, '');
-    } else if (cleanedResponse.startsWith('```')) {
-      cleanedResponse = cleanedResponse.replace(/```\n?/, '').replace(/```\n?/, '');
-    }
-
-    // Parsing du JSON
-    const analysis = JSON.parse(cleanedResponse);
-
-    // Validation des champs requis
-    const requiredFields = ['aiScore', 'calories', 'protein', 'carbs', 'fats', 'shortJustification'];
-    const missingFields = requiredFields.filter(field => !(field in analysis));
-
-    if (missingFields.length > 0) {
-      throw new Error(`Champs manquants dans l'analyse: ${missingFields.join(', ')}`);
-    }
-
     // Retour de l'analyse formatée
     return {
       aiScore: analysis.aiScore,
       calories: analysis.calories,
       macros: {
-        protein: analysis.protein,
-        carbs: analysis.carbs,
-        fats: analysis.fats
+        protein: analysis.macros.protein,
+        carbs: analysis.macros.carbs,
+        fats: analysis.macros.fats
       },
       shortJustification: analysis.shortJustification
     };
@@ -127,7 +63,7 @@ Please return only valid JSON, no additional text.`;
         carbs: 0,
         fats: 0
       },
-      shortJustification: 'Analyse non disponible'
+      shortJustification: `Service temporarily unavailable: ${error.message}`
     };
   }
 }
@@ -140,17 +76,13 @@ Please return only valid JSON, no additional text.`;
  */
 export async function analyzeMultipleDishes(dishes, userProfile) {
   try {
-    const analysisPromises = dishes.map(dish => 
-      analyzeDish(dish.title || dish.name, userProfile)
-    );
+    console.log('📤 Sending multiple dishes analysis request to backend...');
     
-    const analyses = await Promise.all(analysisPromises);
+    // Use backend service instead of direct OpenAI calls
+    const analyses = await analyzeMultipleDishesBackend(dishes, userProfile);
     
-    // Fusion des analyses avec les plats
-    return dishes.map((dish, index) => ({
-      ...dish,
-      ...analyses[index]
-    }));
+    console.log('✅ Multiple dishes analysis completed');
+    return analyses;
     
   } catch (error) {
     console.error('Erreur lors de l\'analyse multiple:', error);
@@ -159,7 +91,7 @@ export async function analyzeMultipleDishes(dishes, userProfile) {
       aiScore: 5.0,
       calories: 0,
       macros: { protein: 0, carbs: 0, fats: 0 },
-      shortJustification: 'Analyse non disponible'
+      shortJustification: `Service temporarily unavailable: ${error.message}`
     }));
   }
 } 
