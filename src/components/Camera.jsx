@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Webcam from 'react-webcam';
 import { getRecommendationsFromMenu, getDefaultUserProfile, getAdditionalRecommendations } from '../services/recommendations';
 import { extractMenuText } from '../services/visionService';
+import { extractMenuTextBackend, getRecommendationsBackend, checkBackendHealth } from '../services/backendService';
 import { getTopRecommendations } from '../../openai.js';
 
 const Camera = () => {
@@ -142,12 +143,25 @@ const Camera = () => {
     try {
       console.log(`Début de l'extraction de texte pour ${capturedImages.length} page(s)...`);
       
-      // Extraction du texte de toutes les images avec Google Vision API
+      // Vérifier si le backend est disponible
+      const backendAvailable = await checkBackendHealth();
+      console.log('Backend available:', backendAvailable);
+      
+      // Extraction du texte de toutes les images
       const extractedTexts = await Promise.all(
         capturedImages.map(async (image, index) => {
           console.log(`Extraction de la page ${index + 1}...`);
-          const text = await extractMenuText(image);
-          return text;
+          
+          if (backendAvailable) {
+            // Utiliser le backend si disponible
+            const text = await extractMenuTextBackend(image);
+            return text;
+          } else {
+            // Fallback vers le service frontend
+            console.log('Using frontend service as fallback');
+            const text = await extractMenuText(image);
+            return text;
+          }
         })
       );
       
@@ -173,9 +187,18 @@ const Camera = () => {
       // Obtenir le profil utilisateur
       const userProfile = getDefaultUserProfile();
       
-      // Génération des recommandations avec OpenAI
-      console.log('Génération des recommandations avec OpenAI...');
-      const aiRecommendations = await getTopRecommendations(combinedText, userProfile);
+      // Génération des recommandations
+      console.log('Génération des recommandations...');
+      let aiRecommendations;
+      
+      if (backendAvailable) {
+        // Utiliser le backend si disponible
+        aiRecommendations = await getRecommendationsBackend(combinedText, userProfile);
+      } else {
+        // Fallback vers le service frontend
+        console.log('Using frontend OpenAI service as fallback');
+        aiRecommendations = await getTopRecommendations(combinedText, userProfile);
+      }
       
       console.log('Recommandations générées:', aiRecommendations);
       
