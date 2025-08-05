@@ -31,6 +31,15 @@ const Camera = () => {
     });
   }, [capturedImages, currentImageIndex, isCaptured]);
 
+  // Debug effect to monitor camera state changes
+  useEffect(() => {
+    console.log('📹 Camera state changed:', {
+      isCameraActive,
+      isCaptured,
+      imagesCount: capturedImages.length
+    });
+  }, [isCameraActive, isCaptured, capturedImages.length]);
+
   const capture = useCallback(() => {
     if (webcamRef.current) {
       const imageSrc = webcamRef.current.getScreenshot();
@@ -48,6 +57,11 @@ const Camera = () => {
   const addAnotherPage = useCallback(() => {
     console.log('🔄 addAnotherPage called');
     console.log('📊 Current images count:', capturedImages.length);
+    console.log('📊 Current state before change:', {
+      isCameraActive,
+      isCaptured,
+      currentImageIndex
+    });
     
     // Check if we've reached the maximum of 5 pages
     if (capturedImages.length >= 5) {
@@ -58,9 +72,10 @@ const Camera = () => {
     // Reactivate camera and wait for user to take photo
     setIsCameraActive(true);
     console.log('📹 Camera reactivated - waiting for user to take photo');
+    console.log('📹 isCameraActive will be set to true');
     
     // Don't take screenshot automatically - wait for user to click "Prendre une photo"
-  }, [capturedImages.length]);
+  }, [capturedImages.length, isCameraActive, isCaptured, currentImageIndex]);
 
   const deleteImage = (index) => {
     setCapturedImages(prev => {
@@ -586,13 +601,21 @@ const Camera = () => {
         <div className="text-xs text-gray-500 mb-2">
           Debug: isCameraActive={isCameraActive.toString()}, isCaptured={isCaptured.toString()}, images={capturedImages.length}
         </div>
-        {isCameraActive ? (
-          <button
-            onClick={capture}
-            className="btn btn-primary px-8 py-4 text-lg font-semibold shadow-medium w-full"
-          >
-            📸 Prendre une photo
-          </button>
+        {(() => {
+          console.log('🎯 Button rendering logic:', {
+            isCameraActive,
+            isCaptured,
+            hasMenuText: !!menuText,
+            hasRecommendations: !!recommendations,
+            imagesCount: capturedImages.length
+          });
+          return isCameraActive ? (
+            <button
+              onClick={capture}
+              className="btn btn-primary px-8 py-4 text-lg font-semibold shadow-medium w-full"
+            >
+              📸 Prendre une photo
+            </button>
         ) : menuText ? (
           <>
             <button
@@ -650,7 +673,8 @@ const Camera = () => {
               {isProcessing ? '⏳ Analyse...' : `✅ Analyser le menu (${capturedImages.length} page${capturedImages.length > 1 ? 's' : ''})`}
             </button>
           </>
-        )}
+        );
+        })()}
       </div>
 
       {/* Instructions */}
