@@ -42,6 +42,7 @@ const Camera = () => {
 
   const capture = useCallback(() => {
     console.log('📸 capture function called');
+    console.log('📸 Stack trace:', new Error().stack);
     if (webcamRef.current) {
       const imageSrc = webcamRef.current.getScreenshot();
       console.log('📸 Screenshot taken, adding to capturedImages');
@@ -262,6 +263,7 @@ const Camera = () => {
 
   return (
     <div className="flex flex-col items-center space-y-6">
+      {console.log("isCameraActive", isCameraActive)}
       {/* Titre */}
       <div className="text-center">
         <h2 className="text-2xl font-semibold text-gray-900 mb-2">
@@ -286,6 +288,7 @@ const Camera = () => {
             {/* Flux vidéo en direct - visible seulement quand la caméra est active */}
             {isCameraActive && (
               <div className="relative">
+                {console.log("Webcam mounted")}
                 <Webcam
                   ref={webcamRef}
                   audio={false}
@@ -293,6 +296,8 @@ const Camera = () => {
                   videoConstraints={videoConstraints}
                   className="w-full h-auto max-w-2xl"
                   onUserMediaError={handleCameraError}
+                  key="camera-webcam"
+                  onUserMedia={() => console.log("Webcam mounted")}
                 />
                 {/* Overlay avec guide de cadrage */}
                 <div className="absolute inset-0 pointer-events-none">
