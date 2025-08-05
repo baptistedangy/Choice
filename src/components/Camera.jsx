@@ -41,8 +41,10 @@ const Camera = () => {
   }, [isCameraActive, isCaptured, capturedImages.length]);
 
   const capture = useCallback(() => {
+    console.log('📸 capture function called');
     if (webcamRef.current) {
       const imageSrc = webcamRef.current.getScreenshot();
+      console.log('📸 Screenshot taken, adding to capturedImages');
       setCapturedImages(prev => {
         const newImages = [...prev, imageSrc];
         console.log(`📸 Image captured, total count: ${newImages.length}`);
@@ -51,7 +53,16 @@ const Camera = () => {
       setIsCaptured(true);
       setIsCameraActive(false); // Turn off camera after capture
       console.log('📸 Image captured, camera turned off');
+    } else {
+      console.error('❌ webcamRef.current is null - webcam might not be active');
     }
+  }, []);
+
+  // Function to start camera preview mode
+  const startCamera = useCallback(() => {
+    console.log('📹 startCamera called - activating camera preview');
+    setIsCameraActive(true);
+    console.log('📹 Camera preview activated');
   }, []);
 
   const addAnotherPage = useCallback(() => {
@@ -69,13 +80,12 @@ const Camera = () => {
       return;
     }
     
-    // Reactivate camera and wait for user to take photo
-    setIsCameraActive(true);
-    console.log('📹 Camera reactivated - waiting for user to take photo');
-    console.log('📹 isCameraActive will be set to true');
+    // Start camera preview mode - same as first capture
+    startCamera();
+    console.log('📹 Camera preview started for new page capture');
     
     // Don't take screenshot automatically - wait for user to click "Prendre une photo"
-  }, [capturedImages.length, isCameraActive, isCaptured, currentImageIndex]);
+  }, [capturedImages.length, isCameraActive, isCaptured, currentImageIndex, startCamera]);
 
   const deleteImage = (index) => {
     setCapturedImages(prev => {
@@ -98,7 +108,7 @@ const Camera = () => {
     setCapturedImages([]);
     setCurrentImageIndex(0);
     setIsCaptured(false);
-    setIsCameraActive(true); // Reactivate camera
+    startCamera(); // Use startCamera for consistency
     setMenuText(null);
     setRecommendations(null);
     setAllRecommendations(null);
@@ -601,21 +611,14 @@ const Camera = () => {
         <div className="text-xs text-gray-500 mb-2">
           Debug: isCameraActive={isCameraActive.toString()}, isCaptured={isCaptured.toString()}, images={capturedImages.length}
         </div>
-        {(() => {
-          console.log('🎯 Button rendering logic:', {
-            isCameraActive,
-            isCaptured,
-            hasMenuText: !!menuText,
-            hasRecommendations: !!recommendations,
-            imagesCount: capturedImages.length
-          });
-          return isCameraActive ? (
-            <button
-              onClick={capture}
-              className="btn btn-primary px-8 py-4 text-lg font-semibold shadow-medium w-full"
-            >
-              📸 Prendre une photo
-            </button>
+        
+        {isCameraActive ? (
+          <button
+            onClick={capture}
+            className="btn btn-primary px-8 py-4 text-lg font-semibold shadow-medium w-full"
+          >
+            📸 Prendre une photo
+          </button>
         ) : menuText ? (
           <>
             <button
@@ -673,8 +676,7 @@ const Camera = () => {
               {isProcessing ? '⏳ Analyse...' : `✅ Analyser le menu (${capturedImages.length} page${capturedImages.length > 1 ? 's' : ''})`}
             </button>
           </>
-        );
-        })()}
+        )}
       </div>
 
       {/* Instructions */}
