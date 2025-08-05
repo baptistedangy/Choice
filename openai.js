@@ -14,8 +14,14 @@ const openai = new OpenAI({
 function extractBasicDishesFromText(menuText) {
   if (!menuText) return [];
   
+  console.log('🔄 Extracting basic dishes from text...');
+  console.log('Text length:', menuText.length);
+  console.log('Text preview:', menuText.substring(0, 200));
+  
   const dishes = [];
   const lines = menuText.split('\n').filter(line => line.trim());
+  
+  console.log('Number of lines:', lines.length);
   
   // Patterns pour détecter des plats
   const dishPatterns = [
@@ -26,27 +32,43 @@ function extractBasicDishesFromText(menuText) {
     // Pattern: "- Nom du plat"
     /^[-–]\s*([^-€\d]+?)(?:\s*[-–]\s*(\d+[€$£¥]?))?/i,
     // Pattern: "Nom du plat: Description"
-    /^([^:]+?):\s*([^-€\d]+?)(?:\s*[-–]\s*(\d+[€$£¥]?))?/i
+    /^([^:]+?):\s*([^-€\d]+?)(?:\s*[-–]\s*(\d+[€$£¥]?))?/i,
+    // Pattern: "NOM DU PLAT" (en majuscules)
+    /^([A-Z\s]+?)(?:\s*[-–]\s*(\d+[€$£¥]?))?$/,
+    // Pattern: "Nom du plat" (avec des mots en majuscules)
+    /^([A-Z][a-z\s]+?)(?:\s*[-–]\s*(\d+[€$£¥]?))?$/
   ];
   
-  // Mots-clés pour identifier des plats
+  // Mots-clés pour identifier des plats (plus étendus)
   const foodKeywords = [
     'salade', 'soupe', 'steak', 'poisson', 'poulet', 'veau', 'agneau',
     'pasta', 'pâtes', 'risotto', 'pizza', 'burger', 'sandwich',
     'crème', 'tarte', 'dessert', 'glace', 'gâteau', 'mousse',
-    'entrée', 'plat', 'dessert', 'fromage', 'charcuterie'
+    'entrée', 'plat', 'dessert', 'fromage', 'charcuterie',
+    'ceviche', 'coliflor', 'costillas', 'pollo', 'quesadilla',
+    'menu', 'drinks', 'kids', 'asados', 'green', 'boring'
   ];
   
   for (const line of lines) {
     const trimmedLine = line.trim();
     if (trimmedLine.length < 3) continue;
     
+    console.log('Processing line:', trimmedLine);
+    
     // Vérifier si la ligne contient des mots-clés de nourriture
     const hasFoodKeyword = foodKeywords.some(keyword => 
       trimmedLine.toLowerCase().includes(keyword)
     );
     
-    if (hasFoodKeyword) {
+    // Vérifier si la ligne contient des prix
+    const hasPrice = /\d+[€$£¥]/.test(trimmedLine);
+    
+    // Vérifier si la ligne est en majuscules (souvent des noms de plats)
+    const isAllCaps = /^[A-Z\s]+$/.test(trimmedLine);
+    
+    if (hasFoodKeyword || hasPrice || isAllCaps) {
+      console.log('Found potential dish:', trimmedLine);
+      
       // Essayer d'extraire le nom et le prix
       let dishName = trimmedLine;
       let price = null;
@@ -67,15 +89,18 @@ function extractBasicDishesFromText(menuText) {
         .trim();
       
       if (dishName.length > 2) {
-                  dishes.push({
-            title: dishName,
-            description: `Extracted from menu: ${dishName}`,
-            tags: ["extracted", "basic"],
-            price: price || null
-          });
+        console.log('Adding dish:', dishName, 'Price:', price);
+        dishes.push({
+          title: dishName,
+          description: `Extracted from menu: ${dishName}`,
+          tags: ["extracted", "basic"],
+          price: price || null
+        });
       }
     }
   }
+  
+  console.log('Extracted dishes:', dishes);
   
   // Limiter à 3 plats maximum
   return dishes.slice(0, 3);
@@ -204,7 +229,35 @@ Output ONLY the JSON response, nothing else.`;
       cleanedResponse = cleanedResponse.replace(/```\n?/, '').replace(/```\n?/, '');
     }
 
+    // Nettoyer les chaînes non terminées et autres problèmes JSON
+    console.log('🔧 Cleaning JSON response...');
+    
+    // Remplacer les guillemets non fermés par des guillemets fermés
+    cleanedResponse = cleanedResponse.replace(/"([^"]*)$/g, '$1"');
+    
+    // Fermer les accolades et crochets non fermés
+    const openBraces = (cleanedResponse.match(/\{/g) || []).length;
+    const closeBraces = (cleanedResponse.match(/\}/g) || []).length;
+    const openBrackets = (cleanedResponse.match(/\[/g) || []).length;
+    const closeBrackets = (cleanedResponse.match(/\]/g) || []).length;
+    
+    // Ajouter les accolades manquantes
+    for (let i = 0; i < openBraces - closeBraces; i++) {
+      cleanedResponse += '}';
+    }
+    
+    // Ajouter les crochets manquants
+    for (let i = 0; i < openBrackets - closeBrackets; i++) {
+      cleanedResponse += ']';
+    }
+    
+    // Nettoyer les virgules trailing
+    cleanedResponse = cleanedResponse.replace(/,(\s*[}\]])/g, '$1');
+    
     console.log('🔧 Final cleaned response for parsing:', cleanedResponse);
+    console.log('🔧 JSON structure check:');
+    console.log('- Open braces:', openBraces, 'Close braces:', closeBraces);
+    console.log('- Open brackets:', openBrackets, 'Close brackets:', closeBrackets);
 
     // Validation JSON avant parsing
     if (!cleanedResponse.trim().startsWith('[') && !cleanedResponse.trim().startsWith('{')) {
