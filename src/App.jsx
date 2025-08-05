@@ -5,7 +5,6 @@ import Profile from './pages/Profile';
 import MenuScan from './pages/MenuScan';
 import Recommendations from './pages/Recommendations';
 import ExtendedProfile from './pages/ExtendedProfile';
-import visionApiService from './services/visionApi';
 import { extractMenuText } from './services/visionService';
 
 function App() {

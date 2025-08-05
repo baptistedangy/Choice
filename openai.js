@@ -198,7 +198,7 @@ Output ONLY the JSON response, nothing else.`;
       messages: [
         {
           role: "system",
-          content: "You are a nutrition assistant that provides personalized food recommendations. You must respond with ONLY valid JSON format. No additional text, commentary, or explanations outside the JSON. If analysis is not possible, return { \"error\": \"Unable to analyze\" }. Provide all analysis and explanations in English only."
+          content: "You are a nutrition assistant that provides personalized food recommendations. You must respond with ONLY valid JSON format. No additional text, commentary, or explanations outside the JSON. If analysis is not possible, return { \"error\": \"Unable to analyze\" }. Provide all analysis and explanations in English only. Keep descriptions short and concise."
         },
         {
           role: "user",
@@ -206,7 +206,7 @@ Output ONLY the JSON response, nothing else.`;
         }
       ],
       temperature: 0.7,
-      max_tokens: 200
+      max_tokens: 150
     });
 
     console.log('📥 Raw OpenAI response:', completion);
@@ -232,27 +232,74 @@ Output ONLY the JSON response, nothing else.`;
     // Nettoyer les chaînes non terminées et autres problèmes JSON
     console.log('🔧 Cleaning JSON response...');
     
-    // Remplacer les guillemets non fermés par des guillemets fermés
-    cleanedResponse = cleanedResponse.replace(/"([^"]*)$/g, '$1"');
+    // Trouver et corriger les chaînes non terminées
+    let braceCount = 0;
+    let bracketCount = 0;
+    let inString = false;
+    let escapeNext = false;
+    let cleanedChars = [];
     
-    // Fermer les accolades et crochets non fermés
-    const openBraces = (cleanedResponse.match(/\{/g) || []).length;
-    const closeBraces = (cleanedResponse.match(/\}/g) || []).length;
-    const openBrackets = (cleanedResponse.match(/\[/g) || []).length;
-    const closeBrackets = (cleanedResponse.match(/\]/g) || []).length;
+    for (let i = 0; i < cleanedResponse.length; i++) {
+      const char = cleanedResponse[i];
+      
+      if (escapeNext) {
+        cleanedChars.push(char);
+        escapeNext = false;
+        continue;
+      }
+      
+      if (char === '\\') {
+        escapeNext = true;
+        cleanedChars.push(char);
+        continue;
+      }
+      
+      if (char === '"' && !escapeNext) {
+        inString = !inString;
+        cleanedChars.push(char);
+        continue;
+      }
+      
+      if (!inString) {
+        if (char === '{') braceCount++;
+        if (char === '}') braceCount--;
+        if (char === '[') bracketCount++;
+        if (char === ']') bracketCount--;
+      }
+      
+      cleanedChars.push(char);
+    }
+    
+    // Si on est encore dans une chaîne, fermer la chaîne
+    if (inString) {
+      cleanedChars.push('"');
+    }
     
     // Ajouter les accolades manquantes
-    for (let i = 0; i < openBraces - closeBraces; i++) {
-      cleanedResponse += '}';
+    while (braceCount > 0) {
+      cleanedChars.push('}');
+      braceCount--;
     }
     
     // Ajouter les crochets manquants
-    for (let i = 0; i < openBrackets - closeBrackets; i++) {
-      cleanedResponse += ']';
+    while (bracketCount > 0) {
+      cleanedChars.push(']');
+      bracketCount--;
     }
+    
+    cleanedResponse = cleanedChars.join('');
     
     // Nettoyer les virgules trailing
     cleanedResponse = cleanedResponse.replace(/,(\s*[}\]])/g, '$1');
+    
+    // Nettoyer les chaînes tronquées dans les descriptions
+    cleanedResponse = cleanedResponse.replace(/"([^"]*?)(?=\s*[,}\]])/g, (match, content) => {
+      // Si la chaîne semble tronquée, la compléter
+      if (content.length > 0 && !content.endsWith('.') && !content.endsWith('!') && !content.endsWith('?')) {
+        return `"${content}..."`;
+      }
+      return match;
+    });
     
     console.log('🔧 Final cleaned response for parsing:', cleanedResponse);
     console.log('🔧 JSON structure check:');
