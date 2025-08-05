@@ -7,6 +7,7 @@ import { extractMenuTextBackend, getRecommendationsBackend, checkBackendHealth }
 import { getTopRecommendations } from '../../openai.js';
 
 const Camera = () => {
+  console.log("🎬 Camera component rendering");
   const navigate = useNavigate();
   const [capturedImages, setCapturedImages] = useState([]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
