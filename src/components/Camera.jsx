@@ -55,51 +55,11 @@ const Camera = () => {
       return;
     }
     
-    // Reactivate camera first
+    // Reactivate camera and wait for user to take photo
     setIsCameraActive(true);
-    console.log('📹 Camera reactivated');
+    console.log('📹 Camera reactivated - waiting for user to take photo');
     
-    // Wait longer for camera to initialize properly
-    setTimeout(() => {
-      if (webcamRef.current) {
-        try {
-          console.log('📸 Taking screenshot...');
-          
-          // Check if webcam is ready
-          if (!webcamRef.current.video) {
-            console.log('⏳ Webcam video not ready yet, waiting...');
-            setTimeout(() => addAnotherPage(), 500);
-            return;
-          }
-          
-          const imageSrc = webcamRef.current.getScreenshot();
-          console.log('✅ Screenshot taken, updating state...');
-          
-          if (imageSrc) {
-            setCapturedImages(prev => {
-              console.log('📊 Previous images count:', prev.length);
-              const newImages = [...prev, imageSrc];
-              console.log('📊 New images count:', newImages.length);
-              return newImages;
-            });
-            setIsCameraActive(false); // Turn off camera again after capture
-            console.log('📹 Camera turned off after capture');
-          } else {
-            console.error('❌ Screenshot returned null - webcam might not be ready');
-            // Try again after a short delay
-            setTimeout(() => addAnotherPage(), 500);
-          }
-        } catch (error) {
-          console.error('❌ Error taking screenshot:', error);
-          // Try again after a short delay
-          setTimeout(() => addAnotherPage(), 500);
-        }
-      } else {
-        console.error('❌ webcamRef.current is null - webcam might not be active');
-        // Try again after a short delay
-        setTimeout(() => addAnotherPage(), 500);
-      }
-    }, 1500); // Wait 1.5 seconds for camera to initialize
+    // Don't take screenshot automatically - wait for user to click "Prendre une photo"
   }, [capturedImages.length]);
 
   const deleteImage = (index) => {
