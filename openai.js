@@ -131,26 +131,41 @@ User Profile:
 
 CRITICAL: You must respond with ONLY valid JSON. No additional text, commentary, or explanations outside the JSON.
 
-If the menu text is unclear, incomplete, or contains no recognizable dishes, respond with:
+ANALYSIS INSTRUCTIONS:
+1. Look for any text that could be dish names, even if incomplete or unclear
+2. Look for numbers that could be prices (€, $, £, ¥ symbols or just numbers)
+3. Look for food-related words like: menu, plat, entrée, dessert, salade, viande, poisson, pasta, pizza, burger, steak, etc.
+4. Even if the text is partially unclear, try to extract ANY recognizable dish information
+5. If you find ANY dish-like text, create a dish entry with the best possible information
+
+If the menu text is completely empty, contains no recognizable food words, or is completely unreadable, respond with:
 { "error": "Unable to analyze" }
 
-Otherwise, return exactly 3 dishes in this exact JSON format:
+Otherwise, return exactly 3 dishes in this exact JSON format (fill with best available information):
 [
   {
-    "title": "Dish name",
-    "description": "Brief description",
-    "tags": ["tag1", "tag2"],
-    "price": "price if mentioned"
+    "title": "Dish name (or best guess)",
+    "description": "Brief description or 'Extracted from menu'",
+    "tags": ["extracted", "menu"],
+    "price": "price if found, otherwise null"
   }
 ]
 
-IMPORTANT: Even if the menu text is partially unclear, try to identify any recognizable dishes. If you can identify at least one dish, return it with the best possible information.
+IMPORTANT: Be very tolerant of unclear text. If you see ANY food-related content, try to extract it. Only return "Unable to analyze" if the text is completely empty or contains no food-related words at all.
 
 Provide all analysis and explanations in English. Avoid French or other languages.
 Output ONLY the JSON response, nothing else.`;
 
     console.log('📤 Sending request to OpenAI API...');
     console.log('Prompt length:', prompt.length);
+    console.log('=== MENU TEXT BEING SENT TO AI ===');
+    console.log('Menu text length:', menuText?.length);
+    console.log('Menu text preview (first 300 chars):', menuText?.substring(0, 300));
+    console.log('Menu text contains food words:', /(menu|plat|entrée|dessert|salade|viande|poisson|pasta|pizza|burger|steak|chicken|fish|meat)/i.test(menuText));
+    console.log('Menu text contains prices:', /\d+[€$£¥]/.test(menuText));
+    console.log('Menu text contains numbers:', /\d/.test(menuText));
+    console.log('Full menu text:', menuText);
+    console.log('=== END MENU TEXT ===');
 
     // Optimized for cost reduction
     const completion = await openai.chat.completions.create({

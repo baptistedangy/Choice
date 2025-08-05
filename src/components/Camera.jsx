@@ -279,17 +279,6 @@ const Camera = () => {
                     Cadrez le menu ici
                   </div>
                 </div>
-                
-                {/* Bouton Prendre une photo - visible quand la caméra est active */}
-                <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2">
-                  <button
-                    onClick={capture}
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium shadow-lg transition-colors duration-200 flex items-center space-x-2"
-                  >
-                    <span className="text-lg">📸</span>
-                    <span>Prendre une photo</span>
-                  </button>
-                </div>
               </div>
             )}
             
@@ -596,7 +585,7 @@ const Camera = () => {
 
       {/* Boutons d'action */}
       <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md">
-        {!isCaptured ? (
+        {isCameraActive ? (
           <button
             onClick={capture}
             className="btn btn-primary px-8 py-4 text-lg font-semibold shadow-medium w-full"
