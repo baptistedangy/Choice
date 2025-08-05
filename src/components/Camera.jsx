@@ -10,6 +10,7 @@ const Camera = () => {
   const [capturedImages, setCapturedImages] = useState([]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isCaptured, setIsCaptured] = useState(false);
+  const [isCameraActive, setIsCameraActive] = useState(true);
   const [cameraError, setCameraError] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStep, setProcessingStep] = useState(''); // 'ocr' ou 'analyzing'
@@ -38,48 +39,46 @@ const Camera = () => {
         return newImages;
       });
       setIsCaptured(true);
-      // Keep webcam active for additional captures
-      console.log('📸 First image captured, keeping webcam active');
+      setIsCameraActive(false); // Turn off camera after capture
+      console.log('📸 Image captured, camera turned off');
     }
   }, []);
 
   const addAnotherPage = useCallback(() => {
     console.log('🔄 addAnotherPage called');
     console.log('📊 Current images count:', capturedImages.length);
-    console.log('🔍 webcamRef.current:', webcamRef.current);
     
-    if (webcamRef.current) {
-      try {
-        console.log('📸 Taking screenshot...');
-        const imageSrc = webcamRef.current.getScreenshot();
-        console.log('✅ Screenshot taken, updating state...');
-        
-        if (imageSrc) {
-          setCapturedImages(prev => {
-            console.log('📊 Previous images count:', prev.length);
-            const newImages = [...prev, imageSrc];
-            console.log('📊 New images count:', newImages.length);
-            return newImages;
-          });
-        } else {
-          console.error('❌ Screenshot returned null');
+    // Reactivate camera first
+    setIsCameraActive(true);
+    console.log('📹 Camera reactivated');
+    
+    // Wait a bit for camera to initialize, then capture
+    setTimeout(() => {
+      if (webcamRef.current) {
+        try {
+          console.log('📸 Taking screenshot...');
+          const imageSrc = webcamRef.current.getScreenshot();
+          console.log('✅ Screenshot taken, updating state...');
+          
+          if (imageSrc) {
+            setCapturedImages(prev => {
+              console.log('📊 Previous images count:', prev.length);
+              const newImages = [...prev, imageSrc];
+              console.log('📊 New images count:', newImages.length);
+              return newImages;
+            });
+            setIsCameraActive(false); // Turn off camera again after capture
+            console.log('📹 Camera turned off after capture');
+          } else {
+            console.error('❌ Screenshot returned null');
+          }
+        } catch (error) {
+          console.error('❌ Error taking screenshot:', error);
         }
-      } catch (error) {
-        console.error('❌ Error taking screenshot:', error);
+      } else {
+        console.error('❌ webcamRef.current is null');
       }
-    } else {
-      console.error('❌ webcamRef.current is null - webcam might not be active');
-      // Fallback: try to reactivate the webcam
-      console.log('🔄 Attempting to reactivate webcam...');
-      if (webcamRef.current && webcamRef.current.video) {
-        webcamRef.current.video.play().then(() => {
-          console.log('✅ Webcam reactivated, retrying...');
-          setTimeout(() => addAnotherPage(), 500);
-        }).catch(err => {
-          console.error('❌ Failed to reactivate webcam:', err);
-        });
-      }
-    }
+    }, 1000); // Wait 1 second for camera to initialize
   }, [capturedImages.length]);
 
   const deleteImage = (index) => {
@@ -103,6 +102,7 @@ const Camera = () => {
     setCapturedImages([]);
     setCurrentImageIndex(0);
     setIsCaptured(false);
+    setIsCameraActive(true); // Reactivate camera
     setMenuText(null);
     setRecommendations(null);
     setAllRecommendations(null);
@@ -255,76 +255,71 @@ const Camera = () => {
       {!recommendations && (
         <div className="relative">
           <div className={`card overflow-hidden transition-all duration-300 ${isCaptured ? 'ring-2 ring-green-200' : ''}`}>
-            {/* Flux vidéo en direct - toujours visible pour permettre les captures multiples */}
-            <div className="relative">
-              <Webcam
-                ref={webcamRef}
-                audio={false}
-                screenshotFormat="image/jpeg"
-                videoConstraints={videoConstraints}
-                className="w-full h-auto max-w-2xl"
-                onUserMediaError={handleCameraError}
-              />
-              {/* Overlay avec guide de cadrage */}
-              <div className="absolute inset-0 pointer-events-none">
-                <div className="absolute inset-4 border-2 border-white border-dashed rounded-lg opacity-50"></div>
-                <div className="absolute top-4 left-4 text-white text-sm bg-black bg-opacity-50 px-2 py-1 rounded">
-                  Cadrez le menu ici
+            {/* Flux vidéo en direct - visible seulement quand la caméra est active */}
+            {isCameraActive && (
+              <div className="relative">
+                <Webcam
+                  ref={webcamRef}
+                  audio={false}
+                  screenshotFormat="image/jpeg"
+                  videoConstraints={videoConstraints}
+                  className="w-full h-auto max-w-2xl"
+                  onUserMediaError={handleCameraError}
+                />
+                {/* Overlay avec guide de cadrage */}
+                <div className="absolute inset-0 pointer-events-none">
+                  <div className="absolute inset-4 border-2 border-white border-dashed rounded-lg opacity-50"></div>
+                  <div className="absolute top-4 left-4 text-white text-sm bg-black bg-opacity-50 px-2 py-1 rounded">
+                    Cadrez le menu ici
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
             
-            {/* Affichage des images capturées en overlay */}
-            {isCaptured && capturedImages.length > 0 && (
-              <div className="absolute inset-0 bg-black bg-opacity-75 flex items-center justify-center">
-                <div className="relative max-w-2xl max-h-full">
-                  {capturedImages.length > 0 && (
-                    <>
-                      {/* Image principale */}
-                      <img
-                        src={capturedImages[currentImageIndex]}
-                        alt={`Menu capturé - Page ${currentImageIndex + 1}`}
-                        className="w-full h-auto max-w-2xl"
-                      />
-                      
-                      {/* Indicateur de page */}
-                      <div className="absolute top-4 right-4">
-                        <div className="bg-green-500 text-white px-3 py-1 rounded-full text-sm font-medium shadow-medium">
-                          ✓ Page {currentImageIndex + 1} sur {capturedImages.length}
-                        </div>
-                      </div>
-                      
-                      {/* Navigation du carousel */}
-                      {capturedImages.length > 1 && (
-                        <div className="absolute inset-0 flex items-center justify-between p-4">
-                          <button
-                            onClick={() => setCurrentImageIndex(prev => Math.max(0, prev - 1))}
-                            disabled={currentImageIndex === 0}
-                            className="bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-70 disabled:opacity-30 disabled:cursor-not-allowed"
-                          >
-                            ‹
-                          </button>
-                          <button
-                            onClick={() => setCurrentImageIndex(prev => Math.min(capturedImages.length - 1, prev + 1))}
-                            disabled={currentImageIndex === capturedImages.length - 1}
-                            className="bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-70 disabled:opacity-30 disabled:cursor-not-allowed"
-                          >
-                            ›
-                          </button>
-                        </div>
-                      )}
-                      
-                      {/* Bouton supprimer */}
-                      <button
-                        onClick={() => deleteImage(currentImageIndex)}
-                        className="absolute top-4 left-4 bg-red-500 text-white p-2 rounded-full hover:bg-red-600 shadow-medium"
-                        title="Supprimer cette page"
-                      >
-                        ×
-                      </button>
-                    </>
-                  )}
+            {/* Affichage des images capturées - visible quand la caméra est inactive */}
+            {!isCameraActive && isCaptured && capturedImages.length > 0 && (
+              <div className="relative">
+                <img
+                  src={capturedImages[currentImageIndex]}
+                  alt={`Menu capturé - Page ${currentImageIndex + 1}`}
+                  className="w-full h-auto max-w-2xl"
+                />
+                
+                {/* Indicateur de page */}
+                <div className="absolute top-4 right-4">
+                  <div className="bg-green-500 text-white px-3 py-1 rounded-full text-sm font-medium shadow-medium">
+                    ✓ Page {currentImageIndex + 1} sur {capturedImages.length}
+                  </div>
                 </div>
+                
+                {/* Navigation du carousel */}
+                {capturedImages.length > 1 && (
+                  <div className="absolute inset-0 flex items-center justify-between p-4">
+                    <button
+                      onClick={() => setCurrentImageIndex(prev => Math.max(0, prev - 1))}
+                      disabled={currentImageIndex === 0}
+                      className="bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-70 disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                      ‹
+                    </button>
+                    <button
+                      onClick={() => setCurrentImageIndex(prev => Math.min(capturedImages.length - 1, prev + 1))}
+                      disabled={currentImageIndex === capturedImages.length - 1}
+                      className="bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-70 disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                      ›
+                    </button>
+                  </div>
+                )}
+                
+                {/* Bouton supprimer */}
+                <button
+                  onClick={() => deleteImage(currentImageIndex)}
+                  className="absolute top-4 left-4 bg-red-500 text-white p-2 rounded-full hover:bg-red-600 shadow-medium"
+                  title="Supprimer cette page"
+                >
+                  ×
+                </button>
               </div>
             )}
               // Images capturées avec carousel
