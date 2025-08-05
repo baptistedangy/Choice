@@ -48,6 +48,12 @@ const Camera = () => {
     console.log('🔄 addAnotherPage called');
     console.log('📊 Current images count:', capturedImages.length);
     
+    // Check if we've reached the maximum of 5 pages
+    if (capturedImages.length >= 5) {
+      console.log('⚠️ Maximum 5 pages reached');
+      return;
+    }
+    
     // Reactivate camera first
     setIsCameraActive(true);
     console.log('📹 Camera reactivated');
@@ -273,6 +279,17 @@ const Camera = () => {
                     Cadrez le menu ici
                   </div>
                 </div>
+                
+                {/* Bouton Prendre une photo - visible quand la caméra est active */}
+                <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2">
+                  <button
+                    onClick={capture}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium shadow-lg transition-colors duration-200 flex items-center space-x-2"
+                  >
+                    <span className="text-lg">📸</span>
+                    <span>Prendre une photo</span>
+                  </button>
+                </div>
               </div>
             )}
             
@@ -336,6 +353,9 @@ const Camera = () => {
                       ? '1 page capturée' 
                       : `${capturedImages.length} pages capturées`
                     }
+                    {capturedImages.length >= 5 && (
+                      <span className="text-orange-600 ml-1">(max 5)</span>
+                    )}
                   </span>
                 </div>
               </div>
@@ -346,12 +366,20 @@ const Camera = () => {
               <div className="text-center">
                 <button
                   onClick={addAnotherPage}
-                  className="btn btn-secondary px-6 py-3 text-sm font-medium shadow-medium hover:bg-gray-300 transition-colors"
+                  disabled={capturedImages.length >= 5}
+                  className={`btn px-6 py-3 text-sm font-medium shadow-medium transition-colors ${
+                    capturedImages.length >= 5 
+                      ? 'btn-disabled opacity-50 cursor-not-allowed' 
+                      : 'btn-secondary hover:bg-gray-300'
+                  }`}
                 >
                   📄 + Ajouter une autre page
                 </button>
                 <p className="text-xs text-gray-500 mt-2">
-                  Cliquez pour capturer une page supplémentaire du menu
+                  {capturedImages.length >= 5 
+                    ? 'Maximum 5 pages atteint'
+                    : 'Cliquez pour capturer une page supplémentaire du menu'
+                  }
                 </p>
               </div>
             </div>
