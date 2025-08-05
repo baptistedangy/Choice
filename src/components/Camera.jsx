@@ -29,11 +29,43 @@ const Camera = () => {
   }, []);
 
   const addAnotherPage = useCallback(() => {
+    console.log('🔄 addAnotherPage called');
+    console.log('📊 Current images count:', capturedImages.length);
+    console.log('🔍 webcamRef.current:', webcamRef.current);
+    
     if (webcamRef.current) {
-      const imageSrc = webcamRef.current.getScreenshot();
-      setCapturedImages(prev => [...prev, imageSrc]);
+      try {
+        console.log('📸 Taking screenshot...');
+        const imageSrc = webcamRef.current.getScreenshot();
+        console.log('✅ Screenshot taken, updating state...');
+        
+        if (imageSrc) {
+          setCapturedImages(prev => {
+            console.log('📊 Previous images count:', prev.length);
+            const newImages = [...prev, imageSrc];
+            console.log('📊 New images count:', newImages.length);
+            return newImages;
+          });
+        } else {
+          console.error('❌ Screenshot returned null');
+        }
+      } catch (error) {
+        console.error('❌ Error taking screenshot:', error);
+      }
+    } else {
+      console.error('❌ webcamRef.current is null - webcam might not be active');
+      // Fallback: try to reactivate the webcam
+      console.log('🔄 Attempting to reactivate webcam...');
+      if (webcamRef.current && webcamRef.current.video) {
+        webcamRef.current.video.play().then(() => {
+          console.log('✅ Webcam reactivated, retrying...');
+          setTimeout(() => addAnotherPage(), 500);
+        }).catch(err => {
+          console.error('❌ Failed to reactivate webcam:', err);
+        });
+      }
     }
-  }, []);
+  }, [capturedImages.length]);
 
   const deleteImage = (index) => {
     setCapturedImages(prev => prev.filter((_, i) => i !== index));
@@ -318,10 +350,13 @@ const Camera = () => {
               <div className="text-center">
                 <button
                   onClick={addAnotherPage}
-                  className="btn btn-secondary px-6 py-3 text-sm font-medium shadow-medium"
+                  className="btn btn-secondary px-6 py-3 text-sm font-medium shadow-medium hover:bg-gray-300 transition-colors"
                 >
                   📄 + Ajouter une autre page
                 </button>
+                <p className="text-xs text-gray-500 mt-2">
+                  Cliquez pour capturer une page supplémentaire du menu
+                </p>
               </div>
             </div>
           )}
