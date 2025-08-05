@@ -279,8 +279,8 @@ const Camera = () => {
               </div>
             )}
             
-            {/* Affichage des images capturées - visible quand la caméra est inactive */}
-            {!isCameraActive && isCaptured && capturedImages.length > 0 && (
+            {/* Affichage des images capturées - visible quand la caméra est inactive ET qu'on a des images */}
+            {!isCameraActive && capturedImages.length > 0 && (
               <div className="relative">
                 <img
                   src={capturedImages[currentImageIndex]}
@@ -327,8 +327,8 @@ const Camera = () => {
             )}
           </div>
           
-          {/* Indicateur d'état et contrôles */}
-          {isCaptured && (
+          {/* Indicateur d'état et contrôles - affiché quand on a des images ET que la caméra n'est pas active */}
+          {isCaptured && !isCameraActive && (
             <div className="mt-4 space-y-4 animate-fade-in">
               {/* Indicateur de pages */}
               <div className="text-center">
@@ -582,6 +582,10 @@ const Camera = () => {
 
       {/* Boutons d'action */}
       <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md">
+        {/* Debug info */}
+        <div className="text-xs text-gray-500 mb-2">
+          Debug: isCameraActive={isCameraActive.toString()}, isCaptured={isCaptured.toString()}, images={capturedImages.length}
+        </div>
         {isCameraActive ? (
           <button
             onClick={capture}
