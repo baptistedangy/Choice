@@ -1,33 +1,44 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { useEffect } from 'react';
+import Navigation from './components/Navigation';
+import Profile from './pages/Profile';
+import MenuScan from './pages/MenuScan';
+import Recommendations from './pages/Recommendations';
+import ExtendedProfile from './pages/ExtendedProfile';
+import { extractMenuText } from './services/visionService';
+import { checkBackendHealth } from './services/backendService';
 
 function App() {
-  console.log('App component rendering');
+  useEffect(() => {
+    console.log('App component mounted');
+    
+    // Test d'initialisation des services
+    console.log('Test d\'initialisation des services...');
+    console.log('Frontend API Key disponible:', !!import.meta.env.VITE_GOOGLE_VISION_API_KEY);
+    
+    // Test du service d'extraction de texte frontend
+    console.log('Service d\'extraction de texte frontend disponible:', !!extractMenuText);
+    
+    // Test de la disponibilité du backend
+    checkBackendHealth().then(available => {
+      console.log('Backend disponible:', available);
+    }).catch(error => {
+      console.log('Backend non disponible:', error.message);
+    });
+  }, []);
 
   return (
     <Router>
       <div className="min-h-screen bg-gray-50 font-sans">
-        <div className="bg-white shadow-soft border-b border-gray-200 p-4">
-          <h1 className="text-2xl font-bold text-gray-900">C Choice</h1>
-        </div>
-        <main className="flex-1 p-8">
-          <div className="max-w-4xl mx-auto">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">Welcome to Choice</h2>
-            <p className="text-gray-600">The application is working!</p>
-            <div className="mt-8 space-y-4">
-              <a href="/profile" className="block p-4 bg-white rounded-lg shadow-soft border border-gray-200 hover:shadow-medium transition-shadow">
-                <h3 className="text-lg font-semibold text-gray-900">Profile</h3>
-                <p className="text-gray-600">Manage your personal information</p>
-              </a>
-              <a href="/menu-scan" className="block p-4 bg-white rounded-lg shadow-soft border border-gray-200 hover:shadow-medium transition-shadow">
-                <h3 className="text-lg font-semibold text-gray-900">Scan Menu</h3>
-                <p className="text-gray-600">Scan and analyze restaurant menus</p>
-              </a>
-              <a href="/recommendations" className="block p-4 bg-white rounded-lg shadow-soft border border-gray-200 hover:shadow-medium transition-shadow">
-                <h3 className="text-lg font-semibold text-gray-900">Recommendations</h3>
-                <p className="text-gray-600">View personalized dish recommendations</p>
-              </a>
-            </div>
-          </div>
+        <Navigation />
+        <main className="flex-1">
+          <Routes>
+            <Route path="/" element={<Navigate to="/profile" replace />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/menu-scan" element={<MenuScan />} />
+            <Route path="/recommendations" element={<Recommendations />} />
+            <Route path="/extended-profile" element={<ExtendedProfile />} />
+          </Routes>
         </main>
       </div>
     </Router>
