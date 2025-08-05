@@ -390,37 +390,7 @@ const Camera = () => {
                 </div>
               </div>
               
-              {/* Miniatures des pages */}
-              {capturedImages.length > 0 && (
-                <div className="flex justify-center">
-                  <div className="flex space-x-2 overflow-x-auto max-w-full">
-                    {capturedImages.map((image, index) => (
-                      <div key={index} className="relative flex-shrink-0">
-                        <img
-                          src={image}
-                          alt={`Miniature page ${index + 1}`}
-                          className={`w-16 h-12 object-cover rounded-lg cursor-pointer border-2 transition-all ${
-                            index === currentImageIndex 
-                              ? 'border-green-500' 
-                              : 'border-gray-300 hover:border-gray-400'
-                          }`}
-                          onClick={() => setCurrentImageIndex(index)}
-                        />
-                        <button
-                          onClick={() => deleteImage(index)}
-                          className="absolute -top-1 -right-1 bg-red-500 text-white w-5 h-5 rounded-full text-xs hover:bg-red-600"
-                        >
-                          ×
-                        </button>
-                        {/* Indicateur de page sur miniature */}
-                        <div className="absolute bottom-0 right-0 bg-black bg-opacity-50 text-white text-xs px-1 rounded">
-                          {index + 1}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+
               
               {/* Bouton Ajouter une autre page */}
               <div className="text-center">
