@@ -259,6 +259,16 @@ export async function analyzeMenuImage(imageBase64, userProfile) {
       throw new Error(result.message || 'Analysis failed');
     }
     
+    // Handle partial results
+    if (result.status === "partial") {
+      console.log('⚠️ Partial analysis results received');
+      console.log('Partial recommendations:', result.recommendations);
+      return {
+        extractedText: result.extractedText || "Texte extrait avec succès",
+        recommendations: result.recommendations || []
+      };
+    }
+    
     console.log('✅ Comprehensive analysis completed via backend');
     console.log('Extracted text length:', result.extractedText?.length);
     console.log('Recommendations count:', result.recommendations?.length);

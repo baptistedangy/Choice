@@ -50,6 +50,10 @@ try {
  * @returns {Promise<string>} - Extracted text
  */
 async function extractTextFromImage(base64Image) {
+  console.log('🔍 Checking Google Vision API key...');
+  console.log('🔑 API Key exists:', !!process.env.GOOGLE_VISION_API_KEY);
+  console.log('🔑 API Key starts with:', process.env.GOOGLE_VISION_API_KEY ? process.env.GOOGLE_VISION_API_KEY.substring(0, 10) + '...' : 'NOT FOUND');
+  
   if (!process.env.GOOGLE_VISION_API_KEY) {
     throw new Error('Google Vision API key not configured');
   }
@@ -194,6 +198,32 @@ function safeJsonParse(jsonString) {
       console.error('❌ Second JSON parsing attempt failed:', secondError);
       console.error('Raw response that failed to parse:', jsonString);
       
+      // Try to extract partial data from the response
+      const partialMatches = jsonString.match(/\{[^}]*"title"[^}]*"description"[^}]*"tags"[^}]*"price"[^}]*\}/g);
+      if (partialMatches && partialMatches.length > 0) {
+        console.log('✅ Found partial data, attempting to parse individual objects...');
+        try {
+          const partialData = partialMatches.map(match => {
+            try {
+              return JSON.parse(match);
+            } catch {
+              return null;
+            }
+          }).filter(item => item !== null);
+          
+          if (partialData.length > 0) {
+            console.log(`✅ Successfully parsed ${partialData.length} partial items`);
+            return {
+              status: "partial",
+              message: "Menu analyzed with partial results",
+              recommendations: partialData
+            };
+          }
+        } catch (partialError) {
+          console.error('❌ Partial parsing failed:', partialError);
+        }
+      }
+      
       // Return fallback error object
       return {
         status: "error",
@@ -327,6 +357,17 @@ Output ONLY the JSON response, nothing else.`;
           status: "error",
           message: recommendations.message,
           extractedText: extractedText
+        });
+      }
+      
+      // Check if parsing returned partial results
+      if (recommendations.status === "partial") {
+        console.log('✅ Returning partial results to frontend');
+        return res.json({
+          status: "partial",
+          message: recommendations.message,
+          extractedText: extractedText,
+          recommendations: recommendations.recommendations
         });
       }
 
