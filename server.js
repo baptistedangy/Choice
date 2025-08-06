@@ -594,13 +594,15 @@ Output ONLY the JSON response, nothing else.`
         const hasTags = Array.isArray(dish.tags) && dish.tags.length > 0;
         const hasPrice = !!dish.price;
         
-        const isValid = hasTitle && hasDescription && hasTags && hasPrice;
+        // Validation plus souple : titre ET description ET (tags OU prix)
+        const isValid = hasTitle && hasDescription && (hasTags || hasPrice);
         
         console.log(`\n🔧 VALIDATING DISH ${index + 1}: "${dish.title || 'NO TITLE'}"`);
         console.log(`   - Has title (≥3 chars): ${hasTitle} (length: ${dish.title ? dish.title.length : 0})`);
         console.log(`   - Has description (≥10 chars): ${hasDescription} (length: ${dish.description ? dish.description.length : 0})`);
         console.log(`   - Has tags: ${hasTags} (count: ${dish.tags ? dish.tags.length : 0})`);
         console.log(`   - Has price: ${hasPrice}`);
+        console.log(`   - Has tags OR price: ${hasTags || hasPrice}`);
         console.log(`   - AI Score: ${dish.aiScore || 0}`);
         console.log(`   - Is valid: ${isValid ? '✅ YES' : '❌ NO'}`);
         
@@ -608,8 +610,7 @@ Output ONLY the JSON response, nothing else.`
           const reasons = [];
           if (!hasTitle) reasons.push('NO_TITLE_OR_TOO_SHORT');
           if (!hasDescription) reasons.push('NO_DESCRIPTION_OR_TOO_SHORT');
-          if (!hasTags) reasons.push('NO_TAGS');
-          if (!hasPrice) reasons.push('NO_PRICE');
+          if (!hasTags && !hasPrice) reasons.push('NO_TAGS_AND_NO_PRICE');
           
           sliceExcludedDishes.push({
             dishNumber: index + 1,
@@ -764,20 +765,16 @@ app.post('/api/vision/extract-text', upload.single('image'), async (req, res) =>
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
       
-      // Détecter les titres de plats (commencent par des lettres majuscules, contiennent des mots de nourriture)
+      // Détecter les titres de plats (commencent par des lettres majuscules, longueur appropriée)
       const isDishTitle = /^[A-Z][A-Z\s]+$/.test(line) && 
-                         (line.includes('CEVICHE') || line.includes('QUESADILLA') || 
-                          line.includes('SALAD') || line.includes('STEAK') || 
-                          line.includes('BURGER') || line.includes('PASTA') ||
-                          line.includes('PIZZA') || line.includes('SALMON') ||
-                          line.includes('BEEF') || line.includes('CHICKEN') ||
-                          line.includes('FISH') || line.includes('SHRIMP') ||
-                          line.includes('TOFU') || line.includes('VEGAN') ||
-                          line.includes('VEGETARIAN') || line.includes('DESSERT') ||
-                          line.includes('DRINK') || line.includes('COCKTAIL'));
+                         line.length >= 3 && line.length <= 50 &&
+                         !line.includes('MENU') && !line.includes('DRINKS') && 
+                         !line.includes('KIDS') && !line.includes('PRICE') &&
+                         !line.includes('€') && !line.includes('$') && !line.includes('£');
       
       // Détecter les prix (nombres suivis de €, $, ou juste des nombres)
-      const isPrice = /^\d+\.?\d*\s*[€$£]?$/.test(line) || /^\d+\.?\d*$/.test(line);
+      const isPrice = /^\d+\.?\d*\s*[€$£]?$/.test(line) || 
+                     (/^\d+\.?\d*$/.test(line) && parseFloat(line) > 0 && parseFloat(line) < 1000);
       
       if (isDishTitle) {
         if (currentDish) {
@@ -788,8 +785,8 @@ app.post('/api/vision/extract-text', upload.single('image'), async (req, res) =>
       } else if (isPrice && currentDish && !currentDish.price) {
         currentDish.price = line;
         console.log(`    💰 Price found for "${currentDish.title}": ${line} (line ${i + 1})`);
-      } else if (currentDish && line.length > 10) {
-        // Description potentielle
+      } else if (currentDish && line.length > 5 && !isPrice) {
+        // Description potentielle (plus flexible)
         if (!currentDish.description) {
           currentDish.description = line;
         } else {

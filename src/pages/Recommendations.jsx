@@ -452,262 +452,215 @@ const Recommendations = () => {
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 py-8">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
-          {/* Header */}
-          <div className="bg-gradient-to-r from-purple-600 to-pink-600 px-6 py-8">
-            <div className="flex items-center justify-between">
-              <div>
-                            <h1 className="text-3xl font-bold text-white">Recommendations</h1>
-            <p className="text-purple-100 mt-2">Discover our personalized suggestions</p>
-              </div>
-                            {source === 'scan' && (
-                <button
-                  onClick={clearStoredRecommendations}
-                  className="bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                  title="Clear saved recommendations"
-                >
-                  🗑️ Clear
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Profile Completion Banner */}
-          {showProfileBanner && (
-            <div className="bg-blue-50 border-b border-blue-200 px-6 py-4">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-purple-600 to-pink-600 px-6 py-8">
               <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="flex-shrink-0">
-                    <span className="text-blue-600 text-lg">💡</span>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-blue-900">
-                      For more accurate recommendations, complete your profile information.
-                    </p>
-                  </div>
+                <div>
+                  <h1 className="text-3xl font-bold text-white">Recommendations</h1>
+                  <p className="text-purple-100 mt-2">Discover our personalized suggestions</p>
                 </div>
-                <button
-                  onClick={() => navigate('/extended-profile')}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
-                >
-                  Complete now
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Menu Text Display (if from scan) - Hidden for production, kept for debugging */}
-          {/* {menuText && source === 'scan' && (
-            <div className="p-6 border-b border-gray-200 bg-gray-50">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Menu scanné</h2>
-              <div className="bg-white rounded-lg p-4 border border-gray-200">
-                <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{menuText}</p>
-              </div>
-            </div>
-          )} */}
-
-          {/* Filters */}
-          <div className="p-6 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Filter by category</h2>
-            <div className="flex flex-wrap gap-3">
-              {categories.map((category) => (
-                <button
-                  key={category.id}
-                  onClick={() => setSelectedCategory(category.id)}
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                    selectedCategory === category.id
-                      ? `${category.color} text-white`
-                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                  }`}
-                >
-                  {category.name}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Recommendations Grid */}
-          <div className="p-6">
-            {/* Loading Indicator */}
-            {isAnalyzing && (
-              <div className="text-center py-8 mb-6">
-                <div className="inline-flex items-center space-x-3">
-                  <div className="w-6 h-6 border-2 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
-                  <span className="text-purple-600 font-medium">Analyzing dishes...</span>
-                </div>
-              </div>
-            )}
-            
-            {/* Empty State */}
-            {filteredRecommendations.length === 0 && !isAnalyzing && (
-              <div className="text-center py-12">
-                <div className="max-w-md mx-auto">
-                  <div className="text-6xl mb-4">📷</div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                    No dishes available
-                  </h3>
-                  <p className="text-gray-600 mb-6">
-                    Scan a menu to get personalized food recommendations based on your dietary preferences.
-                  </p>
+                {source === 'scan' && (
                   <button
-                    onClick={() => navigate('/')}
-                    className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+                    onClick={clearStoredRecommendations}
+                    className="bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                    title="Clear saved recommendations"
                   >
-                    Scan Menu
+                    🗑️ Clear
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Profile Completion Banner */}
+            {showProfileBanner && (
+              <div className="bg-blue-50 border-b border-blue-200 px-6 py-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className="flex-shrink-0">
+                      <span className="text-blue-600 text-lg">💡</span>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-blue-900">
+                        For more accurate recommendations, complete your profile information.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => navigate('/extended-profile')}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
+                  >
+                    Complete now
                   </button>
                 </div>
               </div>
             )}
-            
+
+            {/* Filters */}
+            <div className="p-6 border-b border-gray-200">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Filter by category</h2>
+              <div className="flex flex-wrap gap-3">
+                {categories.map((category) => (
+                  <button
+                    key={category.id}
+                    onClick={() => setSelectedCategory(category.id)}
+                    className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                      selectedCategory === category.id
+                        ? `${category.color} text-white`
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    {category.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Recommendations Grid */}
-            {filteredRecommendations.length > 0 && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredRecommendations.map((item, index) => {
-                const isFirstPlace = index === 0;
-                const rankingBadge = index < 3 ? ['🥇', '🥈', '🥉'][index] : null;
-                
-                return (
-                                                    <div 
-                  key={item.id} 
-                  className={`bg-white border-2 rounded-xl overflow-hidden hover:shadow-lg transition-all duration-300 relative z-10 flex flex-col h-full ${
-                    isFirstPlace 
-                      ? 'border-green-500 shadow-xl scale-105 transform' 
-                      : index === 1
-                      ? 'border-blue-300 shadow-md scale-102 transform'
-                      : index === 2
-                      ? 'border-orange-300 shadow-sm scale-101 transform'
-                      : 'border-gray-200 shadow-sm'
-                  }`}
-                >
-                  {/* Top Right Section: Podium Badge and Price */}
-                  <div className="absolute top-4 right-4 z-10 flex flex-col items-end gap-2">
-                    {/* Price Badge */}
-                    {item.price && item.price !== 'Price not indicated' && (
-                      <div className="bg-green-500 text-white px-3 py-1.5 rounded-lg shadow-md">
-                        <span className="text-sm font-bold">{item.price}</span>
-                      </div>
-                    )}
-                    {/* Podium Badge */}
-                    {rankingBadge && (
-                      <div className="text-3xl drop-shadow-lg filter brightness-110">{rankingBadge}</div>
-                    )}
-                  </div>
-                  
-                  <div className="p-8 flex flex-col h-full">
-                    {/* Error Banner - Display if there's an error */}
-                    {item.error && (
-                      <div className="mb-4">
-                        <div className="bg-red-500 text-white px-4 py-2 rounded-lg text-center">
-                          <div className="font-bold mb-1">⚠️ Error</div>
-                          <div className="text-sm">{item.error}</div>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {/* TOP SECTION: Vertically-stacked Personalized Match Score badge */}
-                    {!item.error && item.aiScore !== undefined && (
-                      <div className="mb-4">
-                        <div className="relative inline-block">
-                          <div className="bg-green-500 text-white px-3 py-2 rounded-lg shadow-md">
-                            <div className="flex flex-col items-center gap-0.5">
-                              <div className="flex items-center gap-1">
-                                <span className="text-xs font-medium uppercase tracking-wide">Personalized Match Score</span>
-                                <div className="relative">
-                                  <Info 
-                                    ref={(el) => tooltipRefs.current[item.id] = el}
-                                    size={14}
-                                    className="text-white cursor-help hover:text-gray-200 transition-colors"
-                                    onMouseEnter={() => setTooltipVisible(item.id)}
-                                    onMouseLeave={() => setTooltipVisible(null)}
-                                    onClick={() => setTooltipVisible(tooltipVisible === item.id ? null : item.id)}
-                                  />
-                                </div>
-                              </div>
-                              <div className="text-xl font-bold">{item.aiScore.toFixed(1)}/10</div>
-                            </div>
-                          </div>
-                          <Tooltip 
-                            isVisible={tooltipVisible === item.id}
-                            targetRef={{ current: tooltipRefs.current[item.id] }}
-                          >
-                            This score reflects how well this dish matches your dietary profile, preferences, and estimated nutritional needs.
-                          </Tooltip>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {/* Dish name - immediately below AI Score */}
-                    <div className="mb-4">
-                      <h3 className="text-2xl font-bold text-gray-900">{item.name}</h3>
-                    </div>
-                    
-                    {/* Calories - below dish name */}
-                    {item.calories !== undefined && (
-                      <div className="mb-4">
-                        <div className="text-xl font-bold text-gray-900">
-                          {item.calories || 0} kcal
-                        </div>
-                      </div>
-                    )}
-                    
-                    {/* MACRONUTRIENTS SECTION: Pills with icons */}
-                    {item.protein !== undefined && (
-                      <div className="flex gap-3 mb-6">
-                        <div className="bg-red-100 rounded-full px-4 py-2 flex items-center gap-2">
-                          <span className="text-sm">🥩</span>
-                          <span className="text-sm font-bold text-red-700">{item.protein || 0}g</span>
-                        </div>
-                        <div className="bg-yellow-100 rounded-full px-4 py-2 flex items-center gap-2">
-                          <span className="text-sm">🍞</span>
-                          <span className="text-sm font-bold text-yellow-700">{item.carbs || 0}g</span>
-                        </div>
-                        <div className="bg-orange-100 rounded-full px-4 py-2 flex items-center gap-2">
-                          <span className="text-sm">🥑</span>
-                          <span className="text-sm font-bold text-orange-700">{item.fats || 0}g</span>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {/* Spacer to push content to bottom */}
-                    <div className="flex-grow"></div>
-                    
-                    {/* Tags - before button */}
-                    {item.tags && item.tags.length > 0 && (
-                      <div className="mb-4">
-                        <div className="flex flex-wrap gap-2">
-                          {item.tags.map((tag, index) => (
-                            <span
-                              key={index}
-                              className="px-2 py-1 bg-blue-50 text-blue-600 text-xs rounded-full"
-                            >
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    
-                    {/* Justification - at bottom, smaller and lighter */}
-                    {item.shortJustification && (
-                      <div className="mb-4">
-                        <p className="text-xs italic text-gray-400 leading-relaxed line-clamp-2">
-                          {item.shortJustification}
-                        </p>
-                      </div>
-                    )}
-                    
-                    {/* BOTTOM: View details button - always at bottom */}
-                    <div className="mt-auto">
-                      <button 
-                        onClick={() => openModal(item)}
-                        className="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105"
-                      >
-                        View details
-                      </button>
-                    </div>
+            <div className="p-6">
+              {/* Loading Indicator */}
+              {isAnalyzing && (
+                <div className="text-center py-8 mb-6">
+                  <div className="inline-flex items-center space-x-3">
+                    <div className="w-6 h-6 border-2 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
+                    <span className="text-purple-600 font-medium">Analyzing dishes...</span>
                   </div>
                 </div>
-              );
-            })}
+              )}
+              
+              {/* Empty State */}
+              {filteredRecommendations.length === 0 && !isAnalyzing && (
+                <div className="text-center py-12">
+                  <div className="max-w-md mx-auto">
+                    <div className="text-6xl mb-4">📷</div>
+                    <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                      No dishes available
+                    </h3>
+                    <p className="text-gray-600 mb-6">
+                      Scan a menu to get personalized food recommendations based on your dietary preferences.
+                    </p>
+                    <button
+                      onClick={() => navigate('/menu-scan')}
+                      className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105"
+                    >
+                      📸 Scan Menu
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Recommendations Grid */}
+              {filteredRecommendations.length > 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredRecommendations.map((item) => {
+                    return (
+                      <div key={item.id} className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200 hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+                        <div className="p-6 flex flex-col h-full">
+                          {/* AI Score - at top */}
+                          {item.aiScore !== undefined && (
+                            <div className="mb-4">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-medium text-gray-600">AI Score</span>
+                                  <div
+                                    ref={(el) => {
+                                      if (el) tooltipRefs.current[item.id] = el;
+                                    }}
+                                    onMouseEnter={() => setTooltipVisible(item.id)}
+                                    onMouseLeave={() => setTooltipVisible(null)}
+                                    className="cursor-help"
+                                  >
+                                    <Info className="w-4 h-4 text-gray-400" />
+                                  </div>
+                                </div>
+                                <div className="text-2xl font-bold text-purple-600">
+                                  {item.aiScore || 0}
+                                </div>
+                              </div>
+                              <Tooltip 
+                                isVisible={tooltipVisible === item.id}
+                                targetRef={{ current: tooltipRefs.current[item.id] }}
+                              >
+                                This score reflects how well this dish matches your dietary profile, preferences, and estimated nutritional needs.
+                              </Tooltip>
+                            </div>
+                          )}
+                          
+                          {/* Dish name - immediately below AI Score */}
+                          <div className="mb-4">
+                            <h3 className="text-2xl font-bold text-gray-900">{item.name}</h3>
+                          </div>
+                          
+                          {/* Calories - below dish name */}
+                          {item.calories !== undefined && (
+                            <div className="mb-4">
+                              <div className="text-xl font-bold text-gray-900">
+                                {item.calories || 0} kcal
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* MACRONUTRIENTS SECTION: Pills with icons */}
+                          {item.protein !== undefined && (
+                            <div className="flex gap-3 mb-6">
+                              <div className="bg-red-100 rounded-full px-4 py-2 flex items-center gap-2">
+                                <span className="text-sm">🥩</span>
+                                <span className="text-sm font-bold text-red-700">{item.protein || 0}g</span>
+                              </div>
+                              <div className="bg-yellow-100 rounded-full px-4 py-2 flex items-center gap-2">
+                                <span className="text-sm">🍞</span>
+                                <span className="text-sm font-bold text-yellow-700">{item.carbs || 0}g</span>
+                              </div>
+                              <div className="bg-orange-100 rounded-full px-4 py-2 flex items-center gap-2">
+                                <span className="text-sm">🥑</span>
+                                <span className="text-sm font-bold text-orange-700">{item.fats || 0}g</span>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Spacer to push content to bottom */}
+                          <div className="flex-grow"></div>
+                          
+                          {/* Tags - before button */}
+                          {item.tags && item.tags.length > 0 && (
+                            <div className="mb-4">
+                              <div className="flex flex-wrap gap-2">
+                                {item.tags.map((tag, index) => (
+                                  <span
+                                    key={index}
+                                    className="px-2 py-1 bg-blue-50 text-blue-600 text-xs rounded-full"
+                                  >
+                                    {tag}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Justification - at bottom, smaller and lighter */}
+                          {item.shortJustification && (
+                            <div className="mb-4">
+                              <p className="text-xs italic text-gray-400 leading-relaxed line-clamp-2">
+                                {item.shortJustification}
+                              </p>
+                            </div>
+                          )}
+                          
+                          {/* BOTTOM: View details button - always at bottom */}
+                          <div className="mt-auto">
+                            <button 
+                              onClick={() => openModal(item)}
+                              className="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105"
+                            >
+                              View details
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
