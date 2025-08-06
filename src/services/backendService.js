@@ -255,6 +255,39 @@ export async function analyzeMenuImage(imageBase64, userProfile) {
     
     const result = await response.json();
     
+    // Logs de debug pour la console du navigateur
+    if (result.debug) {
+      console.log('🔍 DEBUG_ANALYSIS - RAW OCR TEXT:', result.debug.rawOcrText);
+      console.log('🔍 DEBUG_ANALYSIS - OCR ANALYSIS:', result.debug.ocrAnalysis);
+      console.log('🔍 DEBUG_ANALYSIS - POTENTIAL DISHES:', result.debug.potentialDishes);
+      console.log('🔍 DEBUG_ANALYSIS - DISH VALIDATION RESULTS:', result.debug.dishValidationResults);
+      console.log('🔍 DEBUG_ANALYSIS - EXCLUDED DISHES:', result.debug.excludedDishes);
+      console.log('🔍 DEBUG_ANALYSIS - VALIDATION PROCESS:', result.debug.validationProcess);
+      console.log('🔍 DEBUG_ANALYSIS - SLICE EXCLUDED DISHES:', result.debug.sliceExcludedDishes);
+      console.log('🔍 DEBUG_ANALYSIS - FINAL RESULTS:', result.debug.finalResults);
+      
+      // Nouveaux logs pour le tri et les scores AI
+      if (result.debug.allDishesWithScores) {
+        console.log('🔍 DEBUG_ANALYSIS - ALL DISHES WITH AI SCORES (SORTED):', result.debug.allDishesWithScores);
+        console.log('🔍 DEBUG_ANALYSIS - TOP 3 DISHES:', result.debug.top3Dishes);
+        console.log('🔍 DEBUG_ANALYSIS - EXCLUDED BY SLICE:', result.debug.excludedBySlice);
+        
+        // Log détaillé de chaque plat avec son score
+        console.log('📊 DETAILED DISH SCORES:');
+        result.debug.allDishesWithScores.forEach((dish, index) => {
+          console.log(`  ${index + 1}. "${dish.title}" - AI Score: ${dish.aiScore || 0} - Calories: ${dish.calories || 0} - Price: ${dish.price || 'N/A'}`);
+        });
+        
+        // Log des plats exclus
+        if (result.debug.excludedBySlice && result.debug.excludedBySlice.length > 0) {
+          console.log('❌ DISHES EXCLUDED BY SLICE:');
+          result.debug.excludedBySlice.forEach((dish, index) => {
+            console.log(`  ${index + 4}. "${dish.title}" - AI Score: ${dish.aiScore || 0} - EXCLUDED: Slice limit (0, 3)`);
+          });
+        }
+      }
+    }
+    
     if (result.status === "error") {
       throw new Error(result.message || 'Analysis failed');
     }

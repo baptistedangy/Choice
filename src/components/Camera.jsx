@@ -172,7 +172,8 @@ const Camera = () => {
         state: { 
           recommendations: analysisResult.recommendations,
           menuText: analysisResult.extractedText,
-          source: 'scan'
+          source: 'scan',
+          debug: analysisResult.debug // Passer les données de debug
         } 
       });
       

@@ -12,108 +12,14 @@ export const getRecommendationsFromMenu = (menuText, userProfile = {}) => {
   console.log('Analyse du menu:', menuText);
   console.log('Profil utilisateur:', userProfile);
 
-  // Base de données de plats disponibles (en réalité, cela viendrait d'une API)
-  const availableDishes = [
-    {
-      name: "Salade de quinoa aux légumes",
-      description: "Quinoa frais avec tomates cerises, concombre, avocat et vinaigrette citron-huile d'olive",
-      price: 12.50,
-      tags: ["végétarien", "sain", "gluten-free", "salade"]
-    },
-    {
-      name: "Poulet rôti aux herbes",
-      description: "Suprême de poulet fermier rôti avec thym, romarin et jus de citron, accompagné de pommes de terre",
-      price: 18.90,
-      tags: ["protéines", "classique", "herbes", "poulet"]
-    },
-    {
-      name: "Tarte aux pommes traditionnelle",
-      description: "Tarte fine aux pommes caramélisées avec une pâte sablée maison et crème anglaise",
-      price: 8.50,
-      tags: ["dessert", "traditionnel", "pommes", "sucré"]
-    },
-    {
-      name: "Soupe à l'oignon gratinée",
-      description: "Soupe traditionnelle à l'oignon caramélisé avec croûtons et fromage gratiné",
-      price: 11.00,
-      tags: ["soupe", "traditionnel", "fromage", "réconfortant"]
-    },
-    {
-      name: "Steak frites maison",
-      description: "Steak de bœuf grillé à la perfection avec frites maison et sauce au poivre",
-      price: 24.50,
-      tags: ["viande", "classique", "frites", "steak"]
-    },
-    {
-      name: "Crème brûlée à la vanille",
-      description: "Crème brûlée traditionnelle avec vanille de Madagascar et sucre caramélisé",
-      price: 9.50,
-      tags: ["dessert", "classique", "vanille", "crème"]
-    },
-    {
-      name: "Risotto aux champignons",
-      description: "Risotto crémeux aux champignons de Paris, parmesan et truffe noire",
-      price: 16.80,
-      tags: ["végétarien", "italien", "champignons", "risotto"]
-    },
-    {
-      name: "Saumon grillé citron",
-      description: "Filet de saumon frais grillé avec citron confit et légumes de saison",
-      price: 22.00,
-      tags: ["poisson", "sain", "citron", "grillé"]
-    },
-    {
-      name: "Tiramisu classique",
-      description: "Tiramisu traditionnel avec mascarpone, café et cacao en poudre",
-      price: 10.50,
-      tags: ["dessert", "italien", "café", "mascarpone"]
-    },
-    {
-      name: "Burger gourmet",
-      description: "Burger avec steak de bœuf, cheddar affiné, bacon croustillant et sauce secrète",
-      price: 19.90,
-      tags: ["burger", "viande", "gourmet", "cheddar"]
-    },
-    {
-      name: "Lasagnes végétariennes",
-      description: "Lasagnes maison avec légumes de saison, ricotta et sauce tomate fraîche",
-      price: 15.50,
-      tags: ["végétarien", "italien", "pâtes", "légumes"]
-    },
-    {
-      name: "Carpaccio de bœuf",
-      description: "Carpaccio finement tranché avec huile d'olive, parmesan et roquette",
-      price: 14.80,
-      tags: ["viande", "italien", "entrée", "carpaccio"]
-    },
-    {
-      name: "Mousse au chocolat",
-      description: "Mousse au chocolat noir avec chantilly et copeaux de chocolat",
-      price: 7.90,
-      tags: ["dessert", "chocolat", "mousse", "sucré"]
-    },
-    {
-      name: "Pâtes carbonara",
-      description: "Spaghetti à la carbonara traditionnelle avec œuf, pancetta et parmesan",
-      price: 13.20,
-      tags: ["italien", "pâtes", "carbonara", "classique"]
-    },
-    {
-      name: "Ratatouille provençale",
-      description: "Ratatouille traditionnelle avec aubergines, courgettes et tomates",
-      price: 11.80,
-      tags: ["végétarien", "français", "légumes", "provençal"]
-    }
-  ];
-
-  // Analyse du texte du menu pour extraire des mots-clés
-  const menuKeywords = extractKeywords(menuText);
-  console.log('Mots-clés extraits:', menuKeywords);
-
-  // Algorithme de recommandation basique
-  const recommendations = generateRecommendations(availableDishes, menuKeywords, userProfile);
-
-  return recommendations;
+  // Aucun plat hardcodé - seuls les plats extraits du menu scanné sont utilisés
+  console.log('✅ No hardcoded dishes - only scanned menu dishes will be used');
+  
+  // Retourner un objet vide car les plats viendront de l'analyse AI du menu scanné
+  return {
+    topRecommendations: [],
+    allRecommendations: []
+  };
 };
 
 /**
@@ -147,80 +53,19 @@ const extractKeywords = (menuText) => {
 
 /**
  * Génère des recommandations basées sur les mots-clés et le profil utilisateur
- * @param {Array} availableDishes - Plats disponibles
+ * @param {Array} availableDishes - Plats disponibles (maintenant vide)
  * @param {Array} menuKeywords - Mots-clés extraits du menu
  * @param {object} userProfile - Profil utilisateur
  * @returns {Array} Array de 3 plats recommandés
  */
 const generateRecommendations = (availableDishes, menuKeywords, userProfile) => {
-  // Calcul du score pour chaque plat
-  const scoredDishes = availableDishes.map(dish => {
-    let score = 0;
-
-    // Score basé sur les mots-clés du menu
-    menuKeywords.forEach(keyword => {
-      if (dish.name.toLowerCase().includes(keyword) || 
-          dish.description.toLowerCase().includes(keyword) ||
-          dish.tags.includes(keyword)) {
-        score += 2;
-      }
-    });
-
-    // Score basé sur les préférences utilisateur
-    if (userProfile.dietaryRestrictions) {
-      if (userProfile.dietaryRestrictions.includes('vegetarian') && 
-          dish.tags.includes('végétarien')) {
-        score += 3;
-      }
-      if (userProfile.dietaryRestrictions.includes('gluten-free') && 
-          dish.tags.includes('gluten-free')) {
-        score += 2;
-      }
-    }
-
-    // Score basé sur le budget
-    if (userProfile.budget) {
-      if (userProfile.budget === 'low' && dish.price < 15) score += 1;
-      if (userProfile.budget === 'medium' && dish.price >= 15 && dish.price < 25) score += 1;
-      if (userProfile.budget === 'high' && dish.price >= 25) score += 1;
-    }
-
-    // Score basé sur les préférences culinaires
-    if (userProfile.cuisinePreferences) {
-      userProfile.cuisinePreferences.forEach(pref => {
-        if (dish.tags.includes(pref)) score += 1;
-      });
-    }
-
-    // Bonus pour les plats populaires
-    const popularDishes = ['poulet', 'steak', 'salade', 'dessert'];
-    if (popularDishes.some(popular => dish.name.toLowerCase().includes(popular))) {
-      score += 0.5;
-    }
-
-    return { ...dish, score };
-  });
-
-  // Tri par score décroissant et sélection des 3 meilleurs
-  const topRecommendations = scoredDishes
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 3)
-    .map(dish => {
-      // Suppression du score pour l'affichage
-      const { score, ...dishWithoutScore } = dish;
-      return dishWithoutScore;
-    });
-
-  // Stockage de toutes les recommandations pour utilisation ultérieure
-  const allRecommendations = scoredDishes
-    .sort((a, b) => b.score - a.score)
-    .map(dish => {
-      const { score, ...dishWithoutScore } = dish;
-      return dishWithoutScore;
-    });
-
-  console.log('Recommandations générées:', topRecommendations);
-  return { topRecommendations, allRecommendations };
+  // Aucun plat hardcodé à traiter
+  console.log('✅ No hardcoded dishes to process - only scanned menu dishes will be analyzed');
+  
+  return {
+    topRecommendations: [],
+    allRecommendations: []
+  };
 };
 
 /**

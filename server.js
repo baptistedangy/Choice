@@ -241,6 +241,17 @@ app.get('/health', (req, res) => {
 
 // New comprehensive endpoint for image analysis
 app.post('/analyze-image', upload.single('image'), async (req, res) => {
+  // Initialize debugData at the beginning to avoid ReferenceError
+  let debugData = {
+    rawOcrText: '',
+    ocrAnalysis: {
+      totalLines: 0,
+      nonEmptyLines: 0,
+      linesBreakdown: []
+    },
+    potentialDishes: []
+  };
+  
   try {
     if (!req.file) {
       return res.status(400).json({ 
@@ -389,20 +400,131 @@ Output ONLY the JSON response, nothing else.`;
         });
       }
 
-      // Clean and validate recommendations
-      console.log('📊 Recommendations before slice:', recommendations.length);
-      console.log('📋 All recommendations received:', recommendations);
+      // Log total dishes detected by OCR
+      console.log('🔍 TOTAL DISHES DETECTED BY OCR:', recommendations.length);
+      console.log('📋 All dishes received from AI:', recommendations);
       
-      // Log each dish before filtering
-      console.log('🔍 ANALYZING EACH DISH BEFORE FILTERING:');
+      // Step 1: Analyze ALL dishes with AI before any filtering
+      console.log('🤖 ANALYZING ALL DISHES WITH AI BEFORE FILTERING...');
+      const allDishesWithScores = [];
+      
+      for (let i = 0; i < recommendations.length; i++) {
+        const dish = recommendations[i];
+        console.log(`\n🍽️ Analyzing dish ${i + 1}/${recommendations.length}: "${dish.title || 'NO TITLE'}"`);
+        
+        try {
+          // Create dish text for analysis
+          const dishText = `${dish.title || 'Unknown dish'}: ${dish.description || 'No description'}`;
+          console.log(`📝 Dish text for analysis: "${dishText}"`);
+          
+          // Call OpenAI for analysis
+          const analysisCompletion = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [
+              {
+                role: "system",
+                content: "You are a nutrition expert that analyzes dishes for personalized recommendations. You must respond with ONLY valid JSON format. No additional text, commentary, or explanations outside the JSON. If analysis is not possible, return { \"error\": \"Unable to analyze\" }. Be precise with nutritional values and provide meaningful justifications. Write all justifications in English only, maximum 2 sentences, using ONLY real data (nutritional info and user preferences). Do NOT invent or reference activity data, workouts, or energy expenditure. The aiScore represents a personalized match score (0-10) based on how well the dish aligns with the user's dietary profile and preferences."
+              },
+              {
+                role: "user",
+                content: `Analyze this dish for a user with the following profile: ${JSON.stringify(userProfile, null, 2)}.
+
+CRITICAL: You must respond with ONLY valid JSON. No additional text, commentary, or explanations outside the JSON.
+
+If analysis is not possible or the dish description is unclear, respond with:
+{ "error": "Unable to analyze" }
+
+Otherwise, return a JSON object with exactly these fields:
+
+{
+  "aiScore": 0-10 (float, personalized match score based on user profile & needs),
+  "calories": integer (kcal),
+  "macros": {
+    "protein": integer (grams),
+    "carbs": integer (grams), 
+    "fats": integer (grams)
+  },
+  "shortJustification": "Maximum 2 sentences in English, focusing on nutritional data and user preferences. Use ONLY real data: calories, macros, dietary preferences, allergies, constraints. Do NOT reference activity data, workouts, or energy expenditure. Examples: 'High in protein and fully plant-based, perfectly matching your vegan preference.' or 'Balanced meal with moderate carbs and healthy fats, great for a light lunch.'",
+  "longJustification": [
+    "First bullet point about nutritional benefits (based on macros/calories)",
+    "Second bullet point about user preference match (dietary preferences/allergies)",
+    "Third bullet point about dietary constraints alignment (if applicable)"
+  ]
+}
+
+Dish: ${dishText}
+
+Output ONLY the JSON response, nothing else.`
+              }
+            ],
+            temperature: 0.7,
+            max_tokens: 200
+          });
+
+          const analysisResponseText = analysisCompletion.choices[0]?.message?.content;
+          console.log(`📄 Raw OpenAI analysis response for "${dish.title || 'NO TITLE'}":`, analysisResponseText);
+
+          // Parse the analysis response
+          const analysis = safeJsonParse(analysisResponseText);
+          
+          if (analysis.error) {
+            console.log(`❌ Error analyzing "${dish.title || 'NO TITLE'}": ${analysis.error}`);
+            allDishesWithScores.push({
+              ...dish,
+              aiScore: 0,
+              calories: 0,
+              macros: { protein: 0, carbs: 0, fats: 0 },
+              shortJustification: "Unable to analyze",
+              longJustification: ["Analysis failed"],
+              analysisError: analysis.error
+            });
+          } else {
+            console.log(`✅ Successfully analyzed "${dish.title || 'NO TITLE'}" - AI Score: ${analysis.aiScore}`);
+            allDishesWithScores.push({
+              ...dish,
+              aiScore: analysis.aiScore || 0,
+              calories: analysis.calories || 0,
+              macros: analysis.macros || { protein: 0, carbs: 0, fats: 0 },
+              shortJustification: analysis.shortJustification || "No justification available",
+              longJustification: analysis.longJustification || ["No justification available"]
+            });
+          }
+        } catch (error) {
+          console.error(`❌ Error analyzing dish "${dish.title || 'NO TITLE'}":`, error);
+          allDishesWithScores.push({
+            ...dish,
+            aiScore: 0,
+            calories: 0,
+            macros: { protein: 0, carbs: 0, fats: 0 },
+            shortJustification: "Analysis failed",
+            longJustification: ["Analysis failed"],
+            analysisError: error.message
+          });
+        }
+      }
+      
+      // Log all dishes with their AI scores
+      console.log('\n📊 ALL DISHES WITH AI SCORES:');
+      allDishesWithScores.forEach((dish, index) => {
+        console.log(`  ${index + 1}. "${dish.title || 'NO TITLE'}" - AI Score: ${dish.aiScore || 0} - Calories: ${dish.calories || 0}`);
+      });
+      
+      // Step 2: Now filter and validate dishes
+      console.log(`\n📊 TOTAL DISHES DETECTED BY OCR: ${recommendations.length}`);
+      console.log('📋 All dishes extracted from menu:', recommendations);
+      console.log('\n🔍 FILTERING AND VALIDATING DISHES...');
       console.log('📊 DISH VALIDATION RESULTS:');
       
-      recommendations.forEach((dish, index) => {
+      const dishValidationResults = [];
+      const excludedDishes = [];
+      
+      allDishesWithScores.forEach((dish, index) => {
         console.log(`\n🍽️ DISH ${index + 1}: "${dish.title || 'NO TITLE'}"`);
         console.log(`     - Raw text from OCR: ${extractedText.substring(0, 200)}...`);
         console.log(`     - Description: ${dish.description || 'NO DESCRIPTION'}`);
         console.log(`     - Tags: ${JSON.stringify(dish.tags || [])}`);
         console.log(`     - Price: ${dish.price || 'NO PRICE'}`);
+        console.log(`     - AI Score: ${dish.aiScore || 0}`);
         
         // Validation détaillée
         const hasTitle = !!dish.title;
@@ -426,85 +548,166 @@ Output ONLY the JSON response, nothing else.`;
         if (titleLength < 3) exclusionReasons.push('TITLE TOO SHORT');
         if (descriptionLength < 10) exclusionReasons.push('DESCRIPTION TOO SHORT');
         
+        const dishValidation = {
+          dishNumber: index + 1,
+          title: dish.title || 'NO TITLE',
+          description: dish.description || 'NO DESCRIPTION',
+          tags: dish.tags || [],
+          price: dish.price || 'NO PRICE',
+          validation: {
+            hasTitle,
+            hasDescription,
+            hasTags,
+            hasPrice,
+            titleLength,
+            descriptionLength,
+            tagsCount: dish.tags ? dish.tags.length : 0
+          },
+          exclusionReasons
+        };
+        
+        dishValidationResults.push(dishValidation);
+        
         if (exclusionReasons.length > 0) {
           console.log(`     ❌ POTENTIAL EXCLUSION REASONS: ${exclusionReasons.join(', ')}`);
+          excludedDishes.push({
+            dishNumber: index + 1,
+            title: dish.title || 'NO TITLE',
+            exclusionReasons
+          });
         } else {
           console.log(`     ✅ VALID DISH - No exclusion reasons`);
         }
       });
       
-      console.log('\n🔧 VALIDATION AND SLICE PROCESS:');
-      console.log(`📊 Total recommendations before slice: ${recommendations.length}`);
+      // Step 3: Filter and validate dishes (now using already analyzed dishes)
+      console.log('\n🔧 VALIDATION AND FILTERING PROCESS:');
+      console.log(`📊 Total dishes analyzed: ${allDishesWithScores.length}`);
       
-      const validatedRecommendations = recommendations.slice(0, 3).map((dish, index) => {
+      const validationProcess = [];
+      const sliceExcludedDishes = [];
+      
+      // Filter dishes based on validation criteria
+      const validDishes = allDishesWithScores.filter((dish, index) => {
+        const hasTitle = !!dish.title && dish.title.length >= 3;
+        const hasDescription = !!dish.description && dish.description.length >= 10;
+        const hasTags = Array.isArray(dish.tags) && dish.tags.length > 0;
+        const hasPrice = !!dish.price;
+        
+        const isValid = hasTitle && hasDescription && hasTags && hasPrice;
+        
         console.log(`\n🔧 VALIDATING DISH ${index + 1}: "${dish.title || 'NO TITLE'}"`);
+        console.log(`   - Has title (≥3 chars): ${hasTitle} (length: ${dish.title ? dish.title.length : 0})`);
+        console.log(`   - Has description (≥10 chars): ${hasDescription} (length: ${dish.description ? dish.description.length : 0})`);
+        console.log(`   - Has tags: ${hasTags} (count: ${dish.tags ? dish.tags.length : 0})`);
+        console.log(`   - Has price: ${hasPrice}`);
+        console.log(`   - AI Score: ${dish.aiScore || 0}`);
+        console.log(`   - Is valid: ${isValid ? '✅ YES' : '❌ NO'}`);
         
-        // Validation étape par étape
-        const originalTitle = dish.title;
-        const originalDescription = dish.description;
-        const originalTags = dish.tags;
-        const originalPrice = dish.price;
+        if (!isValid) {
+          const reasons = [];
+          if (!hasTitle) reasons.push('NO_TITLE_OR_TOO_SHORT');
+          if (!hasDescription) reasons.push('NO_DESCRIPTION_OR_TOO_SHORT');
+          if (!hasTags) reasons.push('NO_TAGS');
+          if (!hasPrice) reasons.push('NO_PRICE');
+          
+          sliceExcludedDishes.push({
+            dishNumber: index + 1,
+            title: dish.title || 'NO TITLE',
+            reason: reasons.join(', '),
+            aiScore: dish.aiScore || 0
+          });
+        }
         
-        console.log(`   - Original title: "${originalTitle || 'NULL'}"`);
-        console.log(`   - Original description: "${originalDescription || 'NULL'}"`);
-        console.log(`   - Original tags: ${JSON.stringify(originalTags || [])}`);
-        console.log(`   - Original price: "${originalPrice || 'NULL'}"`);
-        
-        const validatedDish = {
-          id: index + 1,
-          title: dish.title || `Dish ${index + 1}`,
-          description: dish.description || 'No description available',
-          tags: Array.isArray(dish.tags) ? dish.tags : [],
-          price: dish.price || null
-        };
-        
-        console.log(`   - Final title: "${validatedDish.title}"`);
-        console.log(`   - Final description: "${validatedDish.description}"`);
-        console.log(`   - Final tags: ${JSON.stringify(validatedDish.tags)}`);
-        console.log(`   - Final price: "${validatedDish.price}"`);
-        
-        // Vérifier les changements
-        const titleChanged = originalTitle !== validatedDish.title;
-        const descriptionChanged = originalDescription !== validatedDish.description;
-        const tagsChanged = JSON.stringify(originalTags) !== JSON.stringify(validatedDish.tags);
-        const priceChanged = originalPrice !== validatedDish.price;
-        
-        if (titleChanged) console.log(`   ⚠️ Title was changed: "${originalTitle}" → "${validatedDish.title}"`);
-        if (descriptionChanged) console.log(`   ⚠️ Description was changed: "${originalDescription}" → "${validatedDish.description}"`);
-        if (tagsChanged) console.log(`   ⚠️ Tags were changed: ${JSON.stringify(originalTags)} → ${JSON.stringify(validatedDish.tags)}`);
-        if (priceChanged) console.log(`   ⚠️ Price was changed: "${originalPrice}" → "${validatedDish.price}"`);
-        
-        console.log(`✅ VALIDATED DISH ${index + 1}: "${validatedDish.title}"`);
-        
-        return validatedDish;
+        return isValid;
       });
       
-      console.log('📊 Recommendations after slice (0, 3):', validatedRecommendations.length);
-      console.log('🔍 SLICE LIMIT FOUND: Only first 3 recommendations are returned');
+      console.log(`📊 Valid dishes after filtering: ${validDishes.length}/${allDishesWithScores.length}`);
+      
+      // Sort valid dishes by AI score (descending)
+      console.log('\n🔄 SORTING VALID DISHES BY AI SCORE (DESCENDING)...');
+      const sortedValidDishes = validDishes.sort((a, b) => (b.aiScore || 0) - (a.aiScore || 0));
+      
+      console.log('\n🏆 ALL VALID DISHES SORTED BY AI SCORE:');
+      sortedValidDishes.forEach((dish, index) => {
+        console.log(`  ${index + 1}. "${dish.title}" - AI Score: ${dish.aiScore || 0} - Calories: ${dish.calories || 0}`);
+      });
+      
+      // Take top 3 dishes
+      console.log('\n✂️ APPLYING SLICE (0, 3) TO GET TOP 3 DISHES...');
+      const top3Dishes = sortedValidDishes.slice(0, 3);
+      
+      console.log('\n🏆 FINAL TOP 3 DISHES FOR DISPLAY:');
+      top3Dishes.forEach((dish, index) => {
+        console.log(`  ${index + 1}. "${dish.title}" - AI Score: ${dish.aiScore || 0} - Calories: ${dish.calories || 0}`);
+      });
       
       // Log excluded dishes
-      if (recommendations.length > 3) {
-        console.log('❌ EXCLUDED DISHES (due to slice limit):');
-        recommendations.slice(3).forEach((dish, index) => {
-          console.log(`  ${index + 4}. "${dish.title || 'NO TITLE'}" - EXCLUDED: Slice limit (0, 3)`);
+      if (sliceExcludedDishes.length > 0) {
+        console.log('\n❌ EXCLUDED DISHES (validation failed):');
+        sliceExcludedDishes.forEach((dish, index) => {
+          console.log(`  ${index + 1}. "${dish.title}" - AI Score: ${dish.aiScore} - EXCLUDED: ${dish.reason}`);
+        });
+      }
+      
+      // Log dishes excluded by slice limit
+      const excludedBySliceLimit = sortedValidDishes.slice(3);
+      if (excludedBySliceLimit.length > 0) {
+        console.log('\n❌ DISHES EXCLUDED BY SLICE LIMIT:');
+        excludedBySliceLimit.forEach((dish, index) => {
+          console.log(`  ${index + 4}. "${dish.title}" - AI Score: ${dish.aiScore || 0} - EXCLUDED: Slice limit (0, 3)`);
         });
       }
 
       console.log('✅ Analysis completed successfully');
-
-      res.json({
+      
+      // Préparer la réponse finale avec toutes les données de debug
+      const finalResponse = {
+        success: true,
         status: "success",
+        recommendations: top3Dishes,
         extractedText: extractedText,
-        recommendations: validatedRecommendations
-      });
+        debug: {
+          dishValidationResults,
+          excludedDishes,
+          validationProcess,
+          sliceExcludedDishes,
+          allDishesWithScores: allDishesWithScores, // Tous les plats analysés
+          sortedValidDishes: sortedValidDishes, // Plats valides triés
+          top3Dishes: top3Dishes, // Top 3 plats
+          excludedBySliceLimit: excludedBySliceLimit, // Plats exclus par le slice
+          finalResults: {
+            totalDishesDetected: recommendations.length,
+            totalDishesAnalyzed: allDishesWithScores.length,
+            totalValidDishes: validDishes.length,
+            totalDishesAfterSorting: sortedValidDishes.length,
+            totalDishesAfterSlice: top3Dishes.length,
+            sliceLimit: 3,
+            excludedByValidation: sliceExcludedDishes.length,
+            excludedBySliceLimit: excludedBySliceLimit.length
+          }
+        }
+      };
+      
+      res.json(finalResponse);
 
     } catch (openaiError) {
       console.error('❌ OpenAI API error:', openaiError);
-      return res.json({
+      
+      // Préparer une réponse d'erreur avec les données de debug disponibles
+      const errorResponse = {
+        success: false,
         status: "error",
         message: "Unable to generate recommendations. Please check OpenAI API credentials.",
         extractedText: extractedText
-      });
+      };
+      
+      // Ajouter les données de debug si disponibles
+      errorResponse.debug = {
+        error: openaiError.message
+      };
+      
+      return res.json(errorResponse);
     }
 
   } catch (error) {
@@ -609,6 +812,25 @@ app.post('/api/vision/extract-text', upload.single('image'), async (req, res) =>
       console.log(`     - Description: ${dish.description || 'NOT FOUND'}`);
       console.log(`     - Description length: ${dish.description ? dish.description.length : 0}`);
     });
+    
+    // Préparer les données de debug pour le frontend
+    debugData.rawOcrText = extractedText;
+    debugData.ocrAnalysis = {
+      totalLines: lines.length,
+      nonEmptyLines: lines.filter(line => line.trim().length > 0).length,
+      linesBreakdown: lines.map((line, index) => ({
+        lineNumber: index + 1,
+        content: line.trim(),
+        length: line.trim().length
+      }))
+    };
+    debugData.potentialDishes = potentialDishes.map(dish => ({
+      title: dish.title,
+      description: dish.description,
+      price: dish.price,
+      lineNumber: dish.lineNumber,
+      descriptionLength: dish.description ? dish.description.length : 0
+    }));
 
     res.json({
       success: true,
@@ -620,7 +842,7 @@ app.post('/api/vision/extract-text', upload.single('image'), async (req, res) =>
     console.error('❌ Error extracting text:', error);
     res.status(500).json({
       success: false,
-      error: error.message || 'Erreur lors de l\'extraction du texte'
+      error: error.message
     });
   }
 });

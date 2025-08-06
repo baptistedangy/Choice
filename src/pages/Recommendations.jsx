@@ -78,111 +78,8 @@ const Tooltip = ({ isVisible, targetRef, children }) => {
 };
 
 const Recommendations = () => {
-  // Default recommendations (fallback)
-  const defaultRecommendations = [
-    {
-      id: 1,
-      name: 'Caesar Salad',
-      restaurant: 'The Parisian Bistro',
-      price: '14.50€',
-      rating: 4.8,
-      category: 'healthy',
-      description: 'Fresh salad with grilled chicken, parmesan and croutons',
-      image: '🥗',
-      tags: ['Vegetarian', 'Gluten-free'],
-      aiScore: 8.5,
-      calories: 320,
-      protein: 25,
-      carbs: 15,
-      fats: 18,
-      shortJustification: 'High protein content with fresh ingredients, perfect for a healthy meal.'
-    },
-    {
-      id: 2,
-      name: 'Vegetarian Burger',
-      restaurant: 'Green Kitchen',
-      price: '16.00€',
-      rating: 4.6,
-      category: 'vegetarian',
-      description: 'Vegetable burger with quinoa patty and goat cheese',
-      image: '🍔',
-      tags: ['Vegetarian', 'Organic'],
-      aiScore: 7.8,
-      calories: 450,
-      protein: 18,
-      carbs: 35,
-      fats: 22,
-      shortJustification: 'Plant-based protein with organic ingredients, great for vegetarian diets.'
-    },
-    {
-      id: 3,
-      name: 'Salmon Poke Bowl',
-      restaurant: 'Sushi Express',
-      price: '18.50€',
-      rating: 4.9,
-      category: 'healthy',
-      description: 'Rice bowl with fresh salmon, avocado and vegetables',
-      image: '🍣',
-      tags: ['Fish', 'Healthy'],
-      aiScore: 9.2,
-      calories: 380,
-      protein: 28,
-      carbs: 25,
-      fats: 16,
-      shortJustification: 'Rich in omega-3 fatty acids and lean protein, excellent nutritional balance.'
-    },
-    {
-      id: 4,
-      name: 'Margherita Pizza',
-      restaurant: 'Pizza Roma',
-      price: '13.00€',
-      rating: 4.5,
-      category: 'classic',
-      description: 'Traditional pizza with mozzarella and fresh basil',
-      image: '🍕',
-      tags: ['Vegetarian', 'Italian'],
-      aiScore: 6.5,
-      calories: 520,
-      protein: 20,
-      carbs: 45,
-      fats: 25,
-      shortJustification: 'Classic Italian dish with balanced macronutrients and authentic flavors.'
-    },
-    {
-      id: 5,
-      name: 'Carbonara Pasta',
-      restaurant: 'Trattoria Bella',
-      price: '15.50€',
-      rating: 4.7,
-      category: 'classic',
-      description: 'Pasta with eggs, bacon and parmesan',
-      image: '🍝',
-      tags: ['Italian', 'Classic'],
-      aiScore: 7.0,
-      calories: 580,
-      protein: 22,
-      carbs: 55,
-      fats: 28,
-      shortJustification: 'Rich in protein and carbs, perfect for energy replenishment.'
-    },
-    {
-      id: 6,
-      name: 'Smoothie Bowl',
-      restaurant: 'Fresh & Co',
-      price: '12.00€',
-      rating: 4.4,
-      category: 'healthy',
-      description: 'Smoothie bowl with fresh fruits and granola',
-      image: '🥣',
-      tags: ['Vegetarian', 'Vegan', 'Healthy'],
-      aiScore: 8.8,
-      calories: 280,
-      protein: 8,
-      carbs: 35,
-      fats: 12,
-      shortJustification: 'Low calorie option with natural sugars and fiber, ideal for light meals.'
-    }
-  ];
+  // No default recommendations - only use scanned menu dishes
+  const defaultRecommendations = [];
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -418,6 +315,31 @@ const Recommendations = () => {
           console.log('✅ AI Recommendations received, count:', aiRecommendations.length);
           console.log('📋 Raw AI recommendations:', aiRecommendations);
           
+          // Log des données de debug du backend si disponibles
+          if (location.state.debug) {
+            console.log('🔍 BACKEND DEBUG DATA RECEIVED:');
+            console.log('🔍 DEBUG - ALL DISHES WITH AI SCORES:', location.state.debug.allDishesWithScores);
+            console.log('🔍 DEBUG - TOP 3 DISHES:', location.state.debug.top3Dishes);
+            console.log('🔍 DEBUG - EXCLUDED BY SLICE:', location.state.debug.excludedBySlice);
+            console.log('🔍 DEBUG - FINAL RESULTS:', location.state.debug.finalResults);
+            
+            // Log détaillé de chaque plat avec son score
+            if (location.state.debug.allDishesWithScores) {
+              console.log('📊 BACKEND - DETAILED DISH SCORES:');
+              location.state.debug.allDishesWithScores.forEach((dish, index) => {
+                console.log(`  ${index + 1}. "${dish.title}" - AI Score: ${dish.aiScore || 0} - Calories: ${dish.calories || 0} - Price: ${dish.price || 'N/A'}`);
+              });
+              
+              // Log des plats exclus
+              if (location.state.debug.excludedBySlice && location.state.debug.excludedBySlice.length > 0) {
+                console.log('❌ BACKEND - DISHES EXCLUDED BY SLICE:');
+                location.state.debug.excludedBySlice.forEach((dish, index) => {
+                  console.log(`  ${index + 4}. "${dish.title}" - AI Score: ${dish.aiScore || 0} - EXCLUDED: Slice limit (0, 3)`);
+                });
+              }
+            }
+          }
+          
           // Convertir le format OpenAI vers le format d'affichage
           const formattedRecommendations = aiRecommendations.map((dish, index) => ({
             id: index + 1,
@@ -466,13 +388,11 @@ const Recommendations = () => {
         if (loadedFromStorage) {
           console.log('✅ Successfully loaded recommendations from localStorage');
         } else {
-          console.log('📋 No data in localStorage, using default recommendations');
-          // Aucune donnée en localStorage - utiliser les recommandations par défaut
-          console.log('📋 Default recommendations:', defaultRecommendations);
-          // Les recommandations par défaut ont déjà des scores AI, pas besoin de les analyser à nouveau
-          setRecommendations(defaultRecommendations);
-          setSource('default');
-          console.log('✅ Set recommendations to default, count:', defaultRecommendations.length);
+          console.log('📋 No data in localStorage, no default recommendations available');
+          // Aucune donnée en localStorage et pas de recommandations par défaut
+          setRecommendations([]);
+          setSource('empty');
+          console.log('✅ Set recommendations to empty array - no dishes available');
         }
       }
     };
@@ -528,9 +448,10 @@ const Recommendations = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 py-8">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
+    <>
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 py-8">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
           {/* Header */}
           <div className="bg-gradient-to-r from-purple-600 to-pink-600 px-6 py-8">
             <div className="flex items-center justify-between">
@@ -616,8 +537,31 @@ const Recommendations = () => {
               </div>
             )}
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredRecommendations.map((item, index) => {
+            {/* Empty State */}
+            {filteredRecommendations.length === 0 && !isAnalyzing && (
+              <div className="text-center py-12">
+                <div className="max-w-md mx-auto">
+                  <div className="text-6xl mb-4">📷</div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                    No dishes available
+                  </h3>
+                  <p className="text-gray-600 mb-6">
+                    Scan a menu to get personalized food recommendations based on your dietary preferences.
+                  </p>
+                  <button
+                    onClick={() => navigate('/')}
+                    className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+                  >
+                    Scan Menu
+                  </button>
+                </div>
+              </div>
+            )}
+            
+            {/* Recommendations Grid */}
+            {filteredRecommendations.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredRecommendations.map((item, index) => {
                 const isFirstPlace = index === 0;
                 const rankingBadge = index < 3 ? ['🥇', '🥈', '🥉'][index] : null;
                 
@@ -705,8 +649,6 @@ const Recommendations = () => {
                       </div>
                     )}
                     
-
-                    
                     {/* MACRONUTRIENTS SECTION: Pills with icons */}
                     {item.protein !== undefined && (
                       <div className="flex gap-3 mb-6">
@@ -732,15 +674,15 @@ const Recommendations = () => {
                     {item.tags && item.tags.length > 0 && (
                       <div className="mb-4">
                         <div className="flex flex-wrap gap-2">
-                      {item.tags.map((tag, index) => (
-                        <span
-                          key={index}
+                          {item.tags.map((tag, index) => (
+                            <span
+                              key={index}
                               className="px-2 py-1 bg-blue-50 text-blue-600 text-xs rounded-full"
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
                       </div>
                     )}
                     
@@ -765,16 +707,7 @@ const Recommendations = () => {
                   </div>
                 </div>
               );
-              })}
-            </div>
-
-            {filteredRecommendations.length === 0 && (
-              <div className="text-center py-12">
-                <div className="text-6xl mb-4">🍽️</div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">No recommendations found</h3>
-                <p className="text-gray-600">Try adjusting your filters to see more options</p>
-              </div>
-            )}
+            })}
           </div>
         </div>
       </div>
@@ -785,7 +718,7 @@ const Recommendations = () => {
         onClose={closeModal}
         dish={selectedDish}
       />
-    </div>
+    </>
   );
 };
 
