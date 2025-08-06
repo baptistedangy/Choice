@@ -231,8 +231,14 @@ const Recommendations = () => {
   // Fonction pour analyser les plats avec AI
   const analyzeDishes = async (dishes, userProfile) => {
     console.log('🔍 Starting dish analysis for', dishes.length, 'dishes');
+    console.log('📋 Total dishes detected:', dishes.length);
     console.log('📋 Dishes to analyze:', dishes);
     console.log('👤 User profile:', userProfile);
+    
+    // Log each dish details
+    dishes.forEach((dish, index) => {
+      console.log(`🍽️ Dish ${index + 1}: "${dish.name}" (ID: ${dish.id})`);
+    });
     setIsAnalyzing(true);
     
     try {
@@ -281,6 +287,29 @@ const Recommendations = () => {
       );
       
       console.log('🎉 All dishes analyzed successfully:', analyzedDishes);
+      console.log('📊 Analysis results summary:');
+      analyzedDishes.forEach((dish, index) => {
+        console.log(`  ${index + 1}. "${dish.name}" - Score: ${dish.aiScore || 'N/A'}, Category: ${dish.category || 'N/A'}`);
+        
+        // Check for exclusion reasons
+        const hasError = !!dish.error;
+        const hasValidScore = dish.aiScore && dish.aiScore > 0;
+        const hasValidName = dish.name && dish.name !== 'Unknown Dish';
+        const hasValidCategory = dish.category && dish.category !== 'N/A';
+        
+        console.log(`     - Has error: ${hasError}`);
+        console.log(`     - Has valid score: ${hasValidScore}`);
+        console.log(`     - Has valid name: ${hasValidName}`);
+        console.log(`     - Has valid category: ${hasValidCategory}`);
+        
+        if (hasError) {
+          console.log(`     ❌ EXCLUDED: "${dish.name}" - Reason: ${dish.error}`);
+        } else if (!hasValidScore) {
+          console.log(`     ❌ EXCLUDED: "${dish.name}" - Reason: Invalid score (${dish.aiScore})`);
+        } else {
+          console.log(`     ✅ INCLUDED: "${dish.name}" - Score: ${dish.aiScore}`);
+        }
+      });
       console.log('💾 Setting recommendations state with:', analyzedDishes.length, 'dishes');
       setRecommendations(analyzedDishes);
       
@@ -387,6 +416,8 @@ const Recommendations = () => {
         
         if (aiRecommendations && aiRecommendations.length > 0) {
           console.log('✅ AI Recommendations received, count:', aiRecommendations.length);
+          console.log('📋 Raw AI recommendations:', aiRecommendations);
+          
           // Convertir le format OpenAI vers le format d'affichage
           const formattedRecommendations = aiRecommendations.map((dish, index) => ({
             id: index + 1,
@@ -399,6 +430,11 @@ const Recommendations = () => {
             image: '🤖',
             tags: dish.tags || []
           }));
+          
+          console.log('📋 Formatted recommendations count:', formattedRecommendations.length);
+          formattedRecommendations.forEach((dish, index) => {
+            console.log(`  ${index + 1}. "${dish.name}" (ID: ${dish.id})`);
+          });
           
           console.log('🔄 Formatted recommendations:', formattedRecommendations);
           
@@ -445,15 +481,43 @@ const Recommendations = () => {
   }, [location.state]);
 
   // Sort recommendations by AI score (descending) and add ranking
+  console.log('🔄 Sorting recommendations by AI score...');
+  console.log('📋 Original recommendations count:', recommendations.length);
+  
   const sortedRecommendations = [...recommendations].sort((a, b) => {
     const scoreA = a.aiScore || 0;
     const scoreB = b.aiScore || 0;
     return scoreB - scoreA;
   });
+  
+  console.log('📊 Sorted recommendations:');
+  sortedRecommendations.forEach((dish, index) => {
+    console.log(`  ${index + 1}. "${dish.name}" - Score: ${dish.aiScore || 'N/A'}`);
+  });
 
+  console.log('🔍 Filtering recommendations by category:', selectedCategory);
   const filteredRecommendations = selectedCategory === 'all' 
     ? sortedRecommendations 
     : sortedRecommendations.filter(item => item.category === selectedCategory);
+    
+  console.log('📋 Filtered recommendations count:', filteredRecommendations.length);
+  console.log('📊 Filtered recommendations:');
+  filteredRecommendations.forEach((dish, index) => {
+    console.log(`  ${index + 1}. "${dish.name}" - Score: ${dish.aiScore || 'N/A'}, Category: ${dish.category || 'N/A'}`);
+  });
+  
+  // Log excluded dishes by category filter
+  if (selectedCategory !== 'all') {
+    const excludedByCategory = sortedRecommendations.filter(item => item.category !== selectedCategory);
+    console.log('❌ EXCLUDED BY CATEGORY FILTER:', excludedByCategory.length, 'dishes');
+    excludedByCategory.forEach((dish, index) => {
+      console.log(`  ${index + 1}. "${dish.name}" - Category: ${dish.category || 'N/A'} (filter: ${selectedCategory})`);
+    });
+  }
+  
+  // Check for any slicing or limiting
+  console.log('🔍 Checking for any .slice() or limiting operations...');
+  console.log('📋 Final recommendations to display:', filteredRecommendations.length);
 
   const categories = [
     { id: 'all', name: 'All', color: 'bg-gray-500' },

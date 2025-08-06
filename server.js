@@ -390,13 +390,105 @@ Output ONLY the JSON response, nothing else.`;
       }
 
       // Clean and validate recommendations
-      const validatedRecommendations = recommendations.slice(0, 3).map((dish, index) => ({
-        id: index + 1,
-        title: dish.title || `Dish ${index + 1}`,
-        description: dish.description || 'No description available',
-        tags: Array.isArray(dish.tags) ? dish.tags : [],
-        price: dish.price || null
-      }));
+      console.log('📊 Recommendations before slice:', recommendations.length);
+      console.log('📋 All recommendations received:', recommendations);
+      
+      // Log each dish before filtering
+      console.log('🔍 ANALYZING EACH DISH BEFORE FILTERING:');
+      console.log('📊 DISH VALIDATION RESULTS:');
+      
+      recommendations.forEach((dish, index) => {
+        console.log(`\n🍽️ DISH ${index + 1}: "${dish.title || 'NO TITLE'}"`);
+        console.log(`     - Raw text from OCR: ${extractedText.substring(0, 200)}...`);
+        console.log(`     - Description: ${dish.description || 'NO DESCRIPTION'}`);
+        console.log(`     - Tags: ${JSON.stringify(dish.tags || [])}`);
+        console.log(`     - Price: ${dish.price || 'NO PRICE'}`);
+        
+        // Validation détaillée
+        const hasTitle = !!dish.title;
+        const hasDescription = !!dish.description;
+        const hasTags = Array.isArray(dish.tags) && dish.tags.length > 0;
+        const hasPrice = !!dish.price;
+        const titleLength = dish.title ? dish.title.length : 0;
+        const descriptionLength = dish.description ? dish.description.length : 0;
+        
+        console.log(`     - Has title: ${hasTitle} (length: ${titleLength})`);
+        console.log(`     - Has description: ${hasDescription} (length: ${descriptionLength})`);
+        console.log(`     - Has tags: ${hasTags} (count: ${dish.tags ? dish.tags.length : 0})`);
+        console.log(`     - Has price: ${hasPrice}`);
+        
+        // Raisons d'exclusion potentielles
+        const exclusionReasons = [];
+        if (!hasTitle) exclusionReasons.push('NO TITLE');
+        if (!hasDescription) exclusionReasons.push('NO DESCRIPTION');
+        if (!hasTags) exclusionReasons.push('NO TAGS');
+        if (!hasPrice) exclusionReasons.push('NO PRICE');
+        if (titleLength < 3) exclusionReasons.push('TITLE TOO SHORT');
+        if (descriptionLength < 10) exclusionReasons.push('DESCRIPTION TOO SHORT');
+        
+        if (exclusionReasons.length > 0) {
+          console.log(`     ❌ POTENTIAL EXCLUSION REASONS: ${exclusionReasons.join(', ')}`);
+        } else {
+          console.log(`     ✅ VALID DISH - No exclusion reasons`);
+        }
+      });
+      
+      console.log('\n🔧 VALIDATION AND SLICE PROCESS:');
+      console.log(`📊 Total recommendations before slice: ${recommendations.length}`);
+      
+      const validatedRecommendations = recommendations.slice(0, 3).map((dish, index) => {
+        console.log(`\n🔧 VALIDATING DISH ${index + 1}: "${dish.title || 'NO TITLE'}"`);
+        
+        // Validation étape par étape
+        const originalTitle = dish.title;
+        const originalDescription = dish.description;
+        const originalTags = dish.tags;
+        const originalPrice = dish.price;
+        
+        console.log(`   - Original title: "${originalTitle || 'NULL'}"`);
+        console.log(`   - Original description: "${originalDescription || 'NULL'}"`);
+        console.log(`   - Original tags: ${JSON.stringify(originalTags || [])}`);
+        console.log(`   - Original price: "${originalPrice || 'NULL'}"`);
+        
+        const validatedDish = {
+          id: index + 1,
+          title: dish.title || `Dish ${index + 1}`,
+          description: dish.description || 'No description available',
+          tags: Array.isArray(dish.tags) ? dish.tags : [],
+          price: dish.price || null
+        };
+        
+        console.log(`   - Final title: "${validatedDish.title}"`);
+        console.log(`   - Final description: "${validatedDish.description}"`);
+        console.log(`   - Final tags: ${JSON.stringify(validatedDish.tags)}`);
+        console.log(`   - Final price: "${validatedDish.price}"`);
+        
+        // Vérifier les changements
+        const titleChanged = originalTitle !== validatedDish.title;
+        const descriptionChanged = originalDescription !== validatedDish.description;
+        const tagsChanged = JSON.stringify(originalTags) !== JSON.stringify(validatedDish.tags);
+        const priceChanged = originalPrice !== validatedDish.price;
+        
+        if (titleChanged) console.log(`   ⚠️ Title was changed: "${originalTitle}" → "${validatedDish.title}"`);
+        if (descriptionChanged) console.log(`   ⚠️ Description was changed: "${originalDescription}" → "${validatedDish.description}"`);
+        if (tagsChanged) console.log(`   ⚠️ Tags were changed: ${JSON.stringify(originalTags)} → ${JSON.stringify(validatedDish.tags)}`);
+        if (priceChanged) console.log(`   ⚠️ Price was changed: "${originalPrice}" → "${validatedDish.price}"`);
+        
+        console.log(`✅ VALIDATED DISH ${index + 1}: "${validatedDish.title}"`);
+        
+        return validatedDish;
+      });
+      
+      console.log('📊 Recommendations after slice (0, 3):', validatedRecommendations.length);
+      console.log('🔍 SLICE LIMIT FOUND: Only first 3 recommendations are returned');
+      
+      // Log excluded dishes
+      if (recommendations.length > 3) {
+        console.log('❌ EXCLUDED DISHES (due to slice limit):');
+        recommendations.slice(3).forEach((dish, index) => {
+          console.log(`  ${index + 4}. "${dish.title || 'NO TITLE'}" - EXCLUDED: Slice limit (0, 3)`);
+        });
+      }
 
       console.log('✅ Analysis completed successfully');
 
@@ -444,6 +536,79 @@ app.post('/api/vision/extract-text', upload.single('image'), async (req, res) =>
     console.log('✅ Text extracted successfully');
     console.log('Text length:', extractedText.length);
     console.log('Text preview:', extractedText.substring(0, 200));
+    
+    // Logs détaillés du texte OCR
+    console.log('📄 OCR RAW TEXT COMPLETE:');
+    console.log('='.repeat(50));
+    console.log(extractedText);
+    console.log('='.repeat(50));
+    
+    // Analyse du texte OCR
+    const lines = extractedText.split('\n').filter(line => line.trim().length > 0);
+    console.log('📊 OCR TEXT ANALYSIS:');
+    console.log(`  - Total lines detected: ${lines.length}`);
+    console.log(`  - Non-empty lines: ${lines.filter(line => line.trim().length > 0).length}`);
+    console.log('  - Lines breakdown:');
+    lines.forEach((line, index) => {
+      console.log(`    ${index + 1}. "${line.trim()}" (${line.trim().length} chars)`);
+    });
+    
+    // Détection automatique des plats potentiels
+    console.log('🔍 POTENTIAL DISH DETECTION:');
+    const potentialDishes = [];
+    let currentDish = null;
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      
+      // Détecter les titres de plats (commencent par des lettres majuscules, contiennent des mots de nourriture)
+      const isDishTitle = /^[A-Z][A-Z\s]+$/.test(line) && 
+                         (line.includes('CEVICHE') || line.includes('QUESADILLA') || 
+                          line.includes('SALAD') || line.includes('STEAK') || 
+                          line.includes('BURGER') || line.includes('PASTA') ||
+                          line.includes('PIZZA') || line.includes('SALMON') ||
+                          line.includes('BEEF') || line.includes('CHICKEN') ||
+                          line.includes('FISH') || line.includes('SHRIMP') ||
+                          line.includes('TOFU') || line.includes('VEGAN') ||
+                          line.includes('VEGETARIAN') || line.includes('DESSERT') ||
+                          line.includes('DRINK') || line.includes('COCKTAIL'));
+      
+      // Détecter les prix (nombres suivis de €, $, ou juste des nombres)
+      const isPrice = /^\d+\.?\d*\s*[€$£]?$/.test(line) || /^\d+\.?\d*$/.test(line);
+      
+      if (isDishTitle) {
+        if (currentDish) {
+          potentialDishes.push(currentDish);
+        }
+        currentDish = { title: line, description: '', price: null, lineNumber: i + 1 };
+        console.log(`    🍽️ Potential dish title found: "${line}" (line ${i + 1})`);
+      } else if (isPrice && currentDish && !currentDish.price) {
+        currentDish.price = line;
+        console.log(`    💰 Price found for "${currentDish.title}": ${line} (line ${i + 1})`);
+      } else if (currentDish && line.length > 10) {
+        // Description potentielle
+        if (!currentDish.description) {
+          currentDish.description = line;
+        } else {
+          currentDish.description += ' ' + line;
+        }
+        console.log(`    📝 Description line for "${currentDish.title}": "${line}" (line ${i + 1})`);
+      }
+    }
+    
+    // Ajouter le dernier plat
+    if (currentDish) {
+      potentialDishes.push(currentDish);
+    }
+    
+    console.log('📋 POTENTIAL DISHES DETECTED:', potentialDishes.length);
+    potentialDishes.forEach((dish, index) => {
+      console.log(`  ${index + 1}. "${dish.title}"`);
+      console.log(`     - Line: ${dish.lineNumber}`);
+      console.log(`     - Price: ${dish.price || 'NOT FOUND'}`);
+      console.log(`     - Description: ${dish.description || 'NOT FOUND'}`);
+      console.log(`     - Description length: ${dish.description ? dish.description.length : 0}`);
+    });
 
     res.json({
       success: true,

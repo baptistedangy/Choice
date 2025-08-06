@@ -5,6 +5,23 @@ export async function analyzeDish(menuText, userProfile) {
   console.log('Dish text:', menuText);
   console.log('User profile:', userProfile);
   
+  // Log dish name extraction
+  const dishName = menuText.split(':')[0] || 'Unknown Dish';
+  console.log('🍽️ Analyzing dish:', dishName);
+  console.log('📝 Raw text from OCR:', menuText);
+  console.log('🔍 Dish name extracted:', dishName);
+  
+  // Validate dish data
+  const hasValidName = dishName && dishName !== 'Unknown Dish';
+  const hasValidText = menuText && menuText.length > 0;
+  const hasDescription = menuText.includes(':') && menuText.split(':')[1];
+  
+  console.log('📊 Dish validation:');
+  console.log(`  - Has valid name: ${hasValidName}`);
+  console.log(`  - Has valid text: ${hasValidText}`);
+  console.log(`  - Has description: ${hasDescription}`);
+  console.log(`  - Text length: ${menuText.length}`);
+  
   try {
     if (!menuText) throw new Error('Dish description required');
     if (!userProfile) throw new Error('User profile required');
@@ -28,6 +45,23 @@ export async function analyzeDish(menuText, userProfile) {
     const analysis = await analyzeDishBackend(menuText, completeUserProfile);
     
     console.log('🎉 Final dish analysis result:', analysis);
+    console.log('📊 Analysis summary for', dishName, ':');
+    console.log(`  - AI Score: ${analysis.aiScore || 'N/A'}`);
+    console.log(`  - Calories: ${analysis.calories || 'N/A'}`);
+    console.log(`  - Protein: ${analysis.macros?.protein || 'N/A'}`);
+    console.log(`  - Carbs: ${analysis.macros?.carbs || 'N/A'}`);
+    console.log(`  - Fats: ${analysis.macros?.fats || 'N/A'}`);
+    console.log(`  - Has error: ${!!analysis.error}`);
+    console.log(`  - Error message: ${analysis.error || 'None'}`);
+    
+    // Check if dish should be excluded
+    const shouldExclude = analysis.error || !analysis.aiScore || analysis.aiScore < 0;
+    if (shouldExclude) {
+      console.log(`❌ DISH EXCLUDED: "${dishName}" - Reason: ${analysis.error || 'Invalid score'}`);
+    } else {
+      console.log(`✅ DISH INCLUDED: "${dishName}" - Score: ${analysis.aiScore}`);
+    }
+    
     console.log('=== DISH ANALYSIS SUCCESS ===');
     return analysis;
 
