@@ -133,7 +133,37 @@ export async function analyzeDishBackend(dishText, userProfile) {
     console.log('✅ Dish analysis completed via backend');
     console.log('Analysis result:', result.analysis);
     
-    return result.analysis;
+    // Ensure we always return a valid analysis object, even with missing values
+    const analysis = result.analysis || {};
+    const fallbackAnalysis = {
+      aiScore: 5.0,
+      calories: 0,
+      macros: {
+        protein: 0,
+        carbs: 0,
+        fats: 0
+      },
+      shortJustification: 'Analysis completed with limited data',
+      longJustification: [
+        'Nutritional analysis completed',
+        'Some values may be estimated',
+        'Recommendation based on available information'
+      ]
+    };
+    
+    // Merge with fallback values, keeping any valid data from GPT
+    const finalAnalysis = {
+      ...fallbackAnalysis,
+      ...analysis,
+      // Ensure macros object exists
+      macros: {
+        ...fallbackAnalysis.macros,
+        ...(analysis.macros || {})
+      }
+    };
+    
+    console.log('🔧 Final analysis with fallbacks:', finalAnalysis);
+    return finalAnalysis;
     
   } catch (error) {
     console.error('❌ Error analyzing dish via backend:', error);

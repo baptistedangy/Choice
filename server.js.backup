@@ -285,111 +285,80 @@ app.post('/analyze-image', upload.single('image'), async (req, res) => {
     // Step 2: Get user profile from request body
     const userProfile = req.body.userProfile ? JSON.parse(req.body.userProfile) : {};
 
-    // Step 3: Extract dishes using OpenAI (more reliable than regex detection)
-    console.log('🔍 EXTRACTING DISHES USING OPENAI FROM OCR TEXT...');
+    // Step 3: Extract dishes using automatic detection (same logic as /api/vision/extract-text)
+    console.log('🔍 AUTOMATIC DISH DETECTION FROM OCR TEXT...');
     
-    let recommendations = []; // Define recommendations variable in the outer scope
+    // Analyse du texte OCR
+    const lines = extractedText.split('\n').filter(line => line.trim().length > 0);
+    console.log('📊 OCR TEXT ANALYSIS:');
+    console.log(`  - Total lines detected: ${lines.length}`);
+    console.log(`  - Non-empty lines: ${lines.filter(line => line.trim().length > 0).length}`);
     
-    // Use OpenAI to extract dishes from OCR text
-    const dishExtractionPrompt = `Extract ALL dishes from this menu text. Look for dish names, prices, and descriptions.
-
-CRITICAL: You must respond with ONLY valid JSON. No additional text, commentary, or explanations outside the JSON.
-
-EXTRACTION RULES:
-1. Look for dish names (usually in CAPS or bold)
-2. Look for prices (numbers with €, $, £ or just numbers)
-3. Look for descriptions (text after dish names)
-4. Ignore section headers like "CEVICHES", "QUESADILLAS", "DRINKS", "MENU", "DESSERTS"
-5. Extract ALL dishes you can find, not just 3
-
-Return a JSON array of dishes in this exact format:
-[
-  {
-    "title": "Dish name (extract the actual dish name, not section headers)",
-    "description": "Full description of the dish",
-    "price": "price if found, otherwise null",
-    "tags": ["extracted", "menu"]
-  }
-]
-
-Menu text:
-${extractedText}
-
-Output ONLY the JSON response, nothing else.`;
-
-    try {
-      const extractionCompletion = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content: "You are a menu parsing expert. Extract dishes from menu text and return ONLY valid JSON. Ignore section headers, focus on actual dishes."
-          },
-          {
-            role: "user",
-            content: dishExtractionPrompt
-          }
-        ],
-        temperature: 0.3,
-        max_tokens: 500
-      });
-
-      const extractionResponse = extractionCompletion.choices[0]?.message?.content;
-      console.log('📄 Raw dish extraction response:', extractionResponse);
-
-      // Parse the extraction response
-      const extractedDishes = safeJsonParse(extractionResponse);
+    // Détection automatique des plats potentiels
+    console.log('🔍 POTENTIAL DISH DETECTION:');
+    const potentialDishes = [];
+    let currentDish = null;
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
       
-      if (!Array.isArray(extractedDishes)) {
-        throw new Error('Invalid dish extraction response format');
-      }
-
-      // Convert to recommendations format
-      recommendations = extractedDishes.map((dish, index) => ({
-        title: dish.title || `Dish ${index + 1}`,
-        description: dish.description || 'Extracted from menu',
-        tags: Array.isArray(dish.tags) ? dish.tags : ['extracted', 'menu'],
-        price: dish.price || null
-      }));
-
-      console.log('📋 DISHES EXTRACTED BY OPENAI:', recommendations.length);
-      recommendations.forEach((dish, index) => {
-        console.log(`  ${index + 1}. "${dish.title}" - Price: ${dish.price || 'N/A'} - Description: ${dish.description.substring(0, 50)}...`);
-      });
-
-    } catch (extractionError) {
-      console.error('❌ Error extracting dishes with OpenAI:', extractionError);
+      // Détecter les titres de plats (commencent par des lettres majuscules, longueur appropriée)
+      const isDishTitle = /^[A-Z][A-Z\s]+$/.test(line) && 
+                         line.length >= 3 && line.length <= 50 &&
+                         !line.includes('MENU') && !line.includes('DRINKS') && 
+                         !line.includes('KIDS') && !line.includes('PRICE') &&
+                         !line.includes('€') && !line.includes('$') && !line.includes('£');
       
-      // Fallback to basic extraction if OpenAI fails
-      console.log('🔄 Falling back to basic extraction...');
-      const lines = extractedText.split('\n').filter(line => line.trim().length > 0);
-      recommendations = [];
+      // Détecter les prix (nombres suivis de €, $, ou juste des nombres)
+      const isPrice = /^\d+\.?\d*\s*[€$£]?$/.test(line) || 
+                     (/^\d+\.?\d*$/.test(line) && parseFloat(line) > 0 && parseFloat(line) < 1000);
       
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i].trim();
-        
-        // Skip section headers
-        if (line.includes('CEVICHES') || line.includes('QUESADILLAS') || 
-            line.includes('DRINKS') || line.includes('MENU') || line.includes('DESSERTS')) {
-          continue;
+      if (isDishTitle) {
+        if (currentDish) {
+          potentialDishes.push(currentDish);
         }
-        
-        // Look for dish names (all caps, reasonable length)
-        if (/^[A-Z][A-Z\s]+$/.test(line) && line.length >= 3 && line.length <= 50) {
-          const nextLine = lines[i + 1] || '';
-          const priceMatch = nextLine.match(/^\d+\.?\d*/);
-          
-          recommendations.push({
-            title: line,
-            description: nextLine && !priceMatch ? nextLine : 'Extracted from menu',
-            tags: ['extracted', 'menu'],
-            price: priceMatch ? priceMatch[0] : null
-          });
+        currentDish = { title: line, description: '', price: null, lineNumber: i + 1 };
+        console.log(`    🍽️ Potential dish title found: "${line}" (line ${i + 1})`);
+      } else if (isPrice && currentDish && !currentDish.price) {
+        currentDish.price = line;
+        console.log(`    💰 Price found for "${currentDish.title}": ${line} (line ${i + 1})`);
+      } else if (currentDish && line.length > 5 && !isPrice) {
+        // Description potentielle (plus flexible)
+        if (!currentDish.description) {
+          currentDish.description = line;
+        } else {
+          currentDish.description += ' ' + line;
         }
+        console.log(`    📝 Description line for "${currentDish.title}": "${line}" (line ${i + 1})`);
       }
-      
-      console.log('📋 BASIC EXTRACTION FALLBACK:', recommendations.length);
     }
+    
+    // Ajouter le dernier plat
+    if (currentDish) {
+      potentialDishes.push(currentDish);
+    }
+    
+    console.log('📋 POTENTIAL DISHES DETECTED:', potentialDishes.length);
+    potentialDishes.forEach((dish, index) => {
+      console.log(`  ${index + 1}. "${dish.title}"`);
+      console.log(`     - Line: ${dish.lineNumber}`);
+      console.log(`     - Price: ${dish.price || 'NOT FOUND'}`);
+      console.log(`     - Description: ${dish.description || 'NOT FOUND'}`);
+      console.log(`     - Description length: ${dish.description ? dish.description.length : 0}`);
+    });
+
+    // Convert potentialDishes to the format expected by the rest of the pipeline
+    const recommendations = potentialDishes.map(dish => ({
+      title: dish.title,
+      description: dish.description || 'Extracted from menu',
+      tags: ['extracted', 'menu'],
+      price: dish.price
+    }));
+
+    console.log('📋 CONVERTED RECOMMENDATIONS:', recommendations.length);
+    recommendations.forEach((dish, index) => {
+      console.log(`  ${index + 1}. "${dish.title}" - ${dish.description.substring(0, 50)}...`);
+    });
 
     // Validate recommendations format
     if (!Array.isArray(recommendations)) {
@@ -423,7 +392,7 @@ Output ONLY the JSON response, nothing else.`;
             messages: [
               {
                 role: "system",
-                content: "You are a nutrition expert that analyzes dishes for personalized recommendations. You must respond with ONLY valid JSON format. No additional text, commentary, or explanations outside the JSON. If the dish description is unclear or missing, you MUST still provide your best estimate based on the dish name and any available information. NEVER return an error. Always provide a plausible analysis, even if you have to make reasonable assumptions. Be precise with nutritional values and provide meaningful justifications. Write all justifications in English only, maximum 2 sentences, using ONLY real data (nutritional info and user preferences). Do NOT invent or reference activity data, workouts, or energy expenditure. The aiScore represents a personalized match score (0-10) based on how well the dish aligns with the user's dietary profile and preferences."
+                content: "You are a nutrition expert that analyzes dishes for personalized recommendations. You must respond with ONLY valid JSON format. No additional text, commentary, or explanations outside the JSON. If analysis is not possible, return { \"error\": \"Unable to analyze\" }. Be precise with nutritional values and provide meaningful justifications. Write all justifications in English only, maximum 2 sentences, using ONLY real data (nutritional info and user preferences). Do NOT invent or reference activity data, workouts, or energy expenditure. The aiScore represents a personalized match score (0-10) based on how well the dish aligns with the user's dietary profile and preferences."
               },
               {
                 role: "user",
@@ -431,9 +400,11 @@ Output ONLY the JSON response, nothing else.`;
 
 CRITICAL: You must respond with ONLY valid JSON. No additional text, commentary, or explanations outside the JSON.
 
-If the dish description is unclear or missing, you MUST still provide your best estimate based on the dish name and any available information. NEVER return an error. Always provide a plausible analysis, even if you have to make reasonable assumptions.
+If analysis is not possible or the dish description is unclear, respond with:
+{ "error": "Unable to analyze" }
 
-Return a JSON object with exactly these fields:
+Otherwise, return a JSON object with exactly these fields:
+
 {
   "aiScore": 0-10 (float, personalized match score based on user profile & needs),
   "calories": integer (kcal),
@@ -587,15 +558,20 @@ Output ONLY the JSON response, nothing else.`
       
       // Filter dishes based on validation criteria
       const validDishes = allDishesWithScores.filter((dish, index) => {
-        const hasTitle = !!dish.title && dish.title.length >= 2;
-        const hasDescription = !!dish.description && dish.description.length >= 3;
+        const hasTitle = !!dish.title && dish.title.length >= 3;
+        const hasDescription = !!dish.description && dish.description.length >= 10;
+        const hasTags = Array.isArray(dish.tags) && dish.tags.length > 0;
+        const hasPrice = !!dish.price;
         
-        // More permissive validation: only require title and minimal description
-        const isValid = hasTitle && hasDescription;
+        // Validation plus souple : titre ET description ET (tags OU prix)
+        const isValid = hasTitle && hasDescription && (hasTags || hasPrice);
         
         console.log(`\n🔧 VALIDATING DISH ${index + 1}: "${dish.title || 'NO TITLE'}"`);
-        console.log(`   - Has title (≥2 chars): ${hasTitle} (length: ${dish.title ? dish.title.length : 0})`);
-        console.log(`   - Has description (≥3 chars): ${hasDescription} (length: ${dish.description ? dish.description.length : 0})`);
+        console.log(`   - Has title (≥3 chars): ${hasTitle} (length: ${dish.title ? dish.title.length : 0})`);
+        console.log(`   - Has description (≥10 chars): ${hasDescription} (length: ${dish.description ? dish.description.length : 0})`);
+        console.log(`   - Has tags: ${hasTags} (count: ${dish.tags ? dish.tags.length : 0})`);
+        console.log(`   - Has price: ${hasPrice}`);
+        console.log(`   - Has tags OR price: ${hasTags || hasPrice}`);
         console.log(`   - AI Score: ${dish.aiScore || 0}`);
         console.log(`   - Is valid: ${isValid ? '✅ YES' : '❌ NO'}`);
         
@@ -603,6 +579,7 @@ Output ONLY the JSON response, nothing else.`
           const reasons = [];
           if (!hasTitle) reasons.push('NO_TITLE_OR_TOO_SHORT');
           if (!hasDescription) reasons.push('NO_DESCRIPTION_OR_TOO_SHORT');
+          if (!hasTags && !hasPrice) reasons.push('NO_TAGS_AND_NO_PRICE');
           
           sliceExcludedDishes.push({
             dishNumber: index + 1,
@@ -692,7 +669,7 @@ Output ONLY the JSON response, nothing else.`
         success: false,
         status: "error",
         message: "Unable to generate recommendations. Please check OpenAI API credentials.",
-        extractedText: extractedText || "Text extraction failed"
+        extractedText: extractedText
       };
       
       // Ajouter les données de debug si disponibles
@@ -702,6 +679,15 @@ Output ONLY the JSON response, nothing else.`
       
       return res.json(errorResponse);
     }
+
+  } catch (error) {
+    console.error('❌ Error in image analysis:', error);
+    res.status(500).json({
+      status: "error",
+      message: "Unable to analyze menu",
+      error: error.message
+    });
+  }
 });
 
 
@@ -748,7 +734,7 @@ ANALYSIS INSTRUCTIONS:
 If the menu text is completely empty, contains no recognizable food words, or is completely unreadable, respond with:
 { "error": "Unable to analyze" }
 
-Otherwise, return ALL recognizable dishes in this exact JSON format (fill with best available information):
+Otherwise, return exactly 3 dishes in this exact JSON format (fill with best available information):
 [
   {
     "title": "Dish name (or best guess)",
@@ -758,7 +744,7 @@ Otherwise, return ALL recognizable dishes in this exact JSON format (fill with b
   }
 ]
 
-IMPORTANT: Extract ALL dishes you can identify from the menu text. Do NOT limit to 3 dishes. Be very tolerant of unclear text. If you see ANY food-related content, try to extract it. Even short dish names should be included. Only return "Unable to analyze" if the text is completely empty or contains no food-related words at all.
+IMPORTANT: Be very tolerant of unclear text. If you see ANY food-related content, try to extract it. Only return "Unable to analyze" if the text is completely empty or contains no food-related words at all.
 
 Provide all analysis and explanations in English. Avoid French or other languages.
 Output ONLY the JSON response, nothing else.`;
@@ -816,7 +802,7 @@ Output ONLY the JSON response, nothing else.`;
     }
 
     // Clean and validate recommendations
-    const validatedRecommendations = recommendations.map((dish, index) => ({
+    const validatedRecommendations = recommendations.slice(0, 3).map((dish, index) => ({
       id: index + 1,
       title: dish.title || `Dish ${index + 1}`,
       description: dish.description || 'No description available',

@@ -11,15 +11,15 @@ export async function analyzeDish(menuText, userProfile) {
   console.log('📝 Raw text from OCR:', menuText);
   console.log('🔍 Dish name extracted:', dishName);
   
-  // Validate dish data
-  const hasValidName = dishName && dishName !== 'Unknown Dish';
+  // Validate dish data - More permissive validation
+  const hasValidName = dishName && dishName !== 'Unknown Dish' && dishName.length >= 2;
   const hasValidText = menuText && menuText.length > 0;
-  const hasDescription = menuText.includes(':') && menuText.split(':')[1];
+  const hasAnyDescription = menuText.includes(':') && menuText.split(':')[1] && menuText.split(':')[1].trim().length > 0;
   
-  console.log('📊 Dish validation:');
+  console.log('📊 Dish validation (PERMISSIVE):');
   console.log(`  - Has valid name: ${hasValidName}`);
   console.log(`  - Has valid text: ${hasValidText}`);
-  console.log(`  - Has description: ${hasDescription}`);
+  console.log(`  - Has any description: ${hasAnyDescription}`);
   console.log(`  - Text length: ${menuText.length}`);
   
   try {
@@ -54,12 +54,12 @@ export async function analyzeDish(menuText, userProfile) {
     console.log(`  - Has error: ${!!analysis.error}`);
     console.log(`  - Error message: ${analysis.error || 'None'}`);
     
-    // Check if dish should be excluded
-    const shouldExclude = analysis.error || !analysis.aiScore || analysis.aiScore < 0;
+    // More permissive inclusion criteria - only exclude if GPT call completely failed
+    const shouldExclude = analysis.error && analysis.error.includes('Service temporarily unavailable');
     if (shouldExclude) {
-      console.log(`❌ DISH EXCLUDED: "${dishName}" - Reason: ${analysis.error || 'Invalid score'}`);
+      console.log(`❌ DISH EXCLUDED: "${dishName}" - Reason: ${analysis.error}`);
     } else {
-      console.log(`✅ DISH INCLUDED: "${dishName}" - Score: ${analysis.aiScore}`);
+      console.log(`✅ DISH INCLUDED: "${dishName}" - Score: ${analysis.aiScore || 'Default 5.0'}`);
     }
     
     console.log('=== DISH ANALYSIS SUCCESS ===');

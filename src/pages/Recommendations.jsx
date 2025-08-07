@@ -98,8 +98,29 @@ const Recommendations = () => {
   useEffect(() => {
     console.log('🔄 Recommendations state changed:', recommendations.length, 'dishes');
     console.log('🔄 Source state changed:', source);
-    console.log('🔄 Current recommendations:', recommendations);
   }, [recommendations, source]);
+
+  // Clean up localStorage on component mount to avoid stale data
+  useEffect(() => {
+    // Clear any stale recommendations data on mount
+    const clearStaleData = () => {
+      try {
+        const storedData = localStorage.getItem('recommendations');
+        if (storedData) {
+          const parsed = JSON.parse(storedData);
+          // If stored data is older than 5 minutes, clear it
+          if (parsed.timestamp && (Date.now() - parsed.timestamp > 5 * 60 * 1000)) {
+            localStorage.removeItem('recommendations');
+            console.log('🧹 Cleared stale recommendations data');
+          }
+        }
+      } catch (error) {
+        console.warn('Error clearing stale data:', error);
+      }
+    };
+    
+    clearStaleData();
+  }, []);
 
   // Fonction pour vérifier si le profil étendu est complet
   const checkExtendedProfile = () => {
@@ -550,110 +571,110 @@ const Recommendations = () => {
 
               {/* Recommendations Grid */}
               {filteredRecommendations.length > 0 && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredRecommendations.map((item) => {
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                  {filteredRecommendations.map((item, index) => {
+                    // Get rank badge
+                    const getRankBadge = (rank) => {
+                      switch(rank) {
+                        case 1: return '🥇';
+                        case 2: return '🥈';
+                        case 3: return '🥉';
+                        default: return `#${rank}`;
+                      }
+                    };
                     return (
-                      <div key={item.id} className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200 hover:shadow-xl transition-all duration-300 transform hover:scale-105">
-                        <div className="p-6 flex flex-col h-full">
-                          {/* AI Score - at top */}
-                          {item.aiScore !== undefined && (
-                            <div className="mb-4">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-sm font-medium text-gray-600">AI Score</span>
-                                  <div
-                                    ref={(el) => {
-                                      if (el) tooltipRefs.current[item.id] = el;
-                                    }}
-                                    onMouseEnter={() => setTooltipVisible(item.id)}
-                                    onMouseLeave={() => setTooltipVisible(null)}
-                                    className="cursor-help"
-                                  >
-                                    <Info className="w-4 h-4 text-gray-400" />
-                                  </div>
-                                </div>
-                                <div className="text-2xl font-bold text-purple-600">
-                                  {item.aiScore || 0}
-                                </div>
-                              </div>
-                              <Tooltip 
-                                isVisible={tooltipVisible === item.id}
-                                targetRef={{ current: tooltipRefs.current[item.id] }}
-                              >
-                                This score reflects how well this dish matches your dietary profile, preferences, and estimated nutritional needs.
-                              </Tooltip>
+                      <div key={item.id} className="relative bg-white rounded-xl shadow-lg border-l-4 border-l-green-500 flex flex-col p-6 pt-20 space-y-4 min-h-[480px]">
+                        {/* Badge score */}
+                        {item.aiScore !== undefined && (
+                          <div className="absolute top-4 left-4 flex flex-col items-start z-10">
+                            <div className="bg-green-500 text-white rounded-lg px-4 py-1 flex flex-col items-start shadow min-w-[140px]">
+                              <span className="font-bold text-2xl leading-tight">{item.aiScore || 0}/10</span>
+                              <span className="text-xs font-semibold tracking-wide">PERSONALIZED MATCH SCORE</span>
                             </div>
-                          )}
-                          
-                          {/* Dish name - immediately below AI Score */}
+                          </div>
+                        )}
+                        {/* Badge prix */}
+                        {item.price && (
+                          <div className="absolute top-4 right-4 bg-green-100 text-green-700 px-3 py-1 rounded-lg text-sm font-bold shadow z-10">
+                            {item.price}
+                          </div>
+                        )}
+                        {/* Badge rang */}
+                        <div className="absolute top-20 right-4 text-3xl z-10 drop-shadow-sm">
+                          {getRankBadge(index + 1)}
+                        </div>
+                        {/* Nom du plat */}
+                        <h3 className="text-2xl font-bold text-gray-900 uppercase mt-2 mb-1">{item.name}</h3>
+                        {/* Calories */}
+                        {item.calories !== undefined && (
                           <div className="mb-4">
-                            <h3 className="text-2xl font-bold text-gray-900">{item.name}</h3>
+                            <div className="text-lg font-bold text-gray-900">
+                              {item.calories || 0} kcal
+                            </div>
                           </div>
-                          
-                          {/* Calories - below dish name */}
-                          {item.calories !== undefined && (
-                            <div className="mb-4">
-                              <div className="text-xl font-bold text-gray-900">
-                                {item.calories || 0} kcal
-                              </div>
+                        )}
+                        
+                        {/* Macronutrient Bars */}
+                        {item.protein !== undefined && (
+                          <div className="flex gap-3 mb-6">
+                            <div className="bg-red-100 rounded-full px-3 py-1 flex items-center gap-1.5 min-w-[70px]">
+                              <span className="text-base">💪</span>
+                              <span className="text-base font-bold text-red-700">{item.protein || 0}g</span>
                             </div>
-                          )}
-                          
-                          {/* MACRONUTRIENTS SECTION: Pills with icons */}
-                          {item.protein !== undefined && (
-                            <div className="flex gap-3 mb-6">
-                              <div className="bg-red-100 rounded-full px-4 py-2 flex items-center gap-2">
-                                <span className="text-sm">🥩</span>
-                                <span className="text-sm font-bold text-red-700">{item.protein || 0}g</span>
-                              </div>
-                              <div className="bg-yellow-100 rounded-full px-4 py-2 flex items-center gap-2">
-                                <span className="text-sm">🍞</span>
-                                <span className="text-sm font-bold text-yellow-700">{item.carbs || 0}g</span>
-                              </div>
-                              <div className="bg-orange-100 rounded-full px-4 py-2 flex items-center gap-2">
-                                <span className="text-sm">🥑</span>
-                                <span className="text-sm font-bold text-orange-700">{item.fats || 0}g</span>
-                              </div>
+                            <div className="bg-yellow-100 rounded-full px-3 py-1 flex items-center gap-1.5 min-w-[70px]">
+                              <span className="text-base">🍞</span>
+                              <span className="text-base font-bold text-yellow-700">{item.carbs || 0}g</span>
                             </div>
-                          )}
-                          
-                          {/* Spacer to push content to bottom */}
-                          <div className="flex-grow"></div>
-                          
-                          {/* Tags - before button */}
-                          {item.tags && item.tags.length > 0 && (
-                            <div className="mb-4">
-                              <div className="flex flex-wrap gap-2">
-                                {item.tags.map((tag, index) => (
-                                  <span
-                                    key={index}
-                                    className="px-2 py-1 bg-blue-50 text-blue-600 text-xs rounded-full"
-                                  >
-                                    {tag}
-                                  </span>
-                                ))}
-                              </div>
+                            <div className="bg-orange-100 rounded-full px-3 py-1 flex items-center gap-1.5 min-w-[70px]">
+                              <span className="text-base">🥑</span>
+                              <span className="text-base font-bold text-orange-700">{item.fats || 0}g</span>
                             </div>
-                          )}
-                          
-                          {/* Justification - at bottom, smaller and lighter */}
-                          {item.shortJustification && (
-                            <div className="mb-4">
-                              <p className="text-xs italic text-gray-400 leading-relaxed line-clamp-2">
-                                {item.shortJustification}
-                              </p>
-                            </div>
-                          )}
-                          
-                          {/* BOTTOM: View details button - always at bottom */}
-                          <div className="mt-auto">
-                            <button 
-                              onClick={() => openModal(item)}
-                              className="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105"
-                            >
-                              View details
-                            </button>
                           </div>
+                        )}
+                        
+                        {/* Tags */}
+                        {item.tags && item.tags.length > 0 && (
+                          <div className="mb-1">
+                            <div className="flex flex-wrap gap-2">
+                              {item.tags.map((tag, tagIndex) => (
+                                <span
+                                  key={tagIndex}
+                                  className="px-3 py-1 bg-blue-100 text-blue-700 text-sm rounded-full font-medium shadow-sm"
+                                >
+                                  {tag}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Description */}
+                        {item.shortJustification && (
+                          <div className="mb-1">
+                            <p className="text-base text-gray-600 leading-relaxed">
+                              {item.shortJustification}
+                            </p>
+                          </div>
+                        )}
+                        
+                        {/* Status message for failed analysis */}
+                        {item.shortJustification && item.shortJustification.includes('Service temporarily unavailable') && (
+                          <div className="mb-1">
+                            <p className="text-sm text-blue-600 italic">
+                              Service temporarily unavailable: Unable to analyze dish
+                            </p>
+                          </div>
+                        )}
+                        {/* Spacer */}
+                        <div className="flex-grow"></div>
+                        {/* Bouton */}
+                        <div className="mt-auto">
+                          <button 
+                            onClick={() => openModal(item)}
+                            className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-4 py-4 rounded-lg font-bold text-base transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105"
+                          >
+                            View details
+                          </button>
                         </div>
                       </div>
                     );
