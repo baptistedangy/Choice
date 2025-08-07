@@ -1,106 +1,42 @@
+/* Font moderne */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
-  html {
-    font-family: 'Inter', system-ui, sans-serif;
-  }
-  
+/* Variables CSS personnalisées */
+:root {
+  --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  --warning-gradient: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+  --danger-gradient: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
+}
+
+/* Styles de base */
   body {
-    margin: 0;
-    font-family: 'Inter', system-ui, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    line-height: 1.6;
-    color: #374151;
-    background-color: #f9fafb;
-  }
-
-  * {
-    box-sizing: border-box;
-  }
-
-  h1, h2, h3, h4, h5, h6 {
-    font-weight: 600;
-    line-height: 1.25;
-    color: #111827;
-  }
-
-  h1 {
-    font-size: 2.25rem;
-    font-weight: 700;
-  }
-
-  h2 {
-    font-size: 1.875rem;
-    font-weight: 600;
-  }
-
-  h3 {
-    font-size: 1.5rem;
-    font-weight: 600;
-  }
-
-  p {
-    margin-bottom: 1rem;
-  }
-
-  a {
-    color: #2563eb;
-    text-decoration: none;
-    transition: color 0.2s ease-in-out;
-  }
-
-  a:hover {
-    color: #1d4ed8;
-  }
-
-  button {
-    font-family: inherit;
-  }
 }
 
-@layer components {
-  .btn {
-    @apply inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2;
-  }
-
-  .btn-primary {
-    @apply bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500;
-  }
-
-  .btn-secondary {
-    @apply bg-gray-200 text-gray-900 hover:bg-gray-300 focus:ring-gray-500;
-  }
-
-  .card {
-    @apply bg-white rounded-xl shadow-soft border border-gray-200;
-  }
-
-  .input {
-    @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-colors;
-  }
-}
-
-@layer utilities {
-  .animate-fade-in {
-    animation: fadeIn 0.5s ease-in-out;
-  }
-  
-  .animate-fade-in-staggered {
-    animation: fadeInStaggered 0.6s ease-out forwards;
+/* Animations personnalisées */
+@keyframes fadeInStaggered {
+  from {
     opacity: 0;
     transform: translateY(20px);
   }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-@keyframes fadeIn {
+@keyframes slideInFromBottom {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(30px);
   }
   to {
     opacity: 1;
@@ -108,9 +44,618 @@
   }
 }
 
-@keyframes fadeInStaggered {
-  to {
-    opacity: 1;
-    transform: translateY(0);
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(139, 92, 246, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(139, 92, 246, 0.6);
   }
 }
+
+@keyframes shimmer {
+  0% {
+    background-position: -200px 0;
+  }
+  100% {
+    background-position: calc(200px + 100%) 0;
+  }
+}
+
+/* Classes utilitaires */
+.animate-fade-in-staggered {
+  animation: fadeInStaggered 0.6s ease-out forwards;
+  opacity: 0;
+}
+
+.animate-slide-in {
+  animation: slideInFromBottom 0.5s ease-out forwards;
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 2s ease-in-out infinite;
+}
+
+.shimmer {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200px 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Styles pour les cartes de recommandations */
+.nutrition-card {
+  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.95);
+}
+
+.nutrition-card:hover {
+  backdrop-filter: blur(15px);
+  background: rgba(255, 255, 255, 0.98);
+}
+
+/* Barres de progression animées */
+.progress-bar {
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Effets de survol améliorés */
+.hover-lift {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.hover-lift:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+}
+
+/* Gradients personnalisés */
+.gradient-primary {
+  background: var(--primary-gradient);
+}
+
+.gradient-secondary {
+  background: var(--secondary-gradient);
+}
+
+.gradient-success {
+  background: var(--success-gradient);
+}
+
+.gradient-warning {
+  background: var(--warning-gradient);
+}
+
+.gradient-danger {
+  background: var(--danger-gradient);
+}
+
+/* Styles pour les icônes SVG */
+.icon-protein {
+  color: #ef4444;
+}
+
+.icon-carbs {
+  color: #eab308;
+}
+
+.icon-fats {
+  color: #22c55e;
+}
+
+/* Styles pour les tooltips */
+.tooltip-container {
+  position: relative;
+  display: inline-block;
+}
+
+.tooltip-content {
+  position: absolute;
+  bottom: 125%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: white;
+  color: #374151;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.375rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  font-size: 0.875rem;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+  z-index: 1000;
+}
+
+.tooltip-content.show {
+  opacity: 1;
+  visibility: visible;
+}
+
+.tooltip-arrow {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 5px solid white;
+}
+
+/* Styles pour les macronutriments */
+.macro-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.macro-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.macro-sublabel {
+  margin-left: 1.5rem;
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.macro-progress {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.macro-value {
+  min-width: 60px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.macro-bar {
+  flex: 1;
+  background-color: #e5e7eb;
+  border-radius: 9999px;
+  height: 0.5rem;
+  overflow: hidden;
+}
+
+.macro-bar-fill {
+  height: 100%;
+  border-radius: 9999px;
+  transition: width 0.3s ease-in-out;
+}
+
+.macro-percentage {
+  min-width: 30px;
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+/* Styles pour les macronutriments - Layout Horizontal */
+.macro-row-horizontal {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.macro-row-horizontal:last-child {
+  border-bottom: none;
+}
+
+.macro-left-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.macro-label-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.macro-sublabel-horizontal {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-left: 1.5rem;
+}
+
+.macro-grams {
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin-left: 1.5rem;
+}
+
+.macro-right-section {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 120px;
+}
+
+.macro-progress-bar {
+  flex: 1;
+  background-color: #e5e7eb;
+  border-radius: 9999px;
+  height: 0.5rem;
+  overflow: hidden;
+  min-width: 60px;
+}
+
+.macro-bar-fill-horizontal {
+  height: 100%;
+  border-radius: 9999px;
+  transition: width 0.5s ease-in-out;
+}
+
+.macro-percentage-horizontal {
+  font-size: 0.75rem;
+  color: #6b7280;
+  font-weight: 500;
+  min-width: 35px;
+  text-align: right;
+}
+
+/* Responsive design amélioré */
+@media (max-width: 768px) {
+  .nutrition-card {
+    margin: 0 1rem;
+  }
+  
+  .progress-bar {
+    height: 3px;
+  }
+  
+  /* Tooltips adaptés pour mobile */
+  .tooltip-content {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: normal;
+    max-width: 280px;
+    text-align: center;
+  }
+  
+  .tooltip-arrow {
+    display: none;
+  }
+  
+  /* Masquer les sous-labels sur mobile pour économiser l'espace */
+  .macro-sublabel {
+    display: none;
+  }
+  
+  /* Réduire l'espacement des macronutriments */
+  .macro-row {
+    gap: 0.125rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .nutrition-card {
+    margin: 0 0.5rem;
+  }
+  
+  /* Tooltips encore plus compacts sur très petits écrans */
+  .tooltip-content {
+    max-width: 240px;
+    font-size: 0.75rem;
+    padding: 0.375rem 0.5rem;
+  }
+}
+
+/* Responsive design pour le layout horizontal */
+@media (max-width: 768px) {
+  .macro-row-horizontal {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+    padding: 1rem 0;
+  }
+  
+  .macro-left-section {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+  
+  .macro-label-group {
+    flex: 1;
+  }
+  
+  .macro-sublabel-horizontal {
+    display: none; /* Masquer les sous-labels sur mobile */
+  }
+  
+  .macro-grams {
+    margin-left: 0;
+    font-weight: 700;
+  }
+
+  .macro-right-section {
+    min-width: auto;
+    width: 100%;
+  }
+  
+  .macro-progress-bar {
+    min-width: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .macro-row-horizontal {
+    gap: 0.375rem;
+    padding: 0.75rem 0;
+  }
+  
+  .macro-left-section {
+    gap: 0.375rem;
+  }
+  
+  .macro-label-group {
+    gap: 0.375rem;
+  }
+  
+  .macro-right-section {
+    gap: 0.5rem;
+  }
+  
+  .macro-progress-bar {
+    height: 0.375rem;
+  }
+  
+  .macro-percentage-horizontal {
+    font-size: 0.625rem;
+    min-width: 30px;
+  }
+}
+
+/* Styles explicites pour les barres de progression des macronutriments */
+.macro-progress-bar-explicit {
+  width: 100%;
+  height: 8px;
+  background-color: #e5e7eb;
+  border-radius: 9999px;
+  overflow: hidden;
+  border: 1px solid #d1d5db;
+  position: relative;
+}
+
+.macro-bar-fill-explicit {
+  height: 100%;
+  border-radius: 9999px;
+  transition: width 0.5s ease-in-out;
+  position: absolute;
+  top: 0;
+  left: 0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.macro-bar-fill-protein {
+  background-color: #ef4444;
+}
+
+.macro-bar-fill-carbs {
+  background-color: #fbbf24;
+}
+
+.macro-bar-fill-fats {
+  background-color: #10b981;
+}
+
+/* Animation pour les barres de progression */
+@keyframes progressFill {
+  0% {
+    width: 0%;
+  }
+  100% {
+    width: var(--progress-width);
+  }
+}
+
+.macro-bar-fill-animated {
+  animation: progressFill 1s ease-out forwards;
+}
+
+/* Styles pour les tooltips */
+.tooltip {
+  position: relative;
+}
+
+.tooltip::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease-in-out;
+  z-index: 1000;
+}
+
+.tooltip:hover::after {
+  opacity: 1;
+}
+
+/* Styles pour les badges de score */
+.score-badge {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+}
+
+.score-badge.average {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);
+}
+
+.score-badge.low {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
+}
+
+/* Styles pour les messages d'erreur */
+.error-message {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border: 1px solid #f59e0b;
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.1);
+}
+
+/* Styles pour les boutons modernes */
+.btn-modern {
+  background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
+  box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-modern:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(139, 92, 246, 0.4);
+}
+
+.btn-modern:active {
+  transform: translateY(0);
+}
+
+/* Styles pour l'accessibilité */
+.focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Styles pour les macronutriments - Layout Horizontal Compact */
+.macro-row-compact {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.macro-row-compact:last-child {
+  border-bottom: none;
+}
+
+.macro-left-section-compact {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.macro-right-section-compact {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.macro-progress-bar-compact {
+  flex: 1;
+  min-width: 60px;
+  height: 0.5rem;
+  background-color: #e5e7eb;
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.macro-bar-fill-compact {
+  height: 100%;
+  border-radius: 9999px;
+  transition: width 0.5s ease-in-out;
+}
+
+/* Responsive design pour le layout compact */
+@media (max-width: 768px) {
+  .macro-row-compact {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+    padding: 0.75rem 0;
+  }
+  
+  .macro-left-section-compact {
+    justify-content: space-between;
+  }
+  
+  .macro-right-section-compact {
+    width: 100%;
+  }
+  
+  .macro-progress-bar-compact {
+    min-width: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .macro-row-compact {
+    gap: 0.375rem;
+    padding: 0.5rem 0;
+  }
+  
+  .macro-left-section-compact {
+    gap: 0.375rem;
+  }
+  
+  .macro-right-section-compact {
+    gap: 0.5rem;
+  }
+  
+  .macro-progress-bar-compact {
+    height: 0.375rem;
+  }
+}
+
+/* Styles pour les icônes d'information */
+.info-icon {
+  cursor: pointer;
+  opacity: 0.7;
+  transition: all 0.2s ease-in-out;
+}
+
+.info-icon:hover {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+.info-icon:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Animation pour les tooltips */
+@keyframes tooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.tooltip-animate {
+  animation: tooltipFadeIn 0.2s ease-out forwards;
+}
+

@@ -4,6 +4,7 @@ import { Info } from 'lucide-react';
 import { analyzeDish } from '../dishAnalysis';
 import DishDetailsModal from '../components/DishDetailsModal';
 import { createPortal } from 'react-dom';
+import NutritionCard from '../components/NutritionCard';
 
 // Tooltip Component using Portal
 const Tooltip = ({ isVisible, targetRef, children }) => {
@@ -97,8 +98,8 @@ const Recommendations = () => {
   // Log quand les recommandations changent
   useEffect(() => {
     console.log('🔄 Recommendations state changed:', recommendations.length, 'dishes');
-    console.log('🔄 Source state changed:', source);
-  }, [recommendations, source]);
+    console.log('📊 Current recommendations:', recommendations);
+  }, [recommendations]);
 
   // Clean up localStorage on component mount to avoid stale data
   useEffect(() => {
@@ -460,6 +461,16 @@ const Recommendations = () => {
   console.log('🔍 Checking for any .slice() or limiting operations...');
   console.log('📋 Final recommendations to display:', filteredRecommendations.length);
 
+  // Debug: Log component render
+  console.log('🎨 Recommendations component rendering...');
+  console.log('📊 Current state:', {
+    recommendationsCount: recommendations.length,
+    filteredCount: filteredRecommendations.length,
+    isAnalyzing,
+    selectedCategory,
+    source
+  });
+
   const categories = [
     { id: 'all', name: 'All', color: 'bg-gray-500' },
     { id: 'healthy', name: 'Healthy', color: 'bg-green-500' },
@@ -470,9 +481,9 @@ const Recommendations = () => {
 
   return (
     <>
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 py-8">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-7xl mx-auto">
+          <div className="bg-white shadow-sm">
             {/* Header */}
             <div className="bg-gradient-to-r from-purple-600 to-pink-600 px-6 py-8">
               <div className="flex items-center justify-between">
@@ -572,113 +583,19 @@ const Recommendations = () => {
               {/* Recommendations Grid */}
               {filteredRecommendations.length > 0 && (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                  {filteredRecommendations.map((item, index) => {
-                    // Get rank badge
-                    const getRankBadge = (rank) => {
-                      switch(rank) {
-                        case 1: return '🥇';
-                        case 2: return '🥈';
-                        case 3: return '🥉';
-                        default: return `#${rank}`;
-                      }
-                    };
-                    return (
-                      <div key={item.id} className="relative bg-white rounded-xl shadow-lg border-l-4 border-l-green-500 flex flex-col p-6 pt-20 space-y-4 min-h-[480px]">
-                        {/* Badge score */}
-                        {item.aiScore !== undefined && (
-                          <div className="absolute top-4 left-4 flex flex-col items-start z-10">
-                            <div className="bg-green-500 text-white rounded-lg px-4 py-1 flex flex-col items-start shadow min-w-[140px]">
-                              <span className="font-bold text-2xl leading-tight">{item.aiScore || 0}/10</span>
-                              <span className="text-xs font-semibold tracking-wide">PERSONALIZED MATCH SCORE</span>
-                            </div>
-                          </div>
-                        )}
-                        {/* Badge prix */}
-                        {item.price && (
-                          <div className="absolute top-4 right-4 bg-green-100 text-green-700 px-3 py-1 rounded-lg text-sm font-bold shadow z-10">
-                            {item.price}
-                          </div>
-                        )}
-                        {/* Badge rang */}
-                        <div className="absolute top-20 right-4 text-3xl z-10 drop-shadow-sm">
-                          {getRankBadge(index + 1)}
-                        </div>
-                        {/* Nom du plat */}
-                        <h3 className="text-2xl font-bold text-gray-900 uppercase mt-2 mb-1">{item.name}</h3>
-                        {/* Calories */}
-                        {item.calories !== undefined && (
-                          <div className="mb-4">
-                            <div className="text-lg font-bold text-gray-900">
-                              {item.calories || 0} kcal
-                            </div>
-                          </div>
-                        )}
-                        
-                        {/* Macronutrient Bars */}
-                        {item.protein !== undefined && (
-                          <div className="flex gap-3 mb-6">
-                            <div className="bg-red-100 rounded-full px-3 py-1 flex items-center gap-1.5 min-w-[70px]">
-                              <span className="text-base">💪</span>
-                              <span className="text-base font-bold text-red-700">{item.protein || 0}g</span>
-                            </div>
-                            <div className="bg-yellow-100 rounded-full px-3 py-1 flex items-center gap-1.5 min-w-[70px]">
-                              <span className="text-base">🍞</span>
-                              <span className="text-base font-bold text-yellow-700">{item.carbs || 0}g</span>
-                            </div>
-                            <div className="bg-orange-100 rounded-full px-3 py-1 flex items-center gap-1.5 min-w-[70px]">
-                              <span className="text-base">🥑</span>
-                              <span className="text-base font-bold text-orange-700">{item.fats || 0}g</span>
-                            </div>
-                          </div>
-                        )}
-                        
-                        {/* Tags */}
-                        {item.tags && item.tags.length > 0 && (
-                          <div className="mb-1">
-                            <div className="flex flex-wrap gap-2">
-                              {item.tags.map((tag, tagIndex) => (
-                                <span
-                                  key={tagIndex}
-                                  className="px-3 py-1 bg-blue-100 text-blue-700 text-sm rounded-full font-medium shadow-sm"
-                                >
-                                  {tag}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        
-                        {/* Description */}
-                        {item.shortJustification && (
-                          <div className="mb-1">
-                            <p className="text-base text-gray-600 leading-relaxed">
-                              {item.shortJustification}
-                            </p>
-                          </div>
-                        )}
-                        
-                        {/* Status message for failed analysis */}
-                        {item.shortJustification && item.shortJustification.includes('Service temporarily unavailable') && (
-                          <div className="mb-1">
-                            <p className="text-sm text-blue-600 italic">
-                              Service temporarily unavailable: Unable to analyze dish
-                            </p>
-                          </div>
-                        )}
-                        {/* Spacer */}
-                        <div className="flex-grow"></div>
-                        {/* Bouton */}
-                        <div className="mt-auto">
-                          <button 
-                            onClick={() => openModal(item)}
-                            className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-4 py-4 rounded-lg font-bold text-base transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105"
-                          >
-                            View details
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
+                  {filteredRecommendations.map((item, index) => (
+                    <div 
+                      key={item.id} 
+                      className="animate-fade-in-staggered"
+                      style={{ animationDelay: `${index * 200}ms` }}
+                    >
+                      <NutritionCard
+                        dish={item}
+                        rank={index + 1}
+                        onViewDetails={openModal}
+                      />
+                    </div>
+                  ))}
                 </div>
               )}
             </div>

@@ -48,166 +48,173 @@ const DishDetailsModal = ({ isOpen, onClose, dish }) => {
     }
 
     // Raison basée sur les tags
-    if (dish.tags && dish.tags.length > 0) {
-      const healthyTags = dish.tags.filter(tag => 
-        ['Sain', 'Bio', 'Végétarien', 'Sans gluten'].includes(tag)
-      );
-      if (healthyTags.length > 0) {
-        reasons.push(`Respects your preferences: ${healthyTags.join(', ')}`);
-      }
+    if (dish.tags && dish.tags.includes('vegetarian')) {
+      reasons.push("Perfect for vegetarian dietary preferences");
+    }
+    if (dish.tags && dish.tags.includes('gluten-free')) {
+      reasons.push("Suitable for gluten-free diet");
     }
 
-    // Retourner 2-3 raisons maximum
-    return reasons.slice(0, 3);
+    return reasons.length > 0 ? reasons : ["This dish aligns well with your nutritional goals"];
   };
 
   const recommendationReasons = getRecommendationReasons(dish);
 
+  // Fonction pour obtenir la couleur du score
+  const getScoreColor = (score) => {
+    if (score >= 8) return 'from-green-500 to-emerald-600';
+    if (score >= 6) return 'from-yellow-500 to-orange-500';
+    return 'from-red-500 to-pink-500';
+  };
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-purple-600 to-pink-600 px-6 py-6 rounded-t-2xl">
-          <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <h2 className="text-2xl font-bold text-white mb-1">{dish.name}</h2>
-              <p className="text-purple-100">{dish.restaurant}</p>
-            </div>
-            <button
-              onClick={onClose}
-              className="text-white hover:text-gray-200 transition-colors ml-4"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-        </div>
+    <div className="fixed inset-0 z-50 overflow-y-auto">
+      <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        {/* Overlay */}
+        <div 
+          className="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity"
+          onClick={onClose}
+        />
 
-        {/* Content */}
-        <div className="p-6">
-          {/* Price */}
-          <div className="text-center mb-6">
-            <div className="text-3xl font-bold text-green-600">{dish.price}</div>
+        {/* Modal */}
+        <div className="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
+          {/* En-tête */}
+          <div className="bg-gradient-to-r from-purple-600 to-pink-600 px-6 py-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold text-white">
+                Dish Details
+              </h2>
+              <button
+                onClick={onClose}
+                className="text-white hover:text-gray-200 transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
           </div>
 
-          {/* Error Banner - Display if there's an error */}
-          {dish.error && (
-            <div className="mb-6">
-              <div className="bg-red-500 text-white px-6 py-4 rounded-lg text-center">
-                <div className="font-bold mb-2">⚠️ Analysis Error</div>
-                <div className="text-sm">{dish.error}</div>
-              </div>
-            </div>
-          )}
-          
-          {/* Score IA + Calories (only if no error) */}
-          {!dish.error && (
-            <div className="flex items-center justify-center space-x-6 mb-6">
-              {/* Score IA Badge */}
+          {/* Contenu */}
+          <div className="px-6 py-6 space-y-6">
+            {/* Nom du plat et score */}
+            <div className="flex items-center justify-between">
+              <h3 className="text-2xl font-bold text-gray-900">
+                {dish.name || dish.title}
+              </h3>
               {dish.aiScore !== undefined && (
-                <div className={`text-white px-4 py-2 rounded-full text-lg font-bold ${
-                  dish.aiScore < 5 
-                    ? 'bg-red-500' 
-                    : dish.aiScore <= 7 
-                      ? 'bg-orange-500' 
-                      : 'bg-green-500'
-                }`}>
-                  AI Score: {dish.aiScore.toFixed(1)}/10
-                </div>
-              )}
-              
-              {/* Calories */}
-              {dish.calories !== undefined && (
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-gray-900">{dish.calories || 0}</div>
-                  <div className="text-sm text-gray-600">calories</div>
+                <div className={`bg-gradient-to-r ${getScoreColor(dish.aiScore)} text-white rounded-full px-4 py-2 shadow-lg`}>
+                  <div className="text-center">
+                    <div className="text-xl font-bold">{dish.aiScore || 0}/10</div>
+                    <div className="text-xs opacity-90">Score</div>
+                  </div>
                 </div>
               )}
             </div>
-          )}
 
-          {/* Description */}
-          <div className="mb-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Description</h3>
-            <p className="text-gray-700">{dish.description}</p>
-          </div>
+            {/* Prix */}
+            {dish.price && (
+              <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-4 py-2 rounded-lg inline-block">
+                <span className="font-bold text-lg">{dish.price}</span>
+              </div>
+            )}
 
-          {/* Macronutrients with Icons */}
-          {dish.protein !== undefined && (
-            <div className="mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Nutritional Composition</h3>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="text-center p-4 bg-red-50 rounded-lg">
-                  <div className="text-2xl mb-2">🥩</div>
-                  <div className="text-xl font-bold text-red-600">{dish.protein || 0}g</div>
-                  <div className="text-sm text-red-700">Protein</div>
-                </div>
-                <div className="text-center p-4 bg-yellow-50 rounded-lg">
-                  <div className="text-2xl mb-2">🍞</div>
-                  <div className="text-xl font-bold text-yellow-600">{dish.carbs || 0}g</div>
-                  <div className="text-sm text-yellow-700">Carbs</div>
-                </div>
-                <div className="text-center p-4 bg-orange-50 rounded-lg">
-                  <div className="text-2xl mb-2">🥑</div>
-                  <div className="text-xl font-bold text-orange-600">{dish.fats || 0}g</div>
-                  <div className="text-sm text-orange-700">Fats</div>
+            {/* Description */}
+            {dish.description && (
+              <div>
+                <h4 className="text-lg font-semibold text-gray-900 mb-2">Description</h4>
+                <p className="text-gray-600 leading-relaxed">
+                  {dish.description}
+                </p>
+              </div>
+            )}
+
+            {/* Calories */}
+            {dish.calories !== undefined && (
+              <div className="bg-gray-50 rounded-xl p-4">
+                <h4 className="text-lg font-semibold text-gray-900 mb-2">Calories</h4>
+                <div className="text-2xl font-bold text-gray-900 text-center">
+                  {dish.calories || 0} kcal
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Pourquoi nous recommandons ce plat */}
-          <div className="mb-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Why we recommend this dish
-            </h3>
-            <div className="space-y-3">
-              {recommendationReasons.map((reason, index) => (
-                <div key={index} className="flex items-start space-x-3">
-                  <div className="flex-shrink-0 w-2 h-2 bg-purple-500 rounded-full mt-2"></div>
-                  <p className="text-gray-700">{reason}</p>
+            {/* Composition nutritionnelle */}
+            {dish.protein !== undefined && (
+              <div>
+                <h4 className="text-lg font-semibold text-gray-900 mb-4">Nutritional Composition</h4>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="text-center p-4 bg-red-50 rounded-xl border border-red-200">
+                    <div className="text-2xl mb-2">💪</div>
+                    <div className="text-xl font-bold text-red-600">{dish.protein || 0}g</div>
+                    <div className="text-sm text-red-700 font-medium">Protein</div>
+                  </div>
+                  <div className="text-center p-4 bg-yellow-50 rounded-xl border border-yellow-200">
+                    <div className="text-2xl mb-2">🍞</div>
+                    <div className="text-xl font-bold text-yellow-600">{dish.carbs || 0}g</div>
+                    <div className="text-sm text-yellow-700 font-medium">Carbs</div>
+                  </div>
+                  <div className="text-center p-4 bg-green-50 rounded-xl border border-green-200">
+                    <div className="text-2xl mb-2">🥑</div>
+                    <div className="text-xl font-bold text-green-600">{dish.fats || 0}g</div>
+                    <div className="text-sm text-green-700 font-medium">Fats</div>
+                  </div>
                 </div>
-              ))}
-            </div>
-          </div>
+              </div>
+            )}
 
-          {/* Tags */}
-          {dish.tags && dish.tags.length > 0 && (
-            <div className="mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">Characteristics</h3>
-              <div className="flex flex-wrap gap-2">
-                {dish.tags.map((tag, index) => (
-                  <span
-                    key={index}
-                    className="px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full"
-                  >
-                    {tag}
-                  </span>
+            {/* Pourquoi nous recommandons ce plat */}
+            <div>
+              <h4 className="text-lg font-semibold text-gray-900 mb-4">
+                Why we recommend this dish
+              </h4>
+              <div className="space-y-3">
+                {recommendationReasons.map((reason, index) => (
+                  <div key={index} className="flex items-start space-x-3">
+                    <div className="flex-shrink-0 w-2 h-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full mt-2"></div>
+                    <p className="text-gray-700 leading-relaxed">{reason}</p>
+                  </div>
                 ))}
               </div>
             </div>
-          )}
 
-          {/* Justification AI */}
-          {dish.shortJustification && (
-            <div className="mb-6 p-4 bg-purple-50 rounded-lg border-l-4 border-purple-400">
-              <h3 className="text-sm font-semibold text-purple-900 mb-2">AI Analysis</h3>
-              <p className="text-purple-800 italic">
-                "{dish.shortJustification}"
-              </p>
-            </div>
-          )}
-        </div>
+            {/* Tags */}
+            {dish.tags && dish.tags.length > 0 && (
+              <div>
+                <h4 className="text-lg font-semibold text-gray-900 mb-3">Tags</h4>
+                <div className="flex flex-wrap gap-2">
+                  {dish.tags.map((tag, index) => (
+                    <span
+                      key={index}
+                      className="px-3 py-1 bg-blue-50 text-blue-700 text-sm rounded-full font-medium border border-blue-200"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
 
-        {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-200">
-                      <button
+            {/* Justification courte */}
+            {dish.shortJustification && (
+              <div>
+                <h4 className="text-lg font-semibold text-gray-900 mb-2">Quick Analysis</h4>
+                <p className="text-gray-600 leading-relaxed">
+                  {dish.shortJustification}
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Boutons d'action */}
+          <div className="bg-gray-50 px-6 py-4 flex justify-end space-x-3">
+            <button
               onClick={onClose}
-              className="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 px-4 rounded-lg font-medium transition-colors"
+              className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
             >
               Close
             </button>
+          </div>
         </div>
       </div>
     </div>

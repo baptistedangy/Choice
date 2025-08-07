@@ -423,7 +423,7 @@ Output ONLY the JSON response, nothing else.`;
             messages: [
               {
                 role: "system",
-                content: "You are a nutrition expert that analyzes dishes for personalized recommendations. You must respond with ONLY valid JSON format. No additional text, commentary, or explanations outside the JSON. If the dish description is unclear or missing, you MUST still provide your best estimate based on the dish name and any available information. NEVER return an error. Always provide a plausible analysis, even if you have to make reasonable assumptions. Be precise with nutritional values and provide meaningful justifications. Write all justifications in English only, maximum 2 sentences, using ONLY real data (nutritional info and user preferences). Do NOT invent or reference activity data, workouts, or energy expenditure. The aiScore represents a personalized match score (0-10) based on how well the dish aligns with the user's dietary profile and preferences."
+                content: "You are a nutrition expert that analyzes dishes for personalized recommendations. You must respond with ONLY valid JSON format. No additional text, commentary, or explanations outside the JSON. If the dish description is unclear or missing, you MUST still provide your best estimate based on the dish name and any available information. NEVER return an error. Always provide a plausible analysis, even if you have to make reasonable assumptions. Be precise with nutritional values and provide meaningful justifications. Write all justifications in English only, maximum 2 sentences, using ONLY real data (nutritional info and user preferences). Do NOT reference activity data, workouts, or energy expenditure. The aiScore represents a personalized match score (0-10) based on how well the dish aligns with the user's dietary profile and preferences."
               },
               {
                 role: "user",
@@ -494,9 +494,8 @@ Output ONLY the JSON response, nothing else.`
             aiScore: 0,
             calories: 0,
             macros: { protein: 0, carbs: 0, fats: 0 },
-            shortJustification: "Analysis failed",
-            longJustification: ["Analysis failed"],
-            analysisError: error.message
+            shortJustification: "Analysis not available",
+            longJustification: ["Analysis not available"]
           });
         }
       }
@@ -579,7 +578,7 @@ Output ONLY the JSON response, nothing else.`
       });
       
       // Step 3: Filter and validate dishes (now using already analyzed dishes)
-      console.log('\n🔧 VALIDATION AND FILTERING PROCESS:');
+      console.log('\n�� VALIDATION AND FILTERING PROCESS:');
       console.log(`📊 Total dishes analyzed: ${allDishesWithScores.length}`);
       
       const validationProcess = [];
@@ -840,28 +839,28 @@ Output ONLY the JSON response, nothing else.`;
   }
 });
 
-// Route pour l'analyse de plats avec OpenAI
+// Route pour analyser un plat individuel
 app.post('/api/analyze-dish', async (req, res) => {
   try {
     const { dishText, userProfile } = req.body;
-
+    
     if (!dishText) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        error: 'Dish text is required' 
+        error: 'Dish text is required'
       });
     }
 
-    if (!userProfile) {
-      return res.status(400).json({ 
-        success: false,
-        error: 'User profile is required' 
-      });
-    }
-
-    console.log('🍽️ Analyzing dish with OpenAI...');
-    console.log('Dish text length:', dishText.length);
+    console.log('🍽️ Analyzing single dish...');
+    console.log('Dish text:', dishText);
     console.log('User profile:', userProfile);
+
+    if (!openai) {
+      return res.status(500).json({
+        success: false,
+        error: 'OpenAI service not available'
+      });
+    }
 
     // Construction du prompt pour OpenAI
     const prompt = `Analyze this dish for a user with the following profile: ${JSON.stringify(userProfile, null, 2)}.
@@ -928,38 +927,26 @@ Output ONLY the JSON response, nothing else.`;
     
     // Check if parsing returned an error
     if (analysis.status === "error") {
-      return res.json({
-        success: false,
-        error: analysis.message
-      });
+      throw new Error(analysis.message);
     }
 
     // Check if OpenAI returned an error
     if (typeof analysis === 'object' && analysis.error) {
-      return res.json({
-        success: false,
-        error: "Unable to analyze dish"
-      });
+      throw new Error("Unable to analyze dish");
     }
 
     // Validation des champs requis
     const requiredFields = ['aiScore', 'calories', 'macros', 'shortJustification', 'longJustification'];
     const missingFields = requiredFields.filter(field => !(field in analysis));
     if (missingFields.length > 0) {
-      return res.json({
-        success: false,
-        error: `Missing fields in analysis: ${missingFields.join(', ')}`
-      });
+      throw new Error(`Missing fields in analysis: ${missingFields.join(', ')}`);
     }
 
     // Validation des macros
     const requiredMacros = ['protein', 'carbs', 'fats'];
     const missingMacros = requiredMacros.filter(macro => !(macro in analysis.macros));
     if (missingMacros.length > 0) {
-      return res.json({
-        success: false,
-        error: `Missing macronutrients: ${missingMacros.join(', ')}`
-      });
+      throw new Error(`Missing macronutrients: ${missingMacros.join(', ')}`);
     }
 
     // Validation et nettoyage des données
@@ -977,7 +964,7 @@ Output ONLY the JSON response, nothing else.`;
         : ['Detailed analysis not available']
     };
 
-    console.log('✅ Dish analysis completed successfully');
+    console.log('✅ Single dish analysis completed');
 
     res.json({
       success: true,
@@ -985,7 +972,7 @@ Output ONLY the JSON response, nothing else.`;
     });
 
   } catch (error) {
-    console.error('❌ Error analyzing dish:', error);
+    console.error('❌ Error analyzing single dish:', error);
     res.status(500).json({
       success: false,
       error: error.message || 'Erreur lors de l\'analyse du plat'
@@ -993,7 +980,7 @@ Output ONLY the JSON response, nothing else.`;
   }
 });
 
-// Route pour l'analyse de plusieurs plats
+// Route pour analyser plusieurs plats
 app.post('/api/analyze-dishes', async (req, res) => {
   try {
     const { dishes, userProfile } = req.body;
