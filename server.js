@@ -625,12 +625,12 @@ Output ONLY the JSON response, nothing else.`
         console.log(`  ${index + 1}. "${dish.title}" - AI Score: ${dish.aiScore || 0} - Calories: ${dish.calories || 0}`);
       });
       
-      // Take top 3 dishes
-      console.log('\n✂️ APPLYING SLICE (0, 3) TO GET TOP 3 DISHES...');
-      const top3Dishes = sortedValidDishes.slice(0, 3);
+      // Return ALL analyzed dishes instead of just top 3
+      console.log('\n📊 RETURNING ALL ANALYZED DISHES (no slice limit)...');
+      const allAnalyzedDishes = sortedValidDishes;
       
-      console.log('\n🏆 FINAL TOP 3 DISHES FOR DISPLAY:');
-      top3Dishes.forEach((dish, index) => {
+      console.log('\n🏆 ALL ANALYZED DISHES FOR DISPLAY:');
+      allAnalyzedDishes.forEach((dish, index) => {
         console.log(`  ${index + 1}. "${dish.title}" - AI Score: ${dish.aiScore || 0} - Calories: ${dish.calories || 0}`);
       });
       
@@ -642,14 +642,8 @@ Output ONLY the JSON response, nothing else.`
         });
       }
       
-      // Log dishes excluded by slice limit
-      const excludedBySliceLimit = sortedValidDishes.slice(3);
-      if (excludedBySliceLimit.length > 0) {
-        console.log('\n❌ DISHES EXCLUDED BY SLICE LIMIT:');
-        excludedBySliceLimit.forEach((dish, index) => {
-          console.log(`  ${index + 4}. "${dish.title}" - AI Score: ${dish.aiScore || 0} - EXCLUDED: Slice limit (0, 3)`);
-        });
-      }
+      // No dishes excluded by slice limit since we return all dishes
+      console.log('\n✅ NO DISHES EXCLUDED BY SLICE LIMIT - returning all analyzed dishes');
 
       console.log('✅ Analysis completed successfully');
       
@@ -657,7 +651,7 @@ Output ONLY the JSON response, nothing else.`
       const finalResponse = {
         success: true,
         status: "success",
-        recommendations: top3Dishes,
+        recommendations: allAnalyzedDishes, // Return all dishes instead of just top 3
         extractedText: extractedText,
         debug: {
           dishValidationResults,
@@ -666,17 +660,16 @@ Output ONLY the JSON response, nothing else.`
           sliceExcludedDishes,
           allDishesWithScores: allDishesWithScores, // Tous les plats analysés
           sortedValidDishes: sortedValidDishes, // Plats valides triés
-          top3Dishes: top3Dishes, // Top 3 plats
-          excludedBySliceLimit: excludedBySliceLimit, // Plats exclus par le slice
+          allAnalyzedDishes: allAnalyzedDishes, // Tous les plats analysés (pas de limite)
           finalResults: {
             totalDishesDetected: recommendations.length,
             totalDishesAnalyzed: allDishesWithScores.length,
             totalValidDishes: validDishes.length,
             totalDishesAfterSorting: sortedValidDishes.length,
-            totalDishesAfterSlice: top3Dishes.length,
-            sliceLimit: 3,
+            totalDishesReturned: allAnalyzedDishes.length,
+            sliceLimit: 'none', // No slice limit
             excludedByValidation: sliceExcludedDishes.length,
-            excludedBySliceLimit: excludedBySliceLimit.length
+            excludedBySliceLimit: 0 // No dishes excluded by slice
           }
         }
       };

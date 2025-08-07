@@ -417,6 +417,9 @@ const Recommendations = () => {
           console.log('✅ Set recommendations to empty array - no dishes available');
         }
       }
+      
+      // Nettoyer le localStorage pour éviter les anciens plats
+      clearStoredRecommendations();
     };
 
     processRecommendations();
