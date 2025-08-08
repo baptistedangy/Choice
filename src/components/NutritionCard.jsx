@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { trackRecommendationClick } from '../utils/analytics';
 
 // Icônes SVG modernes
 const ProteinIcon = () => (
@@ -347,7 +348,10 @@ const NutritionCard = ({ dish, rank, onViewDetails }) => {
 
         {/* Bouton d'action */}
         <button 
-          onClick={() => onViewDetails(dish)}
+          onClick={() => {
+            trackRecommendationClick(dish.name || dish.title, rank, dish.aiScore);
+            onViewDetails(dish);
+          }}
           className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-6 py-3 rounded-xl font-semibold text-sm transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
         >
           View details

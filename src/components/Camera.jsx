@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Webcam from 'react-webcam';
 import { getRecommendationsFromMenu, getDefaultUserProfile, getAdditionalRecommendations } from '../services/recommendations';
 import { analyzeMenuImage, checkBackendHealth } from '../services/backendService';
+import { trackMenuScan, trackError } from '../utils/analytics';
 
 const Camera = () => {
   console.log("🎬 Camera component rendering");
@@ -136,6 +137,7 @@ const Camera = () => {
       console.log('Backend available:', backendAvailable);
       
       if (!backendAvailable) {
+        trackMenuScan(false, 'Backend service not available');
         throw new Error('Backend service not available. Please ensure the server is running.');
       }
       
@@ -168,6 +170,7 @@ const Camera = () => {
       console.log('Recommandations générées:', analysisResult.recommendations);
       
       // Redirection vers la page Recommendations avec les données
+      trackMenuScan(true);
       navigate('/recommendations', { 
         state: { 
           recommendations: analysisResult.recommendations,
@@ -179,6 +182,8 @@ const Camera = () => {
       
     } catch (error) {
       console.error('Erreur lors de l\'analyse du menu:', error);
+      trackMenuScan(false, error.message);
+      trackError(error, { context: 'menu_analysis' });
       setMenuText('Erreur lors de l\'analyse: ' + error.message);
       setIsProcessing(false);
       setProcessingStep('');
