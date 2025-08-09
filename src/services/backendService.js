@@ -279,11 +279,30 @@ export async function analyzeMenuImage(imageBase64, userProfile) {
     });
     
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      // Certaines erreurs serveur renvoient une page HTML -> éviter JSON.parse direct
+      const contentType = response.headers.get('content-type') || '';
+      const raw = await response.text();
+      console.warn('❌ analyze-image HTTP error', response.status, 'content-type:', contentType);
+      // Essayer un parse JSON si le serveur a quand même renvoyé du JSON
+      try {
+        const maybeJson = safeJsonParse(raw);
+        throw new Error(maybeJson?.message || maybeJson?.error || `HTTP error! status: ${response.status}`);
+      } catch {
+        // Pas du JSON : remonter un message propre sans "<DOCTYPE>"
+        const snippet = raw?.slice(0, 120).replace(/\n/g, ' ');
+        throw new Error(`HTTP ${response.status}: ${snippet || 'Non-JSON response'}`);
+      }
     }
     
-    const result = await response.json();
+    // Réponse OK -> essayer JSON; si ça échoue, tenter texte puis parse sécurisé
+    let result;
+    try {
+      result = await response.json();
+    } catch (e) {
+      const raw = await response.text();
+      console.warn('⚠️ analyze-image returned non-JSON body, attempting safe parse');
+      result = safeJsonParse(raw);
+    }
     
     // Logs de debug pour la console du navigateur
     if (result.debug) {
@@ -308,7 +327,6 @@ export async function analyzeMenuImage(imageBase64, userProfile) {
           console.log(`  ${index + 1}. "${dish.title}" - AI Score: ${dish.aiScore || 0} - Calories: ${dish.calories || 0} - Price: ${dish.price || 'N/A'}`);
         });
         
-        // Log des plats exclus
         if (result.debug.excludedBySlice && result.debug.excludedBySlice.length > 0) {
           console.log('❌ DISHES EXCLUDED BY SLICE:');
           result.debug.excludedBySlice.forEach((dish, index) => {

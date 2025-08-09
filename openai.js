@@ -237,6 +237,65 @@ export async function getTopRecommendations(menuText, userProfile) {
       ...extendedProfile
     };
 
+    // Fonction pour générer des règles alimentaires dynamiques
+    const generateDietaryRules = (dietaryPreferences, goal) => {
+      const rules = [];
+      
+      if (dietaryPreferences && dietaryPreferences.length > 0) {
+        dietaryPreferences.forEach(pref => {
+          switch (pref) {
+            case 'vegan':
+              rules.push('- VEGAN: EXCLUDE all animal products (meat, fish, poultry, dairy, eggs, honey, gelatin)');
+              break;
+            case 'vegetarian':
+              rules.push('- VEGETARIAN: EXCLUDE all meat, fish, poultry, and animal products');
+              break;
+            case 'pescatarian':
+              rules.push('- PESCATARIAN: EXCLUDE all meat and poultry, but fish/seafood is allowed');
+              break;
+            case 'gluten-free':
+              rules.push('- GLUTEN-FREE: EXCLUDE wheat, barley, rye, and any gluten-containing ingredients');
+              break;
+            case 'dairy-free':
+              rules.push('- DAIRY-FREE: EXCLUDE milk, cheese, yogurt, butter, cream, and dairy derivatives');
+              break;
+            case 'nut-free':
+              rules.push('- NUT-FREE: EXCLUDE all nuts (peanuts, almonds, walnuts, cashews, etc.) and nut products');
+              break;
+            case 'low-carb':
+              rules.push('- LOW-CARB: PRIORITIZE dishes with <30g carbs per serving, avoid high-carb foods (bread, pasta, rice, potatoes)');
+              break;
+            case 'keto':
+              rules.push('- KETO: PRIORITIZE high-fat, very low-carb dishes (<20g net carbs), avoid all grains, sugars, most fruits');
+              break;
+            case 'paleo':
+              rules.push('- PALEO: EXCLUDE grains, legumes, dairy, processed foods, refined sugars; PRIORITIZE meat, fish, vegetables, fruits, nuts');
+              break;
+            case 'mediterranean':
+              rules.push('- MEDITERRANEAN: PRIORITIZE fish, olive oil, vegetables, whole grains, legumes; moderate red meat and dairy');
+              break;
+          }
+        });
+      }
+      
+      // Règles basées sur l'objectif
+      if (goal) {
+        switch (goal) {
+          case 'lose':
+            rules.push('- WEIGHT LOSS: PRIORITIZE lower-calorie dishes, high protein, high fiber, avoid high-calorie/fatty foods');
+            break;
+          case 'gain':
+            rules.push('- WEIGHT GAIN: PRIORITIZE higher-calorie dishes with good protein content, healthy fats');
+            break;
+          case 'maintain':
+            rules.push('- WEIGHT MAINTENANCE: PRIORITIZE balanced meals with moderate calories and good nutrition');
+            break;
+        }
+      }
+      
+      return rules.join('\n');
+    };
+
     // Construction du prompt pour OpenAI
     const prompt = `You are a nutrition assistant. Based on the following menu and user profile, select the 3 best dishes that match their health and dietary needs.
 
@@ -251,6 +310,16 @@ User Profile:
 - Goal: ${completeUserProfile.goal || 'Not provided'}
 - Dietary Preferences: ${extendedProfile.dietaryPreferences ? extendedProfile.dietaryPreferences.join(', ') : 'Not provided'}
 
+CRITICAL DIETARY COMPLIANCE RULES:
+${generateDietaryRules(extendedProfile.dietaryPreferences, completeUserProfile.goal)}
+
+GENERAL COMPLIANCE RULES:
+- ONLY recommend dishes that STRICTLY comply with ALL user preferences and restrictions
+- PRIORITIZE dishes that align with the user's health goals
+- If multiple dietary restrictions apply, ALL must be satisfied
+- If no compliant dishes are found, return fewer dishes rather than non-compliant ones
+- Consider nutritional balance and health benefits when ranking compliant dishes
+
 CRITICAL: You must respond with ONLY valid JSON. No additional text, commentary, or explanations outside the JSON.
 
 ANALYSIS INSTRUCTIONS:
@@ -259,11 +328,12 @@ ANALYSIS INSTRUCTIONS:
 3. Look for food-related words like: menu, plat, entrée, dessert, salade, viande, poisson, pasta, pizza, burger, steak, etc.
 4. Even if the text is partially unclear, try to extract ANY recognizable dish information
 5. If you find ANY dish-like text, create a dish entry with the best possible information
+6. FILTER OUT dishes that don't match dietary preferences before ranking
 
 If the menu text is completely empty, contains no recognizable food words, or is completely unreadable, respond with:
 { "error": "Unable to analyze" }
 
-Otherwise, return exactly 3 dishes in this exact JSON format (fill with best available information):
+Otherwise, return up to 3 dishes in this exact JSON format (only include dietary-compliant dishes):
 [
   {
     "title": "Dish name (or best guess)",
@@ -273,7 +343,7 @@ Otherwise, return exactly 3 dishes in this exact JSON format (fill with best ava
   }
 ]
 
-IMPORTANT: Be very tolerant of unclear text. If you see ANY food-related content, try to extract it. Only return "Unable to analyze" if the text is completely empty or contains no food-related words at all.
+IMPORTANT: Be very tolerant of unclear text. If you see ANY food-related content, try to extract it. Only return "Unable to analyze" if the text is completely empty or contains no food-related words at all. However, ALWAYS prioritize dietary compliance over quantity of recommendations.
 
 Provide all analysis and explanations in English. Avoid French or other languages.
 Output ONLY the JSON response, nothing else.`;
@@ -295,7 +365,7 @@ Output ONLY the JSON response, nothing else.`;
       messages: [
         {
           role: "system",
-          content: "You are a nutrition assistant that provides personalized food recommendations. You must respond with ONLY valid JSON format. No additional text, commentary, or explanations outside the JSON. If analysis is not possible, return { \"error\": \"Unable to analyze\" }. Provide all analysis and explanations in English only. Keep descriptions short and concise."
+          content: "You are a nutrition assistant that provides personalized food recommendations. Only recommend meals that strictly align with the user's dietary preferences (e.g., vegetarian, vegan, etc.). Discard or downgrade meals that do not comply. Respond with ONLY valid JSON format. No commentary or explanations outside the JSON. If analysis is not possible, return { \"error\": \"Unable to analyze\" }. Provide all analysis and explanations in English only. Keep descriptions short and concise."
         },
         {
           role: "user",

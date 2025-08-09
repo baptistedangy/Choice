@@ -441,9 +441,29 @@ const Recommendations = () => {
   });
 
   console.log('🔍 Filtering recommendations by category:', selectedCategory);
-  const filteredRecommendations = selectedCategory === 'all' 
-    ? sortedRecommendations 
-    : sortedRecommendations.filter(item => item.category === selectedCategory);
+  
+  // Logique de filtrage améliorée avec support de la conformité
+  let filteredRecommendations;
+  
+  if (selectedCategory === 'all') {
+    filteredRecommendations = sortedRecommendations;
+  } else if (selectedCategory === 'matching') {
+    // Afficher seulement les plats qui correspondent aux préférences
+    filteredRecommendations = sortedRecommendations.filter(item => item.match === true);
+  } else if (selectedCategory === 'non-matching') {
+    // Afficher seulement les plats qui ne correspondent pas aux préférences
+    filteredRecommendations = sortedRecommendations.filter(item => item.match === false);
+  } else if (selectedCategory.startsWith('pref-')) {
+    // Filtrage par préférence spécifique
+    const preference = selectedCategory.replace('pref-', '');
+    filteredRecommendations = sortedRecommendations.filter(item => {
+      if (!item.dietaryClassifications) return false;
+      return item.dietaryClassifications[preference] === true;
+    });
+  } else {
+    // Fallback vers l'ancien système de catégories
+    filteredRecommendations = sortedRecommendations.filter(item => item.category === selectedCategory);
+  }
     
   console.log('📋 Filtered recommendations count:', filteredRecommendations.length);
   console.log('📊 Filtered recommendations:');
@@ -474,13 +494,40 @@ const Recommendations = () => {
     source
   });
 
-  const categories = [
-    { id: 'all', name: 'All', color: 'bg-gray-500' },
-    { id: 'healthy', name: 'Healthy', color: 'bg-green-500' },
-    { id: 'vegetarian', name: 'Vegetarian', color: 'bg-emerald-500' },
-    { id: 'classic', name: 'Classic', color: 'bg-blue-500' },
-    { id: 'ai-recommendation', name: 'AI', color: 'bg-purple-500' }
-  ];
+  // Récupérer les préférences alimentaires de l'utilisateur
+  const [userPreferences, setUserPreferences] = useState([]);
+  
+  useEffect(() => {
+    try {
+      const savedExtendedProfile = localStorage.getItem('extendedProfile');
+      if (savedExtendedProfile) {
+        const extendedProfile = JSON.parse(savedExtendedProfile);
+        setUserPreferences(extendedProfile.dietaryPreferences || []);
+      }
+    } catch (error) {
+      console.warn('Erreur lors de la récupération des préférences:', error);
+    }
+  }, []);
+
+  // Générer les catégories de filtrage dynamiquement
+  const generateCategories = () => {
+    const baseCategories = [
+      { id: 'all', name: 'All', color: 'bg-gray-500' },
+      { id: 'matching', name: '✅ Matches Preferences', color: 'bg-green-500' },
+      { id: 'non-matching', name: '⚠️ Doesn\'t Match', color: 'bg-orange-500' }
+    ];
+    
+    // Ajouter des catégories spécifiques basées sur les préférences utilisateur
+    const preferenceCategories = userPreferences.map(pref => ({
+      id: `pref-${pref}`,
+      name: pref.charAt(0).toUpperCase() + pref.slice(1).replace('-', ' '),
+      color: 'bg-blue-500'
+    }));
+    
+    return [...baseCategories, ...preferenceCategories];
+  };
+
+  const categories = generateCategories();
 
   return (
     <>
@@ -549,6 +596,66 @@ const Recommendations = () => {
                 ))}
               </div>
             </div>
+
+            {/* Message d'information sur la conformité */}
+            {filteredRecommendations.length > 0 && (
+              <div className="px-6 py-4 bg-blue-50 border-b border-blue-200">
+                {(() => {
+                  const matchingCount = filteredRecommendations.filter(dish => dish.match === true).length;
+                  const nonMatchingCount = filteredRecommendations.filter(dish => dish.match === false).length;
+                  
+                  if (selectedCategory === 'all') {
+                    if (matchingCount === 0) {
+                      return (
+                        <div className="flex items-center space-x-2 text-orange-700">
+                          <span className="text-lg">⚠️</span>
+                          <span className="text-sm font-medium">
+                            No meals matched your dietary preferences — here are the closest alternatives.
+                          </span>
+                        </div>
+                      );
+                    } else if (nonMatchingCount > 0) {
+                      return (
+                        <div className="flex items-center space-x-2 text-blue-700">
+                          <span className="text-lg">ℹ️</span>
+                          <span className="text-sm font-medium">
+                            Showing {matchingCount} matching and {nonMatchingCount} alternative dishes.
+                          </span>
+                        </div>
+                      );
+                    } else {
+                      return (
+                        <div className="flex items-center space-x-2 text-green-700">
+                          <span className="text-lg">✅</span>
+                          <span className="text-sm font-medium">
+                            All {matchingCount} dishes match your dietary preferences!
+                          </span>
+                        </div>
+                      );
+                    }
+                  } else if (selectedCategory === 'matching') {
+                    return (
+                      <div className="flex items-center space-x-2 text-green-700">
+                        <span className="text-lg">✅</span>
+                        <span className="text-sm font-medium">
+                          Showing {matchingCount} dishes that match your preferences.
+                        </span>
+                      </div>
+                    );
+                  } else if (selectedCategory === 'non-matching') {
+                    return (
+                      <div className="flex items-center space-x-2 text-orange-700">
+                        <span className="text-lg">⚠️</span>
+                        <span className="text-sm font-medium">
+                          Showing {nonMatchingCount} dishes that don't match your preferences.
+                        </span>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
+              </div>
+            )}
 
             {/* Recommendations Grid */}
             <div className="p-6">

@@ -265,6 +265,40 @@ const NutritionCard = ({ dish, rank, onViewDetails }) => {
           )}
         </div>
 
+        {/* Avertissement de conformité alimentaire */}
+        {dish.complianceWarning && (
+          <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+            <div className="flex items-start space-x-2">
+              <WarningIcon className="text-orange-600 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-orange-800">
+                  ⚠️ Doesn't match your preferences
+                </p>
+                <p className="text-xs text-orange-700 mt-1">
+                  {dish.complianceWarning.replace('⚠️ Doesn\'t match your preferences: ', '')}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Indicateur de conformité positive */}
+        {dish.match === true && !dish.complianceWarning && (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+            <div className="flex items-start space-x-2">
+              <div className="text-green-600 mt-0.5 flex-shrink-0">✅</div>
+              <div>
+                <p className="text-sm font-medium text-green-800">
+                  ✅ Matches your preferences
+                </p>
+                <p className="text-xs text-green-700 mt-1">
+                  This dish aligns with your dietary requirements
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Calories */}
         {dish.calories !== undefined && (
           <div className="bg-gray-50 rounded-xl p-3">
