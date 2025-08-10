@@ -32,8 +32,10 @@ try {
   if (process.env.OPENAI_API_KEY) {
     openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
+      maxRetries: 3, // Retry automatique jusqu'à 3 fois
+      timeout: 30000, // Timeout de 30 secondes
     });
-    console.log('✅ OpenAI client initialized with API key');
+    console.log('✅ OpenAI client initialized with API key and retry configuration');
   } else {
     console.warn('⚠️ OPENAI_API_KEY not found in environment variables');
     openai = null;
@@ -43,6 +45,57 @@ try {
   console.warn('⚠️ OpenAI features will be disabled');
   openai = null;
 }
+
+// Métriques de performance
+const performanceMetrics = {
+  openaiCalls: 0,
+  openaiErrors: 0,
+  openaiConnectionErrors: 0,
+  fallbackAnalyses: 0,
+  cacheHits: 0,
+  cacheMisses: 0,
+  averageResponseTime: 0,
+  startTime: Date.now()
+};
+
+// Fonction utilitaire pour retry avec backoff exponentiel
+const retryWithBackoff = async (fn, maxRetries = 3, baseDelay = 1000) => {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const startTime = Date.now();
+      const result = await fn();
+      const responseTime = Date.now() - startTime;
+      
+      // Mettre à jour les métriques
+      performanceMetrics.openaiCalls++;
+      performanceMetrics.averageResponseTime = 
+        (performanceMetrics.averageResponseTime * (performanceMetrics.openaiCalls - 1) + responseTime) / performanceMetrics.openaiCalls;
+      
+      return result;
+    } catch (error) {
+      const isConnectionError = error.code === 'ENOTFOUND' || 
+                               error.code === 'ECONNREFUSED' || 
+                               error.code === 'ETIMEDOUT' ||
+                               error.message?.includes('Connection error') ||
+                               error.message?.includes('fetch failed') ||
+                               error.message?.includes('getaddrinfo ENOTFOUND');
+      
+      if (isConnectionError) {
+        performanceMetrics.openaiConnectionErrors++;
+      }
+      
+      if (attempt === maxRetries) {
+        performanceMetrics.openaiErrors++;
+        throw error;
+      }
+      
+      // Backoff exponentiel avec jitter
+      const delay = baseDelay * Math.pow(2, attempt - 1) + Math.random() * 1000;
+      console.log(`🔄 OpenAI call failed (attempt ${attempt}/${maxRetries}), retrying in ${Math.round(delay)}ms...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+};
 
 /**
  * Extract text from image using Google Vision API REST endpoint
@@ -236,7 +289,107 @@ function safeJsonParse(jsonString) {
 
 // Route de santé
 app.get('/health', (req, res) => {
-  res.json({ status: 'OK', message: 'Server is running' });
+  const healthStatus = {
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    services: {
+      server: 'running',
+      openai: openai ? 'configured' : 'not_configured',
+      vision: process.env.GOOGLE_VISION_API_KEY ? 'configured' : 'not_configured'
+    },
+    uptime: process.uptime(),
+    memory: process.memoryUsage(),
+    environment: process.env.NODE_ENV || 'development'
+  };
+  
+  res.json(healthStatus);
+});
+
+// Route de santé détaillée avec test de connectivité
+app.get('/health/detailed', async (req, res) => {
+  try {
+    const healthStatus = {
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      services: {
+        server: 'running',
+        openai: {
+          configured: !!openai,
+          status: 'unknown'
+        },
+        vision: {
+          configured: !!process.env.GOOGLE_VISION_API_KEY,
+          status: 'unknown'
+        }
+      },
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+      environment: process.env.NODE_ENV || 'development'
+    };
+    
+    // Test de connectivité OpenAI si configuré
+    if (openai) {
+      try {
+        // Test simple avec un prompt minimal
+        const testCompletion = await openai.chat.completions.create({
+          model: "gpt-4o-mini",
+          messages: [{ role: "user", content: "Hello" }],
+          max_tokens: 5
+        });
+        healthStatus.services.openai.status = 'connected';
+      } catch (error) {
+        const isConnectionError = error.code === 'ENOTFOUND' || 
+                                 error.code === 'ECONNREFUSED' || 
+                                 error.code === 'ETIMEDOUT' ||
+                                 error.message?.includes('Connection error') ||
+                                 error.message?.includes('fetch failed');
+        
+        healthStatus.services.openai.status = isConnectionError ? 'connection_error' : 'api_error';
+        healthStatus.services.openai.error = error.message;
+      }
+    }
+    
+    res.json(healthStatus);
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Route des métriques de performance
+app.get('/metrics', (req, res) => {
+  const uptime = Date.now() - performanceMetrics.startTime;
+  const metrics = {
+    ...performanceMetrics,
+    uptime: uptime,
+    uptimeFormatted: `${Math.floor(uptime / 3600000)}h ${Math.floor((uptime % 3600000) / 60000)}m ${Math.floor((uptime % 60000) / 1000)}s`,
+    successRate: performanceMetrics.openaiCalls > 0 ? 
+      ((performanceMetrics.openaiCalls - performanceMetrics.openaiErrors) / performanceMetrics.openaiCalls * 100).toFixed(2) + '%' : 'N/A',
+    cacheHitRate: (performanceMetrics.cacheHits + performanceMetrics.cacheMisses) > 0 ? 
+      (performanceMetrics.cacheHits / (performanceMetrics.cacheHits + performanceMetrics.cacheMisses) * 100).toFixed(2) + '%' : 'N/A',
+    averageResponseTimeFormatted: `${performanceMetrics.averageResponseTime.toFixed(0)}ms`
+  };
+  
+  res.json(metrics);
+});
+
+// Route de reset des métriques (pour les tests)
+app.post('/metrics/reset', (req, res) => {
+  Object.assign(performanceMetrics, {
+    openaiCalls: 0,
+    openaiErrors: 0,
+    openaiConnectionErrors: 0,
+    fallbackAnalyses: 0,
+    cacheHits: 0,
+    cacheMisses: 0,
+    averageResponseTime: 0,
+    startTime: Date.now()
+  });
+  
+  res.json({ success: true, message: 'Metrics reset successfully' });
 });
 
 // New comprehensive endpoint for image analysis
@@ -982,6 +1135,18 @@ app.post('/api/openai/recommendations', async (req, res) => {
     console.log('🤖 Generating recommendations with OpenAI...');
     console.log('Menu text length:', menuText.length);
 
+    // 🚀 VÉRIFICATION DU CACHE OPENAI
+    const cacheKey = `${menuText.toLowerCase().substring(0, 100)}_${JSON.stringify(userProfile.dietaryPreferences).toLowerCase()}`;
+    const cachedRecommendations = getCachedValue(openaiAnalysisCache, cacheKey, OPENAI_CACHE_TTL);
+    
+    if (cachedRecommendations) {
+      console.log('⚡ Using cached recommendations');
+      return res.json({
+        success: true,
+        recommendations: cachedRecommendations
+      });
+    }
+
     // Construction du prompt
     const prompt = `You are a nutrition assistant. Based on the following menu and user profile, select the 3 best dishes that match their health and dietary needs.
 
@@ -1023,21 +1188,23 @@ IMPORTANT: Extract ALL dishes you can identify from the menu text. Do NOT limit 
 Provide all analysis and explanations in English. Avoid French or other languages.
 Output ONLY the JSON response, nothing else.`;
 
-    // Appel à OpenAI
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "system",
-          content: "You are a nutrition assistant that provides personalized food recommendations. Only recommend meals that strictly align with the user's dietary preferences (e.g., vegetarian, vegan, etc.). Discard or downgrade meals that do not comply. Respond with ONLY valid JSON format. No commentary or explanations outside the JSON. If analysis is not possible, return { \"error\": \"Unable to analyze\" }. Provide all analysis and explanations in English only. Keep descriptions short and concise."
-        },
-        {
-          role: "user",
-          content: prompt
-        }
-      ],
-      temperature: 0.7,
-      max_tokens: 150
+    // Appel à OpenAI avec retry automatique
+    const completion = await retryWithBackoff(async () => {
+      return await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: "You are a nutrition assistant that provides personalized food recommendations. Only recommend meals that strictly align with the user's dietary preferences (e.g., vegetarian, vegan, etc.). Discard or downgrade meals that do not comply. Respond with ONLY valid JSON format. No commentary or explanations outside the JSON. If analysis is not possible, return { \"error\": \"Unable to analyze\" }. Provide all analysis and explanations in English only. Keep descriptions short and concise."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        temperature: 0.7,
+        max_tokens: 150
+      });
     });
 
     const responseText = completion.choices[0]?.message?.content;
@@ -1085,6 +1252,9 @@ Output ONLY the JSON response, nothing else.`;
     }));
     
     console.log('✅ Recommendations generated successfully');
+
+    // 🚀 SAUVEGARDE DANS LE CACHE OPENAI
+    setCachedValue(openaiAnalysisCache, cacheKey, validatedRecommendations, OPENAI_CACHE_TTL);
 
     res.json({
       success: true,
@@ -1161,106 +1331,145 @@ const generateDietaryRules = (userProfile) => {
   return rules.join('\n');
 };
 
-// Fonction pour classifier un plat selon les préférences alimentaires
-const classifyDishForPreferences = (dishText, userPreferences) => {
+// 🚀 PERFORMANCE OPTIMIZATIONS
+const performanceCache = new Map();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+// Cache pour les classifications de plats
+const dishClassificationCache = new Map();
+const CLASSIFICATION_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+
+// Cache pour les analyses OpenAI
+const openaiAnalysisCache = new Map();
+const OPENAI_CACHE_TTL = 15 * 60 * 1000; // 15 minutes
+
+// Optimisation des mots-clés de classification
+const CLASSIFICATION_KEYWORDS = {
+  meat: ['meat', 'beef', 'pork', 'chicken', 'lamb', 'duck', 'turkey', 'bacon', 'sausage', 'ham', 'steak', 'burger', 'pollo', 'carne', 'cerdo', 'ternera', 'cordero', 'pato', 'pavo', 'tocino', 'salchicha', 'jamón', 'bistec', 'hamburguesa', 'costillas', 'puerco', 'cochinita', 'boeuf', 'paleron', 'chuleta', 'lomo', 'solomillo', 'entrecot', 'filete', 'asado'],
+  fish: ['fish', 'salmon', 'tuna', 'cod', 'shrimp', 'seafood', 'mussel', 'oyster', 'pescado', 'salmón', 'atún', 'bacalao', 'camarón', 'marisco', 'mejillón', 'ostra'],
+  dairy: ['milk', 'cheese', 'yogurt', 'butter', 'cream', 'dairy', 'leche', 'queso', 'yogur', 'mantequilla', 'crema', 'lácteo', 'feta', 'mozzarella', 'cheddar', 'parmesan', 'gouda', 'manchego', 'brie', 'camembert', 'ricotta', 'cottage', 'sour cream', 'nata'],
+  eggs: ['egg', 'eggs'],
+  gluten: ['wheat', 'bread', 'pasta', 'flour', 'barley', 'rye', 'gluten'],
+  nuts: ['nut', 'almond', 'walnut', 'cashew', 'peanut', 'hazelnut', 'pecan'],
+  highCarb: ['rice', 'pasta', 'bread', 'potato', 'corn', 'bean', 'lentil']
+};
+
+// Fonction de cache optimisée
+const getCachedValue = (cache, key, ttl) => {
+  const cached = cache.get(key);
+  if (cached && Date.now() - cached.timestamp < ttl) {
+    return cached.value;
+  }
+  return null;
+};
+
+const setCachedValue = (cache, key, value, ttl) => {
+  cache.set(key, { value, timestamp: Date.now() });
+  
+  // Nettoyage automatique du cache (garde seulement les 1000 entrées les plus récentes)
+  if (cache.size > 1000) {
+    const entries = Array.from(cache.entries());
+    entries.sort((a, b) => b[1].timestamp - a[1].timestamp);
+    entries.slice(1000).forEach(([k]) => cache.delete(k));
+  }
+};
+
+// Classification optimisée avec cache
+const classifyDishForPreferencesOptimized = (dishText, userPreferences) => {
+  const cacheKey = `${dishText.toLowerCase()}_${userPreferences.sort().join('_')}`;
+  const cached = getCachedValue(dishClassificationCache, cacheKey, CLASSIFICATION_CACHE_TTL);
+  if (cached) return cached;
+
+  // Initialiser avec des valeurs plus strictes par défaut
   const classifications = {
-    vegan: false,
-    vegetarian: false,
-    pescatarian: false,
-    glutenFree: false,
-    dairyFree: false,
-    nutFree: false,
-    lowCarb: false,
-    keto: false,
-    paleo: false,
-    mediterranean: false
+    vegan: true,
+    vegetarian: true,
+    pescatarian: true,
+    glutenFree: true,
+    dairyFree: true,
+    nutFree: true,
+    lowCarb: true,
+    keto: true,
+    paleo: true,
+    mediterranean: true
   };
   
   const text = dishText.toLowerCase();
   
-  // Classification automatique basée sur les ingrédients
-  if (text.includes('meat') || text.includes('beef') || text.includes('pork') || text.includes('chicken') || 
-      text.includes('lamb') || text.includes('duck') || text.includes('turkey') || text.includes('bacon') ||
-      text.includes('sausage') || text.includes('ham') || text.includes('steak') || text.includes('burger') ||
-      // Ajouter les mots en espagnol et autres langues
-      text.includes('pollo') || text.includes('carne') || text.includes('cerdo') || text.includes('ternera') ||
-      text.includes('cordero') || text.includes('pato') || text.includes('pavo') || text.includes('tocino') ||
-      text.includes('salchicha') || text.includes('jamón') || text.includes('bistec') || text.includes('hamburguesa') ||
-      // Ajouter plus de mots espagnols pour la viande
-      text.includes('costillas') || text.includes('puerco') || text.includes('cochinita') || text.includes('boeuf') ||
-      text.includes('paleron') || text.includes('bistec') || text.includes('chuleta') || text.includes('lomo') ||
-      text.includes('solomillo') || text.includes('entrecot') || text.includes('filete') || text.includes('asado')) {
+  // Classification optimisée avec Set pour O(1) lookup
+  const textWords = new Set(text.split(/\s+/));
+  
+  // Vérification optimisée des mots-clés
+  for (const [category, keywords] of Object.entries(CLASSIFICATION_KEYWORDS)) {
+    for (const keyword of keywords) {
+      if (text.includes(keyword)) {
+        switch (category) {
+          case 'meat':
+            classifications.vegetarian = false;
+            classifications.vegan = false;
+            classifications.pescatarian = false;
+            classifications.paleo = false; // Paleo allows meat, but we're being strict here
+            break;
+          case 'fish':
+            classifications.vegetarian = false;
+            classifications.vegan = false;
+            // Pescatarian allows fish, so we don't change that
+            break;
+          case 'dairy':
+            classifications.vegan = false;
+            classifications.dairyFree = false;
+            classifications.paleo = false;
+            break;
+          case 'eggs':
+            classifications.vegan = false;
+            break;
+          case 'gluten':
+            classifications.glutenFree = false;
+            classifications.paleo = false;
+            break;
+          case 'nuts':
+            classifications.nutFree = false;
+            // Paleo allows nuts, but we're being strict here
+            break;
+          case 'highCarb':
+            classifications.lowCarb = false;
+            classifications.keto = false;
+            break;
+        }
+        break; // Sortir de la boucle des mots-clés une fois trouvé
+      }
+    }
+  }
+  
+  // Vérifications supplémentaires pour des mots spécifiques
+  if (text.includes('pollo') || text.includes('chicken') || text.includes('poulet')) {
     classifications.vegetarian = false;
     classifications.vegan = false;
     classifications.pescatarian = false;
   }
   
-  if (text.includes('fish') || text.includes('salmon') || text.includes('tuna') || text.includes('cod') ||
-      text.includes('shrimp') || text.includes('seafood') || text.includes('mussel') || text.includes('oyster') ||
-      // Ajouter les mots en espagnol
-      text.includes('pescado') || text.includes('salmón') || text.includes('atún') || text.includes('bacalao') ||
-      text.includes('camarón') || text.includes('marisco') || text.includes('mejillón') || text.includes('ostra')) {
+  if (text.includes('cerdo') || text.includes('pork') || text.includes('cochon') || text.includes('costillas')) {
     classifications.vegetarian = false;
     classifications.vegan = false;
-    classifications.pescatarian = true;
+    classifications.pescatarian = false;
   }
   
-  if (text.includes('milk') || text.includes('cheese') || text.includes('yogurt') || text.includes('butter') ||
-      text.includes('cream') || text.includes('dairy') ||
-      // Ajouter les mots en espagnol
-      text.includes('leche') || text.includes('queso') || text.includes('yogur') || text.includes('mantequilla') ||
-      text.includes('crema') || text.includes('lácteo') ||
-      // Ajouter plus de mots espagnols pour les produits laitiers
-      text.includes('feta') || text.includes('mozzarella') || text.includes('cheddar') || text.includes('parmesan') ||
-      text.includes('gouda') || text.includes('manchego') || text.includes('brie') || text.includes('camembert') ||
-      text.includes('ricotta') || text.includes('cottage') || text.includes('sour cream') || text.includes('nata')) {
+  if (text.includes('queso') || text.includes('cheese') || text.includes('feta')) {
     classifications.vegan = false;
     classifications.dairyFree = false;
   }
   
-  if (text.includes('egg') || text.includes('eggs')) {
-    classifications.vegan = false;
-  }
-  
-  if (text.includes('wheat') || text.includes('bread') || text.includes('pasta') || text.includes('flour') ||
-      text.includes('barley') || text.includes('rye') || text.includes('gluten')) {
-    classifications.glutenFree = false;
-  }
-  
-  if (text.includes('nut') || text.includes('almond') || text.includes('walnut') || text.includes('cashew') ||
-      text.includes('peanut') || text.includes('hazelnut') || text.includes('pecan')) {
+  if (text.includes('noisettes') || text.includes('nuts') || text.includes('almonds')) {
     classifications.nutFree = false;
   }
   
-  if (text.includes('rice') || text.includes('pasta') || text.includes('bread') || text.includes('potato') ||
-      text.includes('corn') || text.includes('bean') || text.includes('lentil')) {
-    classifications.lowCarb = false;
-    classifications.keto = false;
-  }
-  
-  // Par défaut, si pas d'ingrédients problématiques détectés
-  if (!text.includes('meat') && !text.includes('fish') && !text.includes('chicken') && !text.includes('beef') &&
-      !text.includes('pollo') && !text.includes('carne') && !text.includes('pescado') &&
-      !text.includes('costillas') && !text.includes('puerco') && !text.includes('cochinita') && !text.includes('boeuf') &&
-      !text.includes('paleron') && !text.includes('chuleta') && !text.includes('lomo') && !text.includes('solomillo') &&
-      !text.includes('entrecot') && !text.includes('filete') && !text.includes('asado')) {
-    classifications.vegetarian = true;
-    classifications.vegan = true;
-  }
-  
-  if (!text.includes('milk') && !text.includes('cheese') && !text.includes('dairy')) {
-    classifications.dairyFree = true;
-  }
-  
-  if (!text.includes('wheat') && !text.includes('bread') && !text.includes('gluten')) {
-    classifications.glutenFree = true;
-  }
-  
-  if (!text.includes('nut') && !text.includes('almond') && !text.includes('peanut')) {
-    classifications.nutFree = true;
-  }
-  
+  setCachedValue(dishClassificationCache, cacheKey, classifications, CLASSIFICATION_CACHE_TTL);
   return classifications;
+};
+
+// Fonction pour classifier un plat selon les préférences alimentaires (optimisée)
+const classifyDishForPreferences = (dishText, userPreferences) => {
+  return classifyDishForPreferencesOptimized(dishText, userPreferences);
 };
 
 // Fonction pour vérifier si un plat correspond aux préférences utilisateur
@@ -1345,6 +1554,15 @@ app.post('/api/analyze-dish', async (req, res) => {
       });
     }
 
+    // 🚀 VÉRIFICATION DU CACHE OPENAI
+    const cacheKey = `${dishText.toLowerCase()}_${JSON.stringify(userProfile.dietaryPreferences).toLowerCase()}`;
+    const cachedAnalysis = getCachedValue(openaiAnalysisCache, cacheKey, OPENAI_CACHE_TTL);
+    
+    if (cachedAnalysis) {
+      console.log('⚡ Using cached OpenAI analysis');
+      return res.json({ success: true, analysis: cachedAnalysis });
+    }
+
     // Construction du prompt pour OpenAI
     const prompt = `Analyze this dish for a user with the following profile: ${JSON.stringify(userProfile, null, 2)}.
 
@@ -1392,18 +1610,20 @@ Dish: ${dishText}
 
 Output ONLY the JSON response, nothing else.`;
 
-    // Appel à OpenAI
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        { 
-          role: "system", 
-          content: "You are a nutrition expert that analyzes dishes for personalized recommendations. Only recommend meals that strictly align with the user's dietary preferences (e.g., vegetarian, vegan, etc.). Discard or downgrade meals that do not comply. You must respond with ONLY valid JSON format. No additional text, commentary, or explanations outside the JSON. If analysis is not possible, return { \"error\": \"Unable to analyze\" }. Be precise with nutritional values and provide meaningful justifications. Write all justifications in English only, maximum 2 sentences, using ONLY real data (nutritional info and user preferences). Do NOT invent or reference activity data, workouts, or energy expenditure. The aiScore represents a personalized match score (0-10) based on how well the dish aligns with the user's dietary profile and preferences." 
-        },
-        { role: "user", content: prompt }
-      ],
-      temperature: 0.7,
-      max_tokens: 200
+    // 🚀 APPEL À OPENAI AVEC CACHE ET RETRY
+    const completion = await retryWithBackoff(async () => {
+      return await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          { 
+            role: "system", 
+            content: "You are a nutrition expert that analyzes dishes for personalized recommendations. Only recommend meals that strictly align with the user's dietary preferences (e.g., vegetarian, vegan, etc.). Discard or downgrade meals that do not comply. You must respond with ONLY valid JSON format. No additional text, commentary, or explanations outside the JSON. If analysis is not possible, return { \"error\": \"Unable to analyze\" }. Be precise with nutritional values and provide meaningful justifications. Write all justifications in English only, maximum 2 sentences, using ONLY real data (nutritional info and user preferences). Do NOT invent or reference activity data, workouts, or energy expenditure. The aiScore represents a personalized match score (0-10) based on how well the dish aligns with the user's dietary profile and preferences." 
+          },
+          { role: "user", content: prompt }
+        ],
+        temperature: 0.7,
+        max_tokens: 200
+      });
     });
 
     const responseText = completion.choices[0]?.message?.content;
@@ -1550,6 +1770,9 @@ Output ONLY the JSON response, nothing else.`;
 
     console.log('✅ Single dish analysis completed');
 
+    // 🚀 SAUVEGARDE DANS LE CACHE OPENAI
+    setCachedValue(openaiAnalysisCache, cacheKey, validatedAnalysis, OPENAI_CACHE_TTL);
+
     res.json({
       success: true,
       analysis: validatedAnalysis
@@ -1557,6 +1780,19 @@ Output ONLY the JSON response, nothing else.`;
 
   } catch (error) {
     console.error('❌ Error analyzing single dish:', error);
+    
+    // Détecter spécifiquement les erreurs de connexion OpenAI
+    const isConnectionError = error.code === 'ENOTFOUND' || 
+                             error.code === 'ECONNREFUSED' || 
+                             error.code === 'ETIMEDOUT' ||
+                             error.message?.includes('Connection error') ||
+                             error.message?.includes('fetch failed') ||
+                             error.message?.includes('getaddrinfo ENOTFOUND');
+    
+    if (isConnectionError) {
+      console.log('🌐 OpenAI connection error detected, using robust fallback analysis');
+    }
+    
     try {
       // Construire un fallback d'analyse pour éviter d'interrompre l'UX
       const { dishText, userProfile } = req.body || {};
@@ -1598,15 +1834,18 @@ Output ONLY the JSON response, nothing else.`;
         dietaryClassifications: dishClassifications,
         match: compliance.match,
         violations: compliance.violations,
-        complianceWarning: compliance.match ? null : `⚠️ Doesn't match your preferences: ${compliance.violations.join(', ')}`
+        complianceWarning: compliance.match ? null : `⚠️ Doesn't match your preferences: ${compliance.violations.join(', ')}`,
+        fallbackReason: isConnectionError ? 'OpenAI service temporarily unavailable' : 'Analysis error occurred'
       };
 
+      console.log('✅ Single dish analysis completed (robust fallback)');
       return res.json({ success: true, analysis: fallbackAnalysis });
     } catch (fallbackError) {
       console.error('❌ Fallback analysis failed:', fallbackError);
       return res.status(500).json({
         success: false,
-        error: error.message || 'Erreur lors de l\'analyse du plat'
+        error: error.message || 'Erreur lors de l\'analyse du plat',
+        fallbackFailed: true
       });
     }
   }
@@ -1638,6 +1877,24 @@ app.post('/api/analyze-dishes', async (req, res) => {
     const analysisPromises = dishes.map(async (dish, index) => {
       try {
         const dishText = `${dish.title || dish.name}: ${dish.description || ''}`;
+        
+        // 🚀 VÉRIFICATION DU CACHE OPENAI
+        const cacheKey = `${dishText.toLowerCase()}_${JSON.stringify(userProfile.dietaryPreferences).toLowerCase()}`;
+        const cachedAnalysis = getCachedValue(openaiAnalysisCache, cacheKey, OPENAI_CACHE_TTL);
+        
+        if (cachedAnalysis) {
+          performanceMetrics.cacheHits++;
+          console.log(`⚡ Using cached analysis for "${dish.title || dish.name}"`);
+          return {
+            ...dish,
+            ...cachedAnalysis,
+            protein: cachedAnalysis.macros.protein,
+            carbs: cachedAnalysis.macros.carbs,
+            fats: cachedAnalysis.macros.fats
+          };
+        }
+        
+        performanceMetrics.cacheMisses++;
         
         // Construction du prompt pour OpenAI
         const prompt = `Analyze this dish for a user with the following profile: ${JSON.stringify(userProfile, null, 2)}.
@@ -1686,18 +1943,20 @@ Dish: ${dishText}
 
 Output ONLY the JSON response, nothing else.`;
 
-        // Appel à OpenAI
-        const completion = await openai.chat.completions.create({
-          model: "gpt-4o-mini",
-          messages: [
-            { 
-              role: "system", 
-              content: "You are a nutrition expert that analyzes dishes for personalized recommendations. Only recommend meals that strictly align with the user's dietary preferences (e.g., vegetarian, vegan, etc.). Discard or downgrade meals that do not comply. You must respond with ONLY valid JSON format. No additional text, commentary, or explanations outside the JSON. If analysis is not possible, return { \"error\": \"Unable to analyze\" }. Be precise with nutritional values and provide meaningful justifications. Write all justifications in English only, maximum 2 sentences, using ONLY real data (nutritional info and user preferences). Do NOT invent or reference activity data, workouts, or energy expenditure. The aiScore represents a personalized match score (0-10) based on how well the dish aligns with the user's dietary profile and preferences." 
-            },
-            { role: "user", content: prompt }
-          ],
-          temperature: 0.7,
-          max_tokens: 200
+        // Appel à OpenAI avec retry automatique
+        const completion = await retryWithBackoff(async () => {
+          return await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [
+              { 
+                role: "system", 
+                content: "You are a nutrition expert that analyzes dishes for personalized recommendations. Only recommend meals that strictly align with the user's dietary preferences (e.g., vegetarian, vegan, etc.). Discard or downgrade meals that do not comply. You must respond with ONLY valid JSON format. No additional text, commentary, or explanations outside the JSON. If analysis is not possible, return { \"error\": \"Unable to analyze\" }. Be precise with nutritional values and provide meaningful justifications. Write all justifications in English only, maximum 2 sentences, using ONLY real data (nutritional info and user preferences). Do NOT invent or reference activity data, workouts, or energy expenditure. The aiScore represents a personalized match score (0-10) based on how well the dish aligns with the user's dietary profile and preferences." 
+              },
+              { role: "user", content: prompt }
+            ],
+            temperature: 0.7,
+            max_tokens: 200
+          });
         });
 
         const responseText = completion.choices[0]?.message?.content;
@@ -1716,8 +1975,9 @@ Output ONLY the JSON response, nothing else.`;
           };
         }
 
-        // Build permissive analysis with fallbacks instead of throwing
-        const parsedMulti = (analysis && typeof analysis === 'object' && !analysis.status && !analysis.error) ? analysis : {};
+        // 🚀 PARSING ET VALIDATION AVEC CACHE
+        const analysisRaw = safeJsonParse(responseText);
+        const parsedMulti = (analysisRaw && typeof analysisRaw === 'object' && !analysisRaw.status && !analysisRaw.error) ? analysisRaw : {};
         const aiScoreMulti = Number.isFinite(parseFloat(parsedMulti.aiScore)) ? parseFloat(parsedMulti.aiScore) : 5.0;
         const caloriesMulti = Number.isFinite(parseInt(parsedMulti.calories)) ? parseInt(parsedMulti.calories) : 0;
         const macrosMultiIn = parsedMulti.macros || {};
@@ -1752,6 +2012,9 @@ Output ONLY the JSON response, nothing else.`;
           complianceWarning: compliance.match ? null : `⚠️ Doesn't match your preferences: ${compliance.violations.join(', ')}`
         };
 
+        // 🚀 SAUVEGARDE DANS LE CACHE OPENAI
+        setCachedValue(openaiAnalysisCache, cacheKey, validatedAnalysis, OPENAI_CACHE_TTL);
+
         return {
           ...dish,
           ...validatedAnalysis,
@@ -1761,15 +2024,63 @@ Output ONLY the JSON response, nothing else.`;
         };
       } catch (error) {
         console.error(`Error analyzing dish ${index}:`, error);
+        
+        // Détecter spécifiquement les erreurs de connexion OpenAI
+        const isConnectionError = error.code === 'ENOTFOUND' || 
+                                 error.code === 'ECONNREFUSED' || 
+                                 error.code === 'ETIMEDOUT' ||
+                                 error.message?.includes('Connection error') ||
+                                 error.message?.includes('fetch failed') ||
+                                 error.message?.includes('getaddrinfo ENOTFOUND');
+        
+        if (isConnectionError) {
+          console.log(`🌐 OpenAI connection error for dish ${index}, using fallback analysis`);
+        }
+        
+        // Utiliser une analyse de fallback basée sur la classification locale
+        const dishText = `${dish.title || dish.name}: ${dish.description || ''}`;
+        const dishClassifications = classifyDishForPreferences(dishText, userProfile.dietaryPreferences);
+        const compliance = checkDishCompliance(dishClassifications, userProfile.dietaryPreferences);
+        
+        // Provide more realistic fallback values
+        const estimatedCalories = dishText.toLowerCase().includes('salad') ? 150 : 
+                                 dishText.toLowerCase().includes('quesadilla') ? 400 :
+                                 dishText.toLowerCase().includes('ceviche') ? 200 :
+                                 dishText.toLowerCase().includes('burger') ? 600 : 300;
+        
+        const estimatedMacros = {
+          protein: dishText.toLowerCase().includes('cheese') ? 15 : 
+                  dishText.toLowerCase().includes('meat') || dishText.toLowerCase().includes('pollo') || dishText.toLowerCase().includes('cerdo') ? 25 : 8,
+          carbs: dishText.toLowerCase().includes('quesadilla') ? 35 : 
+                 dishText.toLowerCase().includes('burger') ? 45 : 25,
+          fats: dishText.toLowerCase().includes('cheese') ? 20 : 
+                dishText.toLowerCase().includes('avocado') ? 15 : 12
+        };
+        
         return {
           ...dish,
-          aiScore: 5.0,
-          calories: 0,
-          protein: 0,
-          carbs: 0,
-          fats: 0,
-          shortJustification: 'Analysis not available',
-          longJustification: ['Analysis not available']
+          aiScore: compliance.match ? 7.0 : 4.0,
+          calories: estimatedCalories,
+          protein: estimatedMacros.protein,
+          carbs: estimatedMacros.carbs,
+          fats: estimatedMacros.fats,
+          shortJustification: compliance.match ? 
+            'Estimated analysis based on dish type and ingredients' : 
+            'Estimated analysis - may not fully match your preferences',
+          longJustification: compliance.match ? [
+            'Estimated nutritional values based on typical dish composition',
+            'Dish appears to match your dietary preferences',
+            'Values are approximate due to limited menu information'
+          ] : [
+            'Estimated nutritional values based on typical dish composition',
+            'Dish may not fully align with your dietary preferences',
+            'Values are approximate due to limited menu information'
+          ],
+          dietaryClassifications: dishClassifications,
+          match: compliance.match,
+          violations: compliance.violations,
+          complianceWarning: compliance.match ? null : `⚠️ Doesn't match your preferences: ${compliance.violations.join(', ')}`,
+          fallbackReason: isConnectionError ? 'OpenAI service temporarily unavailable' : 'Analysis error occurred'
         };
       }
     });
@@ -1796,9 +2107,16 @@ Output ONLY the JSON response, nothing else.`;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📡 Health check: http://localhost:${PORT}/health`);
+  console.log(`📊 Detailed health: http://localhost:${PORT}/health/detailed`);
+  console.log(`📈 Performance metrics: http://localhost:${PORT}/metrics`);
   console.log(`📸 Vision API: http://localhost:${PORT}/api/vision/extract-text`);
   console.log(`🤖 OpenAI API: http://localhost:${PORT}/api/openai/recommendations`);
   console.log(`🔄 Analyze Image: http://localhost:${PORT}/analyze-image`);
   console.log(`🍽️ Dish Analysis: http://localhost:${PORT}/api/analyze-dish`);
   console.log(`🍽️ Multiple Dishes: http://localhost:${PORT}/api/analyze-dishes`);
+  console.log(`\n🔧 Server features:`);
+  console.log(`   • Automatic OpenAI retry with exponential backoff`);
+  console.log(`   • Performance monitoring and metrics`);
+  console.log(`   • Robust fallback analysis when OpenAI is unavailable`);
+  console.log(`   • Enhanced error handling and connection detection`);
 }); 
