@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { trackOnboardingComplete, trackUserPreferences } from '../utils/analytics';
 
 const OnboardingFlow = ({ onComplete }) => {
@@ -11,7 +10,6 @@ const OnboardingFlow = ({ onComplete }) => {
     budget: 'medium',
     goal: 'maintain'
   });
-  const navigate = useNavigate();
 
   const steps = [
     {
@@ -60,11 +58,8 @@ const OnboardingFlow = ({ onComplete }) => {
     trackOnboardingComplete(timeSpent);
     trackUserPreferences(formData);
     
-    // Call completion callback
+    // Call completion callback - the parent App component will handle navigation
     onComplete();
-    
-    // Navigate to menu scan
-    navigate('/menu-scan');
   };
 
   const CurrentStepComponent = steps[currentStep].component;

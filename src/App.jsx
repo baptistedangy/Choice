@@ -10,12 +10,30 @@ import ExtendedProfile from './pages/ExtendedProfile';
 import { checkBackendHealth } from './services/backendService';
 import usePageTracking from './hooks/usePageTracking';
 
+// Composant séparé pour le contenu de l'application avec le Router
+function AppContent() {
+  // Track page views - maintenant à l'intérieur du Router
+  usePageTracking();
+  
+  return (
+    <div className="min-h-screen bg-gray-50 font-sans">
+      <Navigation />
+      <main className="flex-1">
+        <Routes>
+          <Route path="/" element={<Navigate to="/profile" replace />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/menu-scan" element={<MenuScan />} />
+          <Route path="/recommendations" element={<Recommendations />} />
+          <Route path="/extended-profile" element={<ExtendedProfile />} />
+        </Routes>
+      </main>
+    </div>
+  );
+}
+
 function App() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  
-  // Track page views
-  usePageTracking();
 
   useEffect(() => {
     console.log('App component mounted');
@@ -41,6 +59,8 @@ function App() {
 
   const handleOnboardingComplete = () => {
     setShowOnboarding(false);
+    // Navigate to menu scan after onboarding
+    window.location.href = '/menu-scan';
   };
 
   if (isLoading) {
@@ -61,18 +81,7 @@ function App() {
   return (
     <ErrorBoundary>
       <Router>
-        <div className="min-h-screen bg-gray-50 font-sans">
-          <Navigation />
-          <main className="flex-1">
-            <Routes>
-              <Route path="/" element={<Navigate to="/profile" replace />} />
-              <Route path="/profile" element={<Profile />} />
-              <Route path="/menu-scan" element={<MenuScan />} />
-              <Route path="/recommendations" element={<Recommendations />} />
-              <Route path="/extended-profile" element={<ExtendedProfile />} />
-            </Routes>
-          </main>
-        </div>
+        <AppContent />
       </Router>
     </ErrorBoundary>
   );

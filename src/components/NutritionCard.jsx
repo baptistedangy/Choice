@@ -169,46 +169,70 @@ const NutritionCard = ({ dish, rank, onViewDetails }) => {
   // Fonction pour générer des tags métadonnées pertinents
   const generateMetaTags = () => {
     const tags = [];
-    const dishName = (dish.name || dish.title || '').toLowerCase();
-    const protein = dish.protein || 0;
-    const carbs = dish.carbs || 0;
-    const fats = dish.fats || 0;
-    const calories = dish.calories || 0;
+    
+    // Récupérer le profil utilisateur depuis localStorage
+    let userProfile = null;
+    try {
+      const savedProfile = localStorage.getItem('extendedProfile');
+      if (savedProfile) {
+        userProfile = JSON.parse(savedProfile);
+      }
+    } catch (error) {
+      console.warn('Erreur lors de la récupération du profil:', error);
+    }
 
-    // Tags basés sur le profil nutritionnel
-    if (protein > 20) tags.push('High Protein');
-    if (protein < 10) tags.push('Low Protein');
-    if (carbs > 50) tags.push('High Carb');
-    if (carbs < 20) tags.push('Low Carb');
-    if (fats > 15) tags.push('High Fat');
-    if (fats < 8) tags.push('Low Fat');
-    if (calories > 400) tags.push('High Calorie');
-    if (calories < 200) tags.push('Low Calorie');
+    // Tags basés sur les préférences alimentaires de l'utilisateur
+    if (userProfile && userProfile.dietaryPreferences) {
+      userProfile.dietaryPreferences.forEach(pref => {
+        // Formater les préférences pour l'affichage
+        const formattedPref = pref.charAt(0).toUpperCase() + pref.slice(1).replace('-', ' ');
+        tags.push(formattedPref);
+      });
+    }
 
-    // Tags basés sur le nom du plat
-    if (dishName.includes('salad') || dishName.includes('vegetable')) tags.push('Vegetarian');
-    if (dishName.includes('chicken') || dishName.includes('poultry')) tags.push('Poultry');
-    if (dishName.includes('fish') || dishName.includes('salmon') || dishName.includes('tuna')) tags.push('Seafood');
-    if (dishName.includes('beef') || dishName.includes('steak') || dishName.includes('meat')) tags.push('Red Meat');
-    if (dishName.includes('pasta') || dishName.includes('noodle')) tags.push('Pasta');
-    if (dishName.includes('rice') || dishName.includes('grain')) tags.push('Grain');
-    if (dishName.includes('soup') || dishName.includes('broth')) tags.push('Soup');
-    if (dishName.includes('sandwich') || dishName.includes('burger')) tags.push('Sandwich');
-    if (dishName.includes('pizza')) tags.push('Pizza');
-    if (dishName.includes('sushi') || dishName.includes('roll')) tags.push('Sushi');
-    if (dishName.includes('curry') || dishName.includes('indian')) tags.push('Indian');
-    if (dishName.includes('mediterranean') || dishName.includes('greek')) tags.push('Mediterranean');
-    if (dishName.includes('italian') || dishName.includes('pasta')) tags.push('Italian');
-    if (dishName.includes('mexican') || dishName.includes('taco') || dishName.includes('burrito')) tags.push('Mexican');
-    if (dishName.includes('asian') || dishName.includes('chinese') || dishName.includes('japanese')) tags.push('Asian');
+    // Tags basés sur l'objectif de l'utilisateur
+    if (userProfile && userProfile.goal) {
+      switch (userProfile.goal) {
+        case 'lose':
+          tags.push('Weight Loss');
+          break;
+        case 'gain':
+          tags.push('Weight Gain');
+          break;
+        case 'maintain':
+          tags.push('Weight Maintenance');
+          break;
+      }
+    }
 
-    // Tags basés sur des ingrédients spécifiques
-    if (dishName.includes('avocado')) tags.push('Avocado');
-    if (dishName.includes('sweet potato') || dishName.includes('yam')) tags.push('Sweet Potato');
-    if (dishName.includes('quinoa')) tags.push('Quinoa');
-    if (dishName.includes('kale') || dishName.includes('spinach')) tags.push('Leafy Greens');
-    if (dishName.includes('berry') || dishName.includes('strawberry') || dishName.includes('blueberry')) tags.push('Berries');
-    if (dishName.includes('nut') || dishName.includes('almond') || dishName.includes('walnut')) tags.push('Nuts');
+    // Tags basés sur le niveau d'activité
+    if (userProfile && userProfile.activityLevel) {
+      switch (userProfile.activityLevel) {
+        case 'low':
+          tags.push('Low Activity');
+          break;
+        case 'moderate':
+          tags.push('Moderate Activity');
+          break;
+        case 'high':
+          tags.push('High Activity');
+          break;
+      }
+    }
+
+    // Tags basés sur le profil nutritionnel du plat (seulement si pas assez de tags personnalisés)
+    if (tags.length < 3) {
+      const protein = dish.protein || 0;
+      const carbs = dish.carbs || 0;
+      const fats = dish.fats || 0;
+      const calories = dish.calories || 0;
+
+      if (protein > 20) tags.push('High Protein');
+      if (carbs > 50) tags.push('High Carb');
+      if (fats > 15) tags.push('High Fat');
+      if (calories > 400) tags.push('High Calorie');
+      if (calories < 200) tags.push('Low Calorie');
+    }
 
     // Limiter à 3 tags maximum et éviter les doublons
     return [...new Set(tags)].slice(0, 3);
@@ -264,40 +288,6 @@ const NutritionCard = ({ dish, rank, onViewDetails }) => {
             </div>
           )}
         </div>
-
-        {/* Avertissement de conformité alimentaire */}
-        {dish.complianceWarning && (
-          <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
-            <div className="flex items-start space-x-2">
-              <WarningIcon className="text-orange-600 mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="text-sm font-medium text-orange-800">
-                  ⚠️ Doesn't match your preferences
-                </p>
-                <p className="text-xs text-orange-700 mt-1">
-                  {dish.complianceWarning.replace('⚠️ Doesn\'t match your preferences: ', '')}
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Indicateur de conformité positive */}
-        {dish.match === true && !dish.complianceWarning && (
-          <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-            <div className="flex items-start space-x-2">
-              <div className="text-green-600 mt-0.5 flex-shrink-0">✅</div>
-              <div>
-                <p className="text-sm font-medium text-green-800">
-                  ✅ Matches your preferences
-                </p>
-                <p className="text-xs text-green-700 mt-1">
-                  This dish aligns with your dietary requirements
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Calories */}
         {dish.calories !== undefined && (
