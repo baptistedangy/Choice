@@ -1,4 +1,5 @@
 import React from 'react';
+import Tooltip from './Tooltip';
 
 const DishDetailsModal = ({ isOpen, onClose, dish }) => {
   if (!isOpen || !dish) return null;
@@ -97,18 +98,24 @@ const DishDetailsModal = ({ isOpen, onClose, dish }) => {
 
           {/* Contenu */}
           <div className="px-6 py-6 space-y-6">
-            {/* Nom du plat et score */}
+            {/* Nom du plat et score personnalisé */}
             <div className="flex items-center justify-between">
               <h3 className="text-2xl font-bold text-gray-900">
                 {dish.name || dish.title}
               </h3>
               {dish.aiScore !== undefined && (
-                <div className={`bg-gradient-to-r ${getScoreColor(dish.aiScore)} text-white rounded-full px-4 py-2 shadow-lg`}>
-                  <div className="text-center">
-                    <div className="text-xl font-bold">{dish.aiScore || 0}/10</div>
-                    <div className="text-xs opacity-90">Score</div>
+                <Tooltip 
+                  content="Calculé en fonction de la correspondance avec vos préférences alimentaires, objectifs nutritionnels et niveau d'activité."
+                  position="left"
+                  maxWidth="max-w-sm"
+                >
+                  <div className={`bg-gradient-to-r ${getScoreColor(dish.aiScore)} text-white rounded-full px-4 py-2 shadow-lg cursor-help`}>
+                    <div className="text-center">
+                      <div className="text-xl font-bold">{dish.aiScore || 0}/10</div>
+                      <div className="text-xs opacity-90">Personalized Match</div>
+                    </div>
                   </div>
-                </div>
+                </Tooltip>
               )}
             </div>
 

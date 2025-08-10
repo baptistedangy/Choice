@@ -723,7 +723,7 @@ Output ONLY the JSON response, nothing else.`
               analysisError: analysis.error
             });
           } else {
-            console.log(`✅ Successfully analyzed "${dish.title || 'NO TITLE'}" - AI Score: ${analysis.aiScore}`);
+            console.log(`✅ Successfully analyzed "${dish.title || 'NO TITLE'}" - Personalized Match Score: ${analysis.aiScore}`);
             
             // Classifier le plat selon les préférences alimentaires
             const dishText = `${dish.title || 'Unknown dish'}: ${dish.description || 'No description'}`;
@@ -734,18 +734,20 @@ Output ONLY the JSON response, nothing else.`
             console.log(`✅ Compliance check for "${dish.title}":`, compliance);
             
             // Check if OpenAI returned incomplete data and provide fallback if needed
-            const aiScore = analysis.aiScore || 0;
-            const calories = analysis.calories || 0;
-            const macros = analysis.macros || { protein: 0, carbs: 0, fats: 0 };
+            const aiScore = analysis.aiScore;
+            const calories = analysis.calories;
+            const macros = analysis.macros;
             
-            // If OpenAI returned zeros or very low values, use intelligent fallback
+            // Only use fallback if OpenAI actually returned undefined/null values
             let finalAiScore = aiScore;
             let finalCalories = calories;
             let finalMacros = macros;
             let finalShortJustification = analysis.shortJustification || "No justification available";
             let finalLongJustification = analysis.longJustification || ["No justification available"];
             
-            if (aiScore <= 1 || calories === 0 || (!macros.protein && !macros.carbs && !macros.fats)) {
+            // Only use fallback if OpenAI returned undefined/null, not if it returned 0
+            if (aiScore === undefined || aiScore === null || calories === undefined || calories === null || 
+                macros === undefined || macros === null || !macros.protein && !macros.carbs && !macros.fats) {
               console.log(`⚠️ OpenAI returned incomplete data for "${dish.title}", using intelligent fallback`);
               
               // Estimate calories and macros based on dish keywords
@@ -809,8 +811,8 @@ Output ONLY the JSON response, nothing else.`
         }
       }
       
-      // Log all dishes with their AI scores
-      console.log('\n📊 ALL DISHES WITH AI SCORES:');
+              // Log all dishes with their personalized match scores
+        console.log('\n📊 ALL DISHES WITH PERSONALIZED MATCH SCORES:');
       allDishesWithScores.forEach((dish, index) => {
         console.log(`  ${index + 1}. "${dish.title || 'NO TITLE'}" - AI Score: ${dish.aiScore || 0} - Calories: ${dish.calories || 0}`);
       });
@@ -954,13 +956,12 @@ Output ONLY the JSON response, nothing else.`
                                 title.includes('pomodoro') ||
                                 title.length < 3; // Very short titles are suspicious
         
-        // More strict filtering: exclude dishes with very low scores AND no nutritional data
+        // More lenient filtering: exclude dishes that are clearly unanalyzable
         const hasNoNutritionalData = calories === 0 && macrosZero;
-        const hasVeryLowScore = aiScore <= 1;
+        const hasVeryLowScore = aiScore < 0; // Only exclude negative scores, not 0
         
-        // Exclude if it's clearly unanalyzable OR has no nutritional data with very low score
+        // Exclude if it's clearly unanalyzable OR looks like non-meal item
         const shouldExclude = looksUnanalyzable || 
-                             (hasNoNutritionalData && hasVeryLowScore) ||
                              looksLikeNonMeal;
         
         if (shouldExclude) {
@@ -998,12 +999,12 @@ Output ONLY the JSON response, nothing else.`
       // Trier les plats non conformes par score AI (descending)
       const sortedNonMatchingDishes = nonMatchingDishes.sort((a, b) => (b.aiScore || 0) - (a.aiScore || 0));
       
-      console.log('\n🏆 MATCHING DISHES SORTED BY AI SCORE:');
+              console.log('\n🏆 MATCHING DISHES SORTED BY PERSONALIZED MATCH SCORE:');
       sortedMatchingDishes.forEach((dish, index) => {
         console.log(`  ${index + 1}. "${dish.title}" - AI Score: ${dish.aiScore || 0} - ✅ Matches preferences`);
       });
       
-      console.log('\n⚠️ NON-MATCHING DISHES SORTED BY AI SCORE:');
+              console.log('\n⚠️ NON-MATCHING DISHES SORTED BY PERSONALIZED MATCH SCORE:');
       sortedNonMatchingDishes.forEach((dish, index) => {
         console.log(`  ${index + 1}. "${dish.title}" - AI Score: ${dish.aiScore || 0} - ❌ ${dish.complianceWarning}`);
       });
@@ -1376,7 +1377,12 @@ const setCachedValue = (cache, key, value, ttl) => {
 
 // Classification optimisée avec cache
 const classifyDishForPreferencesOptimized = (dishText, userPreferences) => {
-  const cacheKey = `${dishText.toLowerCase()}_${userPreferences.sort().join('_')}`;
+  // Sécuriser userPreferences pour éviter l'erreur de sort
+  const safePreferences = userPreferences && Array.isArray(userPreferences) ? userPreferences : [];
+  // Créer une clé de cache sécurisée
+  const cacheKey = safePreferences.length > 0 
+    ? `${dishText.toLowerCase()}_${safePreferences.sort().join('_')}`
+    : `${dishText.toLowerCase()}_no_preferences`;
   const cached = getCachedValue(dishClassificationCache, cacheKey, CLASSIFICATION_CACHE_TTL);
   if (cached) return cached;
 

@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Tooltip Component</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .tooltip {
+            position: absolute;
+            z-index: 50;
+            background: #1f2937;
+            color: white;
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            border: 1px solid #374151;
+            max-width: 20rem;
+            font-size: 0.875rem;
+            line-height: 1.5;
+        }
+        
+        .tooltip::after {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 0;
+            border: 0.5rem solid transparent;
+            border-top-color: #1f2937;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        
+        .tooltip.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+            transition: all 0.2s ease-in-out;
+        }
+        
+        .tooltip.hide {
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-5px);
+            transition: all 0.2s ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl font-bold text-gray-900 mb-8 text-center">
+            Test du Composant Tooltip
+        </h1>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <!-- Test 1: Score personnalisé -->
+            <div class="bg-white rounded-2xl shadow-lg p-6">
+                <h2 class="text-xl font-bold text-gray-900 mb-4">Score Personnalisé</h2>
+                
+                <div class="flex items-center justify-center mb-4">
+                    <div class="relative inline-block">
+                        <div 
+                            class="flex items-center justify-center px-4 py-2 text-white rounded-full shadow-lg font-bold cursor-help bg-gradient-to-r from-green-500 to-emerald-600"
+                            onmouseenter="showTooltip('tooltip1', this)"
+                            onmouseleave="hideTooltip('tooltip1')"
+                            ontouchstart="toggleTooltip('tooltip1', this)"
+                        >
+                            <span class="text-lg font-bold">8.5</span>
+                            <span class="text-sm ml-1">/10</span>
+                            <span class="text-xs ml-2 opacity-80">ⓘ</span>
+                        </div>
+                        
+                        <div id="tooltip1" class="tooltip hide bottom-full left-1/2 transform -translate-x-1/2 mb-2">
+                            Calculé en fonction de la correspondance avec vos préférences alimentaires, objectifs nutritionnels et niveau d'activité.
+                        </div>
+                    </div>
+                </div>
+                
+                <p class="text-gray-600 text-center">
+                    Survolez ou tapez sur le score pour voir le tooltip
+                </p>
+            </div>
+            
+            <!-- Test 2: Score moyen -->
+            <div class="bg-white rounded-2xl shadow-lg p-6">
+                <h2 class="text-xl font-bold text-gray-900 mb-4">Score Moyen</h2>
+                
+                <div class="flex items-center justify-center mb-4">
+                    <div class="relative inline-block">
+                        <div 
+                            class="flex items-center justify-center px-4 py-2 text-white rounded-full shadow-lg font-bold cursor-help bg-gradient-to-r from-yellow-500 to-orange-500"
+                            onmouseenter="showTooltip('tooltip2', this)"
+                            onmouseleave="hideTooltip('tooltip2')"
+                            ontouchstart="toggleTooltip('tooltip2', this)"
+                        >
+                            <span class="text-lg font-bold">6.2</span>
+                            <span class="text-sm ml-1">/10</span>
+                            <span class="text-xs ml-2 opacity-80">ⓘ</span>
+                        </div>
+                        
+                        <div id="tooltip2" class="tooltip hide bottom-full left-1/2 transform -translate-x-1/2 mb-2">
+                            Calculé en fonction de la correspondance avec vos préférences alimentaires, objectifs nutritionnels et niveau d'activité.
+                        </div>
+                    </div>
+                </div>
+                
+                <p class="text-gray-600 text-center">
+                    Survolez ou tapez sur le score pour voir le tooltip
+                </p>
+            </div>
+            
+            <!-- Test 3: Score bas -->
+            <div class="bg-white rounded-2xl shadow-lg p-6">
+                <h2 class="text-xl font-bold text-gray-900 mb-4">Score Bas</h2>
+                
+                <div class="flex items-center justify-center mb-4">
+                    <div class="relative inline-block">
+                        <div 
+                            class="flex items-center justify-center px-4 py-2 text-white rounded-full shadow-lg font-bold cursor-help bg-gradient-to-r from-red-500 to-pink-500"
+                            onmouseenter="showTooltip('tooltip3', this)"
+                            onmouseleave="hideTooltip('tooltip3')"
+                            ontouchstart="toggleTooltip('tooltip3', this)"
+                        >
+                            <span class="text-lg font-bold">3.8</span>
+                            <span class="text-sm ml-1">/10</span>
+                            <span class="text-xs ml-2 opacity-80">ⓘ</span>
+                        </div>
+                        
+                        <div id="tooltip3" class="tooltip hide bottom-full left-1/2 transform -translate-x-1/2 mb-2">
+                            Calculé en fonction de la correspondance avec vos préférences alimentaires, objectifs nutritionnels et niveau d'activité.
+                        </div>
+                    </div>
+                </div>
+                
+                <p class="text-gray-600 text-center">
+                    Survolez ou tapez sur le score pour voir le tooltip
+                </p>
+            </div>
+            
+            <!-- Test 4: Responsive -->
+            <div class="bg-white rounded-2xl shadow-lg p-6">
+                <h2 class="text-xl font-bold text-gray-900 mb-4">Test Responsive</h2>
+                
+                <div class="flex items-center justify-center mb-4">
+                    <div class="relative inline-block">
+                        <div 
+                            class="flex items-center justify-center px-4 py-2 text-white rounded-full shadow-lg font-bold cursor-help bg-gradient-to-r from-purple-500 to-pink-500"
+                            onmouseenter="showTooltip('tooltip4', this)"
+                            onmouseleave="hideTooltip('tooltip4')"
+                            ontouchstart="toggleTooltip('tooltip4', this)"
+                        >
+                            <span class="text-lg font-bold">7.9</span>
+                            <span class="text-sm ml-1">/10</span>
+                            <span class="text-xs ml-2 opacity-80">ⓘ</span>
+                        </div>
+                        
+                        <div id="tooltip4" class="tooltip hide bottom-full left-1/2 transform -translate-x-1/2 mb-2">
+                            Calculé en fonction de la correspondance avec vos préférences alimentaires, objectifs nutritionnels et niveau d'activité.
+                        </div>
+                    </div>
+                </div>
+                
+                <p class="text-gray-600 text-center text-sm">
+                    Testez sur mobile et desktop pour vérifier la responsivité
+                </p>
+            </div>
+        </div>
+        
+        <div class="mt-8 text-center">
+            <p class="text-gray-600">
+                ✅ Tooltip fonctionnel sur desktop (hover) et mobile (tap)<br>
+                ✅ Animation fluide et design futuriste<br>
+                ✅ Responsive et accessible
+            </p>
+        </div>
+    </div>
+
+    <script>
+        function showTooltip(id, element) {
+            const tooltip = document.getElementById(id);
+            if (tooltip) {
+                tooltip.classList.remove('hide');
+                tooltip.classList.add('show');
+            }
+        }
+        
+        function hideTooltip(id) {
+            const tooltip = document.getElementById(id);
+            if (tooltip) {
+                tooltip.classList.remove('show');
+                tooltip.classList.add('hide');
+            }
+        }
+        
+        function toggleTooltip(id, element) {
+            const tooltip = document.getElementById(id);
+            if (tooltip) {
+                if (tooltip.classList.contains('show')) {
+                    hideTooltip(id);
+                } else {
+                    showTooltip(id);
+                }
+            }
+        }
+        
+        // Détecter si c'est un appareil mobile
+        function isMobile() {
+            return window.innerWidth <= 768;
+        }
+        
+        // Ajuster le comportement selon l'appareil
+        if (isMobile()) {
+            console.log('📱 Mode mobile détecté - tooltips activés au tap');
+        } else {
+            console.log('💻 Mode desktop détecté - tooltips activés au hover');
+        }
+    </script>
+</body>
+</html>

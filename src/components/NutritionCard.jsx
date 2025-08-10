@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { trackRecommendationClick } from '../utils/analytics';
+import Tooltip from './Tooltip';
 
 // Icônes SVG modernes
 const ProteinIcon = () => (
@@ -32,32 +33,7 @@ const InfoIcon = () => (
   </svg>
 );
 
-// Composant Tooltip amélioré avec icône toujours visible
-const Tooltip = ({ children, content, isVisible, onMouseEnter, onMouseLeave, onFocus, onBlur }) => {
-  return (
-    <div className="relative inline-block">
-      <div
-        onMouseEnter={onMouseEnter}
-        onMouseLeave={onMouseLeave}
-        onFocus={onFocus}
-        onBlur={onBlur}
-        tabIndex="0"
-        className="inline-flex items-center cursor-help focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 rounded"
-        role="button"
-        aria-label={`Information about ${content}`}
-      >
-        {children}
-      </div>
-      {isVisible && (
-        <div className="absolute z-50 bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-1 bg-white text-sm text-gray-600 shadow-lg rounded-md whitespace-nowrap pointer-events-none">
-          {content}
-          {/* Petite flèche */}
-          <div className="absolute left-1/2 transform -translate-x-1/2 top-full w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-white"></div>
-        </div>
-      )}
-    </div>
-  );
-};
+
 
 // Composant MacroRow avec vraies barres de progression horizontales
 const MacroRow = ({ 
@@ -65,11 +41,6 @@ const MacroRow = ({
   percentage, 
   tooltipContent
 }) => {
-  const [showTooltip, setShowTooltip] = useState(false);
-
-  const handleShowTooltip = () => setShowTooltip(true);
-  const handleHideTooltip = () => setShowTooltip(false);
-
   // Couleurs des barres selon les spécifications
   const getBarColor = (macroName) => {
     switch(macroName.toLowerCase()) {
@@ -94,11 +65,8 @@ const MacroRow = ({
         <span className="text-sm font-medium text-gray-700">{name}</span>
         <Tooltip
           content={tooltipContent}
-          isVisible={showTooltip}
-          onMouseEnter={handleShowTooltip}
-          onMouseLeave={handleHideTooltip}
-          onFocus={handleShowTooltip}
-          onBlur={handleHideTooltip}
+          position="top"
+          maxWidth="max-w-xs"
         >
           <InfoIcon className="info-icon w-3 h-3 text-gray-500 hover:text-gray-700 transition-colors" />
         </Tooltip>
@@ -136,6 +104,33 @@ const NutritionCard = ({ dish, rank, onViewDetails }) => {
       </div>
     );
   }
+
+  // Fonction pour obtenir la couleur du score AI
+  const getAIScoreColor = (score) => {
+    const numScore = parseFloat(score) || 0;
+    if (numScore >= 8) return 'from-emerald-500 to-green-600';
+    if (numScore >= 6) return 'from-yellow-500 to-orange-500';
+    if (numScore >= 4) return 'from-orange-500 to-red-500';
+    return 'from-red-500 to-pink-600';
+  };
+
+  // Fonction pour obtenir l'icône du score AI
+  const getAIScoreIcon = (score) => {
+    const numScore = parseFloat(score) || 0;
+    if (numScore >= 8) return '🌟';
+    if (numScore >= 6) return '👍';
+    if (numScore >= 4) return '⚠️';
+    return '❌';
+  };
+
+  // Fonction pour obtenir le texte du score AI
+  const getAIScoreText = (score) => {
+    const numScore = parseFloat(score) || 0;
+    if (numScore >= 8) return 'Excellent Match';
+    if (numScore >= 6) return 'Good Match';
+    if (numScore >= 4) return 'Fair Match';
+    return 'Poor Match';
+  };
 
   // Fonction pour obtenir la couleur du score
   const getScoreColor = (score) => {
@@ -241,6 +236,10 @@ const NutritionCard = ({ dish, rank, onViewDetails }) => {
   const macroPercentages = getMacroPercentages();
   const metaTags = generateMetaTags();
   const hasError = dish.shortJustification && dish.shortJustification.includes('Service temporarily unavailable');
+  
+  // Récupérer le score AI (priorité au score AI, sinon au score classique)
+  const aiScore = dish.aiScore !== undefined ? dish.aiScore : (dish.score || 0);
+  const hasAIScore = dish.aiScore !== undefined;
 
   return (
     <div className="group relative bg-white rounded-2xl shadow-lg hover:shadow-xl border border-gray-100 overflow-hidden transition-all duration-300 transform hover:-translate-y-2">
@@ -248,27 +247,30 @@ const NutritionCard = ({ dish, rank, onViewDetails }) => {
       <div className="absolute inset-0 bg-gradient-to-br from-transparent to-gray-50/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
       
       <div className="relative p-6 space-y-4">
-        {/* Score et Prix */}
+        {/* Score AI et Prix */}
         <div className="flex items-center justify-between mb-4">
-          {/* Badge de score AI avec gradient futuriste */}
-          <div 
-            className="flex items-center justify-center px-4 py-2 text-white rounded-full shadow-lg font-bold"
-            style={{
-              background: (() => {
-                const score = dish.aiScore || dish.score || 0;
-                if (score >= 7) {
-                  return 'linear-gradient(135deg, #00ff84, #00c2ff)';
-                } else if (score >= 5) {
-                  return 'linear-gradient(135deg, #ffcc00, #ff7b00)';
-                } else {
-                  return 'linear-gradient(135deg, #ff3c3c, #ff005c)';
-                }
-              })()
-            }}
+          {/* Badge de score AI personnalisé avec gradient futuriste et tooltip */}
+          <Tooltip 
+            content={hasAIScore 
+              ? `Score AI: ${aiScore}/10 - ${getAIScoreText(aiScore)}. Calculé en fonction de la correspondance avec vos préférences alimentaires, objectifs nutritionnels et niveau d'activité.`
+              : "Score calculé en fonction de la correspondance avec vos préférences alimentaires, objectifs nutritionnels et niveau d'activité."
+            }
+            position="top"
+            maxWidth="max-w-sm"
           >
-            <span className="text-lg font-bold">{dish.aiScore || dish.score || 'N/A'}</span>
-            <span className="text-sm ml-1">/10</span>
-          </div>
+            <div 
+              className={`flex items-center justify-center px-4 py-2 text-white rounded-full shadow-lg font-bold cursor-help transition-all duration-300 ${
+                hasAIScore ? 'bg-gradient-to-r ' + getAIScoreColor(aiScore) : 'bg-gradient-to-r from-purple-600 to-pink-600'
+              }`}
+            >
+              <span className="text-lg font-bold">{aiScore}</span>
+              <span className="text-sm ml-1">/10</span>
+              {hasAIScore && (
+                <span className="text-sm ml-2">{getAIScoreIcon(aiScore)}</span>
+              )}
+              <span className="text-xs ml-2 opacity-80">ⓘ</span>
+            </div>
+          </Tooltip>
           
           {/* Badge de prix */}
           <div className="flex items-center justify-center px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-500 text-white rounded-full shadow-lg">
@@ -276,6 +278,33 @@ const NutritionCard = ({ dish, rank, onViewDetails }) => {
             <span className="text-sm ml-1">€</span>
           </div>
         </div>
+
+        {/* Indicateur de score AI avec barre de progression */}
+        {hasAIScore && (
+          <div className="bg-gray-50 rounded-xl p-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-gray-700">AI Match Score</span>
+              <span className="text-xs text-gray-500">{getAIScoreText(aiScore)}</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div 
+                className={`h-2 rounded-full transition-all duration-500 ease-out ${
+                  aiScore >= 8 ? 'bg-gradient-to-r from-emerald-500 to-green-600' :
+                  aiScore >= 6 ? 'bg-gradient-to-r from-yellow-500 to-orange-500' :
+                  aiScore >= 4 ? 'bg-gradient-to-r from-orange-500 to-red-500' :
+                  'bg-gradient-to-r from-red-500 to-pink-600'
+                }`}
+                style={{ width: `${(aiScore / 10) * 100}%` }}
+              />
+            </div>
+            <div className="flex justify-between text-xs text-gray-500 mt-1">
+              <span>Poor</span>
+              <span>Fair</span>
+              <span>Good</span>
+              <span>Excellent</span>
+            </div>
+          </div>
+        )}
 
         {/* Nom du plat et médaille */}
         <div className="flex items-center justify-between">

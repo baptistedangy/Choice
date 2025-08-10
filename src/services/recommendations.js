@@ -84,7 +84,7 @@ export const getAdditionalRecommendations = (allRecommendations) => {
 export const getDefaultUserProfile = () => {
   return {
     name: "Utilisateur",
-    dietaryRestrictions: [], // ['vegetarian', 'gluten-free', 'vegan']
+    dietaryPreferences: [], // ['vegetarian', 'gluten-free', 'vegan'] - CORRIGÉ pour correspondre au backend
     budget: "medium", // 'low', 'medium', 'high'
     cuisinePreferences: [], // ['italien', 'français', 'asiatique', 'méditerranéen']
     allergies: [], // ['noix', 'lactose', 'gluten']

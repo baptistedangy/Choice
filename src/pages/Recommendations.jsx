@@ -213,7 +213,7 @@ const Recommendations = () => {
       console.log('🎉 All dishes analyzed successfully:', analyzedDishes);
       console.log('📊 Analysis results summary:');
       analyzedDishes.forEach((dish, index) => {
-        console.log(`  ${index + 1}. "${dish.name}" - Score: ${dish.aiScore || 'N/A'}, Category: ${dish.category || 'N/A'}`);
+        console.log(`  ${index + 1}. "${dish.name}" - Personalized Match Score: ${dish.aiScore || 'N/A'}, Category: ${dish.category || 'N/A'}`);
         
         // Check for exclusion reasons
         const hasError = !!dish.error;
@@ -222,16 +222,16 @@ const Recommendations = () => {
         const hasValidCategory = dish.category && dish.category !== 'N/A';
         
         console.log(`     - Has error: ${hasError}`);
-        console.log(`     - Has valid score: ${hasValidScore}`);
+        console.log(`     - Has valid personalized match score: ${hasValidScore}`);
         console.log(`     - Has valid name: ${hasValidName}`);
         console.log(`     - Has valid category: ${hasValidCategory}`);
         
         if (hasError) {
           console.log(`     ❌ EXCLUDED: "${dish.name}" - Reason: ${dish.error}`);
         } else if (!hasValidScore) {
-          console.log(`     ❌ EXCLUDED: "${dish.name}" - Reason: Invalid score (${dish.aiScore})`);
+          console.log(`     ❌ EXCLUDED: "${dish.name}" - Reason: Invalid personalized match score (${dish.aiScore})`);
         } else {
-          console.log(`     ✅ INCLUDED: "${dish.name}" - Score: ${dish.aiScore}`);
+          console.log(`     ✅ INCLUDED: "${dish.name}" - Personalized Match Score: ${dish.aiScore}`);
         }
       });
       console.log('💾 Setting recommendations state with:', analyzedDishes.length, 'dishes');
@@ -345,7 +345,7 @@ const Recommendations = () => {
           // Log des données de debug du backend si disponibles
           if (location.state.debug) {
             console.log('🔍 BACKEND DEBUG DATA RECEIVED:');
-            console.log('🔍 DEBUG - ALL DISHES WITH AI SCORES:', location.state.debug.allDishesWithScores);
+            console.log('🔍 DEBUG - ALL DISHES WITH PERSONALIZED MATCH SCORES:', location.state.debug.allDishesWithScores);
             console.log('🔍 DEBUG - TOP 3 DISHES:', location.state.debug.top3Dishes);
             console.log('🔍 DEBUG - EXCLUDED BY SLICE:', location.state.debug.excludedBySlice);
             console.log('🔍 DEBUG - FINAL RESULTS:', location.state.debug.finalResults);
@@ -354,14 +354,14 @@ const Recommendations = () => {
             if (location.state.debug.allDishesWithScores) {
               console.log('📊 BACKEND - DETAILED DISH SCORES:');
               location.state.debug.allDishesWithScores.forEach((dish, index) => {
-                console.log(`  ${index + 1}. "${dish.title}" - AI Score: ${dish.aiScore || 0} - Calories: ${dish.calories || 0} - Price: ${dish.price || 'N/A'}`);
+                console.log(`  ${index + 1}. "${dish.title}" - Personalized Match Score: ${dish.aiScore || 0} - Calories: ${dish.calories || 0} - Price: ${dish.price || 'N/A'}`);
               });
               
               // Log des plats exclus
               if (location.state.debug.excludedBySlice && location.state.debug.excludedBySlice.length > 0) {
                 console.log('❌ BACKEND - DISHES EXCLUDED BY SLICE:');
                 location.state.debug.excludedBySlice.forEach((dish, index) => {
-                  console.log(`  ${index + 4}. "${dish.title}" - AI Score: ${dish.aiScore || 0} - EXCLUDED: Slice limit (0, 3)`);
+                  console.log(`  ${index + 4}. "${dish.title}" - Personalized Match Score: ${dish.aiScore || 0} - EXCLUDED: Slice limit (0, 3)`);
                 });
               }
             }
@@ -436,7 +436,7 @@ const Recommendations = () => {
   }, [location.state]);
 
   // Sort recommendations by AI score (descending) and add ranking
-  console.log('🔄 Sorting recommendations by AI score...');
+        console.log('🔄 Sorting recommendations by personalized match score...');
   console.log('📋 Original recommendations count:', recommendations.length);
   
   const sortedRecommendations = [...recommendations].sort((a, b) => {
@@ -447,7 +447,7 @@ const Recommendations = () => {
   
   console.log('📊 Sorted recommendations:');
   sortedRecommendations.forEach((dish, index) => {
-    console.log(`  ${index + 1}. "${dish.name}" - Score: ${dish.aiScore || 'N/A'}`);
+            console.log(`  ${index + 1}. "${dish.name}" - Personalized Match Score: ${dish.aiScore || 'N/A'}`);
   });
 
   console.log('🔍 Filtering recommendations by category:', selectedCategory);
@@ -472,7 +472,7 @@ const Recommendations = () => {
   console.log('📋 Filtered recommendations count:', filteredRecommendations.length);
   console.log('📊 Filtered recommendations:');
   filteredRecommendations.forEach((dish, index) => {
-    console.log(`  ${index + 1}. "${dish.name}" - Score: ${dish.aiScore || 'N/A'}, Category: ${dish.category || 'N/A'}`);
+            console.log(`  ${index + 1}. "${dish.name}" - Personalized Match Score: ${dish.aiScore || 'N/A'}, Category: ${dish.category || 'N/A'}`);
   });
   
   // Log excluded dishes by category filter
