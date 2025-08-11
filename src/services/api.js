@@ -1,5 +1,8 @@
 // Service API pour les appels futurs
-const API_BASE_URL = 'https://api.example.com'; // À modifier selon vos besoins
+import { BACKEND_URL } from '../config/backend.js';
+
+// Utiliser l'URL du backend configurée dynamiquement
+const API_BASE_URL = BACKEND_URL;
 
 export const apiService = {
   // Fonction générique pour les appels GET

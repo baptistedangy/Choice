@@ -634,21 +634,40 @@ const Recommendations = () => {
 
               {/* Recommendations Grid */}
               {filteredRecommendations.length > 0 && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                  {filteredRecommendations.map((item, index) => (
-                    <div 
-                      key={item.id} 
-                      className="animate-fade-in-staggered"
-                      style={{ animationDelay: `${index * 200}ms` }}
-                    >
-                      <NutritionCard
-                        dish={item}
-                        rank={index + 1}
-                        onViewDetails={openModal}
-                      />
+                <>
+                  {/* Info Banner for Limited Results */}
+                  {filteredRecommendations.length < 3 && (
+                    <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                      <div className="flex items-center space-x-3">
+                        <div className="flex-shrink-0">
+                          <span className="text-amber-600 text-lg">ℹ️</span>
+                        </div>
+                        <div>
+                          <p className="text-sm text-amber-800">
+                            <strong>Limited Results:</strong> Only {filteredRecommendations.length} dish{filteredRecommendations.length > 1 ? 'es' : ''} met our quality standards. 
+                            We only show dishes with meaningful AI scores to ensure helpful recommendations.
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                  ))}
-                </div>
+                  )}
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    {filteredRecommendations.map((item, index) => (
+                      <div 
+                        key={item.id} 
+                        className="animate-fade-in-staggered"
+                        style={{ animationDelay: `${index * 200}ms` }}
+                      >
+                        <NutritionCard
+                          dish={item}
+                          rank={index + 1}
+                          onViewDetails={openModal}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </>
               )}
             </div>
           </div>

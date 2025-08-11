@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host",
     "build": "vite build",
     "build:production": "NODE_ENV=production vite build",
     "lint": "eslint .",
@@ -12,7 +12,11 @@
     "server": "node server.js",
     "dev:full": "concurrently \"npm run server\" \"npm run dev\"",
     "start": "npm run server",
-    "deploy": "npm run build:production && npm run start"
+    "deploy": "npm run build:production && npm run start",
+    "tunnel:web": "npx localtunnel --port 5173 --print-requests --allow-invalid-cert",
+    "tunnel:api": "npx localtunnel --port 3001 --print-requests",
+    "dev:tunnel": "concurrently \"npm run dev\" \"npm run tunnel:web\"",
+    "mobile:test": "./start-mobile-test.sh"
   },
   "dependencies": {
     "@google-cloud/vision": "^5.3.2",
@@ -35,6 +39,7 @@
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.6.0",
     "autoprefixer": "^10.4.21",
+    "cloudflared": "^0.7.1",
     "concurrently": "^9.2.0",
     "eslint": "^9.30.1",
     "eslint-plugin-react-hooks": "^5.2.0",

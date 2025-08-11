@@ -1,227 +1,323 @@
 import React from 'react';
 import Tooltip from './Tooltip';
 
-const DishDetailsModal = ({ isOpen, onClose, dish }) => {
+const DishDetailsModal = ({ dish, isOpen, onClose }) => {
   if (!isOpen || !dish) return null;
 
-  // Utiliser les raisons de recommandation générées par l'IA ou générer des raisons par défaut
-  const getRecommendationReasons = (dish) => {
-    if (dish.longJustification && Array.isArray(dish.longJustification) && dish.longJustification.length > 0) {
-      return dish.longJustification;
-    }
+  // Fonction pour obtenir la couleur du score AI (cohérente avec NutritionCard)
+  const getScoreColor = (score) => {
+    if (score >= 8) return 'from-emerald-500 to-green-600';
+    if (score >= 6) return 'from-yellow-500 to-orange-500';
+    if (score >= 4) return 'from-orange-500 to-red-500';
+    return 'from-red-500 to-pink-600';
+  };
+
+  // Fonction pour obtenir le texte du score AI (cohérente avec NutritionCard)
+  const getScoreText = (score) => {
+    if (score >= 8) return 'Excellent';
+    if (score >= 6) return 'Good';
+    if (score >= 4) return 'Fair';
+    return 'Poor';
+  };
+
+  // Fonction pour générer les tags métadonnées (cohérente avec NutritionCard)
+  const generateMetaTags = () => {
+    const tags = [];
     
-    // Raisons par défaut si l'IA n'a pas fourni de longJustification
-    const reasons = [];
-    
-    // Raison basée sur le score IA
-    if (dish.aiScore >= 8) {
-      reasons.push("Excellent match with your dietary preferences");
-    } else if (dish.aiScore >= 6) {
-      reasons.push("Good match with your nutritional profile");
-    } else {
-      reasons.push("Moderate match with your needs");
+    // Récupérer le profil utilisateur depuis localStorage
+    let userProfile = null;
+    try {
+      const savedProfile = localStorage.getItem('extendedProfile');
+      if (savedProfile) {
+        userProfile = JSON.parse(savedProfile);
+      }
+    } catch (error) {
+      console.warn('Erreur lors de la récupération du profil:', error);
     }
 
-    // Raison basée sur les calories
-    if (dish.calories && dish.calories < 400) {
-      reasons.push("Low in calories, ideal for a balanced meal");
-    } else if (dish.calories && dish.calories > 600) {
-      reasons.push("High in energy, perfect for active days");
+    // Tags basés sur les préférences alimentaires de l'utilisateur
+    if (userProfile && userProfile.dietaryPreferences) {
+      userProfile.dietaryPreferences.forEach(pref => {
+        // Formater les préférences pour l'affichage
+        const formattedPref = pref.charAt(0).toUpperCase() + pref.slice(1).replace('-', ' ');
+        tags.push(formattedPref);
+      });
     }
 
-    // Raison basée sur les protéines
-    if (dish.protein && dish.protein > 20) {
-      reasons.push("High in protein, excellent for muscle recovery");
-    }
-
-    // Raison basée sur l'équilibre nutritionnel
-    if (dish.protein && dish.carbs && dish.fats) {
-      const total = dish.protein + dish.carbs + dish.fats;
-      if (total > 0) {
-        const proteinRatio = (dish.protein / total) * 100;
-        const carbRatio = (dish.carbs / total) * 100;
-        const fatRatio = (dish.fats / total) * 100;
-        
-        if (proteinRatio > 25 && carbRatio > 40 && fatRatio > 20) {
-          reasons.push("Optimal nutritional balance between proteins, carbs and fats");
-        }
+    // Tags basés sur l'objectif de l'utilisateur
+    if (userProfile && userProfile.goal) {
+      switch (userProfile.goal) {
+        case 'lose':
+          tags.push('Weight Loss');
+          break;
+        case 'gain':
+          tags.push('Weight Gain');
+          break;
+        case 'maintain':
+          tags.push('Weight Maintenance');
+          break;
       }
     }
 
-    // Raison basée sur les tags
-    if (dish.tags && dish.tags.includes('vegetarian')) {
-      reasons.push("Perfect for vegetarian dietary preferences");
-    }
-    if (dish.tags && dish.tags.includes('gluten-free')) {
-      reasons.push("Suitable for gluten-free diet");
+    // Tags basés sur le niveau d'activité
+    if (userProfile && userProfile.activityLevel) {
+      switch (userProfile.activityLevel) {
+        case 'low':
+          tags.push('Low Activity');
+          break;
+        case 'moderate':
+          tags.push('Moderate Activity');
+          break;
+        case 'high':
+          tags.push('High Activity');
+          break;
+      }
     }
 
-    return reasons.length > 0 ? reasons : ["This dish aligns well with your nutritional goals"];
+    // Tags basés sur le profil nutritionnel du plat (seulement si pas assez de tags personnalisés)
+    if (tags.length < 3) {
+      const protein = dish.protein || 0;
+      const carbs = dish.carbs || 0;
+      const fats = dish.fats || 0;
+      const calories = dish.calories || 0;
+
+      if (protein > 20) tags.push('High Protein');
+      if (carbs > 50) tags.push('High Carb');
+      if (fats > 15) tags.push('High Fat');
+      if (calories > 400) tags.push('High Calorie');
+      if (calories < 200) tags.push('Low Calorie');
+    }
+
+    // Limiter à 3 tags maximum et éviter les doublons
+    return [...new Set(tags)].slice(0, 3);
   };
 
-  const recommendationReasons = getRecommendationReasons(dish);
+  // Générer les tags pour l'affichage
+  const metaTags = generateMetaTags();
 
-  // Fonction pour obtenir la couleur du score
-  const getScoreColor = (score) => {
-    if (score >= 8) return 'from-green-500 to-emerald-600';
-    if (score >= 6) return 'from-yellow-500 to-orange-500';
-    return 'from-red-500 to-pink-500';
+  // Fonction pour formater le prix avec la devise
+  const formatPrice = (price) => {
+    if (!price) return null;
+    if (typeof price === 'string' && price.includes('€')) return price;
+    if (typeof price === 'number') return `${price.toFixed(2)}€`;
+    return `${price}€`;
+  };
+
+  // Fonction pour traduire la description en anglais si nécessaire
+  const getEnglishDescription = (description) => {
+    if (!description) return 'No description available';
+    
+    // Si la description est déjà en anglais, la retourner
+    if (description.includes('Extracted from menu') || 
+        description.includes('High in protein') || 
+        description.includes('Rich in') ||
+        description.includes('Contains') ||
+        description.includes('Balanced meal')) {
+      return description;
+    }
+    
+    // Si c'est en français, retourner une description générique en anglais
+    if (description.includes('Un beau') || description.includes('Une quinoa') || description.includes('Crème d')) {
+      return 'Fresh and flavorful dish prepared with quality ingredients. Perfect balance of flavors and textures for a satisfying meal experience.';
+    }
+    
+    return description;
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-        {/* Overlay */}
-        <div 
-          className="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity"
-          onClick={onClose}
-        />
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        {/* En-tête avec bouton de fermeture */}
+        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+          <h2 className="text-2xl font-bold text-gray-900">Dish Details</h2>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
 
-        {/* Modal */}
-        <div className="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
-          {/* En-tête */}
-          <div className="bg-gradient-to-r from-purple-600 to-pink-600 px-6 py-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold text-white">
-                Dish Details
-              </h2>
-              <button
-                onClick={onClose}
-                className="text-white hover:text-gray-200 transition-colors"
+        {/* Contenu de la modale */}
+        <div className="px-6 py-6 space-y-6">
+          {/* Nom du plat et score personnalisé */}
+          <div className="flex items-center justify-between">
+            <h3 className="text-2xl font-bold text-gray-900">
+              {dish.name || dish.title}
+            </h3>
+            {dish.aiScore !== undefined && (
+              <Tooltip 
+                content="Calculé en fonction de la correspondance avec vos préférences alimentaires, objectifs nutritionnels et niveau d'activité."
+                position="left"
+                maxWidth="max-w-sm"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
+                <div className={`bg-gradient-to-r ${getScoreColor(dish.aiScore)} text-white rounded-full px-4 py-2 shadow-lg cursor-help`}>
+                  <div className="text-center">
+                    <div className="text-xl font-bold">{dish.aiScore || 0}/10</div>
+                    <div className="text-xs opacity-90">{getScoreText(dish.aiScore || 0)}</div>
+                  </div>
+                </div>
+              </Tooltip>
+            )}
           </div>
 
-          {/* Contenu */}
-          <div className="px-6 py-6 space-y-6">
-            {/* Nom du plat et score personnalisé */}
-            <div className="flex items-center justify-between">
-              <h3 className="text-2xl font-bold text-gray-900">
-                {dish.name || dish.title}
-              </h3>
-              {dish.aiScore !== undefined && (
-                <Tooltip 
-                  content="Calculé en fonction de la correspondance avec vos préférences alimentaires, objectifs nutritionnels et niveau d'activité."
-                  position="left"
-                  maxWidth="max-w-sm"
-                >
-                  <div className={`bg-gradient-to-r ${getScoreColor(dish.aiScore)} text-white rounded-full px-4 py-2 shadow-lg cursor-help`}>
-                    <div className="text-center">
-                      <div className="text-xl font-bold">{dish.aiScore || 0}/10</div>
-                      <div className="text-xs opacity-90">Personalized Match</div>
-                    </div>
-                  </div>
-                </Tooltip>
-              )}
+          {/* Prix avec devise */}
+          {dish.price && (
+            <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-4 py-2 rounded-lg inline-block">
+              <span className="font-bold text-lg">{formatPrice(dish.price)}</span>
             </div>
+          )}
 
-            {/* Prix */}
-            {dish.price && (
-              <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-4 py-2 rounded-lg inline-block">
-                <span className="font-bold text-lg">{dish.price}</span>
+          {/* Tags métadonnées (cohérents avec les cartes) */}
+          {metaTags && metaTags.length > 0 && (
+            <div>
+              <h4 className="text-lg font-semibold text-gray-900 mb-3">Tags</h4>
+              <div className="flex flex-wrap gap-2">
+                {metaTags.map((tag, tagIndex) => (
+                  <span
+                    key={tagIndex}
+                    className="px-3 py-1.5 bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 text-xs rounded-full font-medium border border-blue-200 shadow-sm"
+                  >
+                    {tag}
+                  </span>
+                ))}
               </div>
-            )}
+            </div>
+          )}
 
-            {/* Description */}
-            {dish.description && (
-              <div>
-                <h4 className="text-lg font-semibold text-gray-900 mb-2">Description</h4>
-                <p className="text-gray-600 leading-relaxed">
-                  {dish.description}
-                </p>
-              </div>
-            )}
+          {/* Description en anglais */}
+          {dish.description && (
+            <div>
+              <h4 className="text-lg font-semibold text-gray-900 mb-2">Description</h4>
+              <p className="text-gray-600 leading-relaxed">
+                {getEnglishDescription(dish.description)}
+              </p>
+            </div>
+          )}
 
-            {/* Calories */}
-            {dish.calories !== undefined && (
+          {/* Calories */}
+          {dish.calories !== undefined && (
+            <div>
+              <h4 className="text-lg font-semibold text-gray-900 mb-2">Calories</h4>
               <div className="bg-gray-50 rounded-xl p-4">
-                <h4 className="text-lg font-semibold text-gray-900 mb-2">Calories</h4>
                 <div className="text-2xl font-bold text-gray-900 text-center">
                   {dish.calories || 0} kcal
                 </div>
               </div>
-            )}
+            </div>
+          )}
 
-            {/* Composition nutritionnelle */}
-            {dish.protein !== undefined && (
-              <div>
-                <h4 className="text-lg font-semibold text-gray-900 mb-4">Nutritional Composition</h4>
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="text-center p-4 bg-red-50 rounded-xl border border-red-200">
-                    <div className="text-2xl mb-2">💪</div>
-                    <div className="text-xl font-bold text-red-600">{dish.protein || 0}g</div>
-                    <div className="text-sm text-red-700 font-medium">Protein</div>
-                  </div>
-                  <div className="text-center p-4 bg-yellow-50 rounded-xl border border-yellow-200">
-                    <div className="text-2xl mb-2">🍞</div>
-                    <div className="text-xl font-bold text-yellow-600">{dish.carbs || 0}g</div>
-                    <div className="text-sm text-yellow-700 font-medium">Carbs</div>
-                  </div>
-                  <div className="text-center p-4 bg-green-50 rounded-xl border border-green-200">
-                    <div className="text-2xl mb-2">🥑</div>
-                    <div className="text-xl font-bold text-green-600">{dish.fats || 0}g</div>
-                    <div className="text-sm text-green-700 font-medium">Fats</div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Pourquoi nous recommandons ce plat */}
+          {/* Macronutriments */}
+          {(dish.protein !== undefined || dish.carbs !== undefined || dish.fats !== undefined) && (
             <div>
-              <h4 className="text-lg font-semibold text-gray-900 mb-4">
-                Why we recommend this dish
-              </h4>
-              <div className="space-y-3">
-                {recommendationReasons.map((reason, index) => (
-                  <div key={index} className="flex items-start space-x-3">
-                    <div className="flex-shrink-0 w-2 h-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full mt-2"></div>
-                    <p className="text-gray-700 leading-relaxed">{reason}</p>
+              <h4 className="text-lg font-semibold text-gray-900 mb-3">Macronutrients</h4>
+              <div className="grid grid-cols-3 gap-4">
+                {/* Protéines */}
+                {dish.protein !== undefined && (
+                  <div className="bg-red-50 rounded-xl p-4 text-center">
+                    <div className="text-2xl font-bold text-red-600">{dish.protein}g</div>
+                    <div className="text-sm text-red-500 font-medium">Protein</div>
+                  </div>
+                )}
+                
+                {/* Glucides */}
+                {dish.carbs !== undefined && (
+                  <div className="bg-yellow-50 rounded-xl p-4 text-center">
+                    <div className="text-2xl font-bold text-yellow-600">{dish.carbs}g</div>
+                    <div className="text-sm text-yellow-500 font-medium">Carbohydrates</div>
+                  </div>
+                )}
+                
+                {/* Lipides */}
+                {dish.fats !== undefined && (
+                  <div className="bg-green-50 rounded-xl p-4 text-center">
+                    <div className="text-2xl font-bold text-green-600">{dish.fats}g</div>
+                    <div className="text-sm text-green-500 font-medium">Fats</div>
+                  </div>
+                )}
+              </div>
+              
+              {/* Total des macronutriments */}
+              <div className="mt-3 text-center">
+                <span className="text-sm text-gray-500">
+                  Total: {(dish.protein || 0) + (dish.carbs || 0) + (dish.fats || 0)}g
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Justification courte */}
+          {dish.shortJustification && (
+            <div>
+              <h4 className="text-lg font-semibold text-gray-900 mb-2">Why This Dish?</h4>
+              <p className="text-gray-600 leading-relaxed bg-blue-50 p-4 rounded-lg border border-blue-200">
+                {dish.shortJustification}
+              </p>
+            </div>
+          )}
+
+          {/* Justification longue */}
+          {dish.longJustification && Array.isArray(dish.longJustification) && dish.longJustification.length > 0 && (
+            <div>
+              <h4 className="text-lg font-semibold text-gray-900 mb-2">Detailed Benefits</h4>
+              <ul className="space-y-2">
+                {dish.longJustification.map((point, index) => (
+                  <li key={index} className="flex items-start space-x-2">
+                    <span className="text-green-500 mt-1">•</span>
+                    <span className="text-gray-600">{point}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Informations de conformité diététique */}
+          {dish.dietaryClassifications && (
+            <div>
+              <h4 className="text-lg font-semibold text-gray-900 mb-3">Dietary Information</h4>
+              <div className="grid grid-cols-2 gap-3">
+                {Object.entries(dish.dietaryClassifications).map(([key, value]) => (
+                  <div key={key} className="flex items-center space-x-2">
+                    <span className={`w-3 h-3 rounded-full ${value ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                    <span className="text-sm text-gray-600 capitalize">
+                      {key.replace(/([A-Z])/g, ' $1').trim()}
+                    </span>
                   </div>
                 ))}
               </div>
             </div>
+          )}
 
-            {/* Tags */}
-            {dish.tags && dish.tags.length > 0 && (
-              <div>
-                <h4 className="text-lg font-semibold text-gray-900 mb-3">Tags</h4>
-                <div className="flex flex-wrap gap-2">
-                  {dish.tags.map((tag, index) => (
-                    <span
-                      key={index}
-                      className="px-3 py-1 bg-blue-50 text-blue-700 text-sm rounded-full font-medium border border-blue-200"
-                    >
-                      {tag}
-                    </span>
-                  ))}
+          {/* Avertissement de conformité */}
+          {dish.complianceWarning && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+              <div className="flex items-start space-x-2">
+                <svg className="text-amber-600 mt-0.5 flex-shrink-0 w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+                <div>
+                  <p className="text-sm font-medium text-amber-800">
+                    Dietary Compliance Notice
+                  </p>
+                  <p className="text-xs text-amber-700 mt-1">
+                    {dish.complianceWarning}
+                  </p>
                 </div>
               </div>
-            )}
+            </div>
+          )}
+        </div>
 
-            {/* Justification courte */}
-            {dish.shortJustification && (
-              <div>
-                <h4 className="text-lg font-semibold text-gray-900 mb-2">Quick Analysis</h4>
-                <p className="text-gray-600 leading-relaxed">
-                  {dish.shortJustification}
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* Boutons d'action */}
-          <div className="bg-gray-50 px-6 py-4 flex justify-end space-x-3">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              Close
-            </button>
-          </div>
+        {/* Bouton de fermeture */}
+        <div className="px-6 py-4 border-t border-gray-200">
+          <button
+            onClick={onClose}
+            className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
+          >
+            Close
+          </button>
         </div>
       </div>
     </div>

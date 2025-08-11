@@ -1,5 +1,5 @@
 // Service pour communiquer avec le backend Express
-const BACKEND_URL = 'http://localhost:3001';
+import { BACKEND_URL } from '../config/backend.js';
 
 /**
  * Safe JSON parser with error handling and cleaning

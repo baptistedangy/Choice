@@ -11,8 +11,34 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Configuration CORS dynamique pour permettre LocalTunnel
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Permettre les origines de développement
+    const allowedOrigins = [
+      'http://localhost:5173',
+      'http://127.0.0.1:5173',
+      'http://localhost:3000',
+      'http://127.0.0.1:3000'
+    ];
+    
+    // Permettre toutes les origines LocalTunnel (https://*.loca.lt)
+    const isLocalTunnel = origin && origin.endsWith('.loca.lt');
+    
+    // Permettre les origines locales et LocalTunnel
+    if (!origin || allowedOrigins.includes(origin) || isLocalTunnel) {
+      callback(null, true);
+    } else {
+      console.log(`🚫 CORS bloqué pour l'origine: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  methods: ['GET', 'POST'],
+  credentials: false
+};
+
 // Middleware
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
@@ -1012,24 +1038,32 @@ Output ONLY the JSON response, nothing else.`
       // Construire la liste finale selon les règles de priorité
       let finalDishes = [];
       
+      // Filtrer les plats non conformes pour exclure ceux avec un score AI de 0
+      const validNonMatchingDishes = sortedNonMatchingDishes.filter(dish => (dish.aiScore || 0) > 0);
+      
       if (matchingDishes.length >= 3) {
         // Si on a 3+ plats conformes, prendre les 3 meilleurs
         finalDishes = sortedMatchingDishes.slice(0, 3);
         console.log('\n✅ Using top 3 matching dishes');
       } else if (matchingDishes.length > 0) {
-        // Si on a 1-2 plats conformes, les compléter avec les meilleurs non conformes
+        // Si on a 1-2 plats conformes, les compléter avec les meilleurs non conformes (score > 0)
         const matchingCount = matchingDishes.length;
-        const neededNonMatching = 3 - matchingCount;
+        const neededNonMatching = Math.min(3 - matchingCount, validNonMatchingDishes.length);
         
         finalDishes = [
           ...sortedMatchingDishes,
-          ...sortedNonMatchingDishes.slice(0, neededNonMatching)
+          ...validNonMatchingDishes.slice(0, neededNonMatching)
         ];
-        console.log(`\n⚠️ Using ${matchingCount} matching + ${neededNonMatching} non-matching dishes`);
+        console.log(`\n⚠️ Using ${matchingCount} matching + ${neededNonMatching} non-matching dishes (score > 0)`);
+      } else if (validNonMatchingDishes.length > 0) {
+        // Si aucun plat conforme mais des plats non conformes avec score > 0
+        const maxDishes = Math.min(3, validNonMatchingDishes.length);
+        finalDishes = validNonMatchingDishes.slice(0, maxDishes);
+        console.log(`\n⚠️ No matching dishes - using ${maxDishes} non-matching dishes with score > 0`);
       } else {
-        // Si aucun plat conforme, prendre les 3 meilleurs non conformes
-        finalDishes = sortedNonMatchingDishes.slice(0, 3);
-        console.log('\n❌ No matching dishes - using top 3 non-matching dishes');
+        // Aucun plat valide à afficher
+        finalDishes = [];
+        console.log('\n❌ No valid dishes to display (all have score 0 or are excluded)');
       }
       
       // Agréger pour debug (conformes d'abord, puis non conformes)
