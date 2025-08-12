@@ -93,6 +93,8 @@ const Recommendations = () => {
   const [selectedDish, setSelectedDish] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [tooltipVisible, setTooltipVisible] = useState(null);
+  const [analysisContext, setAnalysisContext] = useState(null);
+  const [fallbackMode, setFallbackMode] = useState(false);
   const tooltipRefs = useRef({});
 
   // Log quand les recommandations changent
@@ -100,6 +102,19 @@ const Recommendations = () => {
     console.log('🔄 Recommendations state changed:', recommendations.length, 'dishes');
     console.log('📊 Current recommendations:', recommendations);
   }, [recommendations]);
+
+  // Extraire le contexte d'analyse depuis la navigation
+  useEffect(() => {
+    if (location.state?.context) {
+      setAnalysisContext(location.state.context);
+      console.log('📋 Analysis context loaded:', location.state.context);
+    }
+    
+    if (location.state?.debug?.fallback) {
+      setFallbackMode(true);
+      console.log('⚠️ Fallback mode detected');
+    }
+  }, [location.state]);
 
   // Clean up localStorage on component mount to avoid stale data
   useEffect(() => {
@@ -575,6 +590,51 @@ const Recommendations = () => {
                   >
                     Complete now
                   </button>
+                </div>
+              </div>
+            )}
+
+            {/* Analysis Context Banner */}
+            {analysisContext && (
+              <div className="bg-indigo-50 border-b border-indigo-200 px-6 py-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className="flex-shrink-0">
+                      <span className="text-indigo-600 text-lg">🎯</span>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-indigo-900">
+                        Analysis context: <span className="font-semibold">{analysisContext.hunger}</span> • <span className="font-semibold">{analysisContext.timing}</span>
+                      </p>
+                      {fallbackMode && (
+                        <p className="text-xs text-indigo-700 mt-1">
+                          ⚠️ No perfect matches. Showing closest safe options.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-xs text-indigo-600 bg-indigo-100 px-2 py-1 rounded">
+                    Context-aware scoring
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Fallback Banner */}
+            {location.state?.fallback && (
+              <div className="bg-amber-50 border-b border-amber-200 px-6 py-4">
+                <div className="flex items-center space-x-3">
+                  <div className="flex-shrink-0">
+                    <span className="text-amber-600 text-lg">⚠️</span>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-amber-900">
+                      No perfect matches based on your settings. Here are the closest safe options.
+                    </p>
+                    <p className="text-xs text-amber-700 mt-1">
+                      Scores have been adjusted to ensure all recommendations are ≥ 1.0/10
+                    </p>
+                  </div>
                 </div>
               </div>
             )}

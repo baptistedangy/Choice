@@ -283,7 +283,7 @@ const NutritionCard = ({ dish, rank, onViewDetails }) => {
         {hasAIScore && (
           <div className="bg-gray-50 rounded-xl p-3">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-gray-700">AI Match Score</span>
+              <span className="text-sm font-medium text-gray-700">Personalized Match Score</span>
               <span className="text-xs text-gray-500">{getAIScoreText(aiScore)}</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
@@ -302,6 +302,45 @@ const NutritionCard = ({ dish, rank, onViewDetails }) => {
               <span>Fair</span>
               <span>Good</span>
               <span>Excellent</span>
+            </div>
+          </div>
+        )}
+
+        {/* Reasons badges */}
+        {dish.reasons && dish.reasons.length > 0 && (
+          <div className="bg-blue-50 rounded-xl p-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-blue-700">Why this matches</span>
+              <Tooltip
+                content={
+                  <div className="space-y-2">
+                    <div className="font-semibold text-blue-900">Score breakdown:</div>
+                    {dish.subscores && (
+                      <div className="space-y-1 text-sm">
+                        <div>Macro fit: {Math.round((dish.subscores.macroFit || 0) * 100)}%</div>
+                        <div>Portion fit: {Math.round((dish.subscores.portionFit || 0) * 100)}%</div>
+                        <div>Protein match: {Math.round((dish.subscores.proteinSourceMatch || 0) * 100)}%</div>
+                        <div>Taste match: {Math.round((dish.subscores.tasteMatch || 0) * 100)}%</div>
+                        <div>Goal alignment: {Math.round((dish.subscores.goalAlignment || 0) * 100)}%</div>
+                      </div>
+                    )}
+                  </div>
+                }
+                position="top"
+                maxWidth="max-w-xs"
+              >
+                <InfoIcon className="w-4 h-4 text-blue-500 hover:text-blue-600 transition-colors" />
+              </Tooltip>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {dish.reasons.map((reason, index) => (
+                <span
+                  key={index}
+                  className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full font-medium border border-blue-200"
+                >
+                  {reason}
+                </span>
+              ))}
             </div>
           </div>
         )}

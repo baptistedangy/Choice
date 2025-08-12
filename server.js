@@ -2143,6 +2143,140 @@ Output ONLY the JSON response, nothing else.`;
   }
 });
 
+// Endpoint pour les recommandations contextuelles
+app.post('/recommend', async (req, res) => {
+  try {
+    console.log('🍽️ /recommend endpoint called');
+    
+    const { menuText, dishes, profile, context } = req.body;
+    
+    // Valider les paramètres requis
+    if (!menuText && !dishes) {
+      return res.status(400).json({
+        success: false,
+        error: 'Either menuText or dishes is required'
+      });
+    }
+    
+    // Valeurs par défaut pour le contexte
+    const analysisContext = { 
+      hunger: 'moderate', 
+      timing: 'regular', 
+      ...context 
+    };
+    
+    // Profil utilisateur par défaut si non fourni
+    const userProfile = profile || {};
+    
+    console.log('📋 Analysis context:', analysisContext);
+    console.log('👤 User profile:', userProfile);
+    
+    // Si des plats sont déjà fournis, les utiliser directement
+    let dishesToAnalyze = dishes;
+    
+    if (!dishesToAnalyze) {
+      // Sinon, analyser le texte du menu pour extraire les plats
+      console.log('🔍 No dishes provided, analyzing menu text...');
+      
+      try {
+        if (openai) {
+          // Utiliser OpenAI pour extraire les plats du texte
+          const openaiResponse = await openai.chat.completions.create({
+            model: "gpt-3.5-turbo",
+            messages: [
+              {
+                role: "system",
+                content: `You are a menu analysis expert. Extract dish information from menu text and return a JSON array of dishes. Each dish should have: name, description, price (if available), estimated calories, and estimated macros (protein, carbs, fat).`
+              },
+              {
+                role: "user",
+                content: `Extract dishes from this menu text: ${menuText}`
+              }
+            ],
+            temperature: 0.3,
+            max_tokens: 1000
+          });
+          
+          const extractedDishes = JSON.parse(openaiResponse.choices[0].message.content);
+          dishesToAnalyze = Array.isArray(extractedDishes) ? extractedDishes : [];
+          console.log('✅ Dishes extracted via OpenAI:', dishesToAnalyze.length);
+        } else {
+          // Fallback: créer des plats basiques à partir du texte
+          const lines = menuText.split('\n').filter(line => line.trim().length > 0);
+          dishesToAnalyze = lines.slice(0, 10).map((line, index) => ({
+            name: `Dish ${index + 1}`,
+            description: line.trim(),
+            price: null,
+            calories: null,
+            macros: null
+          }));
+          console.log('⚠️ OpenAI not available, using fallback dish extraction');
+        }
+      } catch (error) {
+        console.error('❌ Error extracting dishes from menu text:', error);
+        return res.status(500).json({
+          success: false,
+          error: 'Failed to extract dishes from menu text'
+        });
+      }
+    }
+    
+    if (!dishesToAnalyze || dishesToAnalyze.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'No dishes found to analyze'
+      });
+    }
+    
+    console.log(`🍽️ Analyzing ${dishesToAnalyze.length} dishes with context`);
+    
+    // Importer le service de recommandation
+    const { filterAndScoreDishes } = await import('./src/services/recommender.js');
+    
+    // Filtrer et scorer les plats
+    const result = filterAndScoreDishes(dishesToAnalyze, userProfile, analysisContext);
+    
+    // Préparer la réponse
+    const response = {
+      success: true,
+      recommendations: result.filteredDishes.map(dish => ({
+        title: dish.name,
+        name: dish.name,
+        price: dish.price,
+        calories: dish.calories,
+        macros: dish.macros,
+        aiScore: dish.score, // Utiliser aiScore comme demandé
+        reasons: dish.reasons || [],
+        subscores: dish.subscores || {}
+      })),
+      fallback: result.fallback || false, // Flag fallback au niveau batch
+      debug: {
+        contextUsed: analysisContext,
+        targetsUsed: {
+          protein: `${analysisContext.timing === 'pre_workout' ? '15-25%' : analysisContext.timing === 'post_workout' ? '30-40%' : '25-35%'}`,
+          carbs: `${analysisContext.timing === 'pre_workout' ? '50-65%' : analysisContext.timing === 'post_workout' ? '30-45%' : '35-45%'}`,
+          fat: `${analysisContext.timing === 'pre_workout' ? '15-25%' : analysisContext.timing === 'post_workout' ? '20-30%' : '25-35%'}`
+        },
+        filteredOutCount: result.debug?.filteredOutCount || 0,
+        fallback: result.fallback || false,
+        preFilterResults: result.debug?.preFilterResults || { safe: 0, rejected: 0 }
+      }
+    };
+    
+    console.log('✅ Recommendations generated successfully');
+    console.log('📊 Response debug info:', response.debug);
+    
+    res.json(response);
+    
+  } catch (error) {
+    console.error('❌ Error in /recommend endpoint:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Internal server error'
+    });
+  }
+});
+
 // Démarrer le serveur
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);

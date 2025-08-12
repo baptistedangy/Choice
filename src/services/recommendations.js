@@ -2,15 +2,40 @@
 // Génère des recommandations de plats basées sur le menu scanné et le profil utilisateur
 
 /**
+ * Charge le profil utilisateur étendu depuis localStorage
+ * @returns {object} Profil utilisateur étendu ou profil par défaut
+ */
+export const loadExtendedUserProfile = () => {
+  try {
+    const savedProfile = localStorage.getItem('extendedProfile');
+    if (savedProfile) {
+      const parsedProfile = JSON.parse(savedProfile);
+      console.log('✅ Extended profile loaded from localStorage:', parsedProfile);
+      return parsedProfile;
+    }
+  } catch (error) {
+    console.error('❌ Error loading extended profile:', error);
+  }
+  
+  // Retourner le profil par défaut si aucun profil étendu n'est trouvé
+  console.log('⚠️ No extended profile found, using default profile');
+  return getDefaultUserProfile();
+};
+
+/**
  * Génère des recommandations de plats basées sur le texte du menu et le profil utilisateur
  * @param {string} menuText - Le texte extrait du menu par OCR
  * @param {object} userProfile - Le profil utilisateur avec préférences
  * @returns {Array} Array d'objets plats recommandés
  */
 export const getRecommendationsFromMenu = (menuText, userProfile = {}) => {
-  // Simulation d'un délai de traitement
-  console.log('Analyse du menu:', menuText);
-  console.log('Profil utilisateur:', userProfile);
+  // Charger le profil étendu si aucun profil n'est fourni
+  const extendedProfile = userProfile && Object.keys(userProfile).length > 0 
+    ? userProfile 
+    : loadExtendedUserProfile();
+
+  console.log('📋 Menu analysis:', menuText?.substring(0, 100) + '...');
+  console.log('👤 Extended user profile:', extendedProfile);
 
   // Aucun plat hardcodé - seuls les plats extraits du menu scanné sont utilisés
   console.log('✅ No hardcoded dishes - only scanned menu dishes will be used');
@@ -20,6 +45,99 @@ export const getRecommendationsFromMenu = (menuText, userProfile = {}) => {
     topRecommendations: [],
     allRecommendations: []
   };
+};
+
+/**
+ * Filtre les plats basé sur les préférences utilisateur (allergies, lois alimentaires, etc.)
+ * @param {Array} dishes - Liste des plats à filtrer
+ * @param {object} userProfile - Profil utilisateur étendu
+ * @returns {Array} Plats filtrés et triés par pertinence
+ */
+export const filterDishesByUserPreferences = (dishes, userProfile) => {
+  if (!dishes || !Array.isArray(dishes)) {
+    console.log('⚠️ No dishes to filter');
+    return [];
+  }
+
+  console.log('🔍 Filtering dishes based on user preferences:', userProfile);
+
+  const filteredDishes = dishes.filter(dish => {
+    // 1. Vérifier les allergies (exclusion stricte)
+    if (userProfile.allergies && userProfile.allergies.length > 0) {
+      const hasAllergen = userProfile.allergies.some(allergy => {
+        const dishText = `${dish.name} ${dish.description} ${dish.ingredients || ''}`.toLowerCase();
+        return dishText.includes(allergy.toLowerCase());
+      });
+      
+      if (hasAllergen) {
+        console.log(`🚫 Dish "${dish.name}" excluded due to allergy`);
+        return false;
+      }
+    }
+
+    // 2. Vérifier les lois alimentaires
+    if (userProfile.dietaryLaws && userProfile.dietaryLaws !== 'none') {
+      // Logique simplifiée - à étendre selon les besoins
+      if (userProfile.dietaryLaws === 'halal' && dish.containsPork) {
+        console.log(`🚫 Dish "${dish.name}" excluded - not halal compliant`);
+        return false;
+      }
+      if (userProfile.dietaryLaws === 'kosher' && dish.containsPork) {
+        console.log(`🚫 Dish "${dish.name}" excluded - not kosher compliant`);
+        return false;
+      }
+    }
+
+    return true;
+  });
+
+  // 3. Trier par pertinence basée sur les préférences
+  const scoredDishes = filteredDishes.map(dish => {
+    let score = 0;
+    const dishText = `${dish.name} ${dish.description} ${dish.ingredients || ''}`.toLowerCase();
+
+    // Bonus pour les sources de protéines préférées
+    if (userProfile.preferredProteinSources && userProfile.preferredProteinSources.length > 0) {
+      userProfile.preferredProteinSources.forEach(protein => {
+        if (dishText.includes(protein.toLowerCase())) {
+          score += 10;
+          console.log(`✅ Dish "${dish.name}" gets +10 for preferred protein: ${protein}`);
+        }
+      });
+    }
+
+    // Bonus pour les préférences gustatives
+    if (userProfile.tasteAndPrepPreferences && userProfile.tasteAndPrepPreferences.length > 0) {
+      userProfile.tasteAndPrepPreferences.forEach(pref => {
+        if (pref === 'prefer_grilled' && dishText.includes('grilled')) {
+          score += 5;
+        } else if (pref === 'prefer_spicy' && dishText.includes('spicy')) {
+          score += 5;
+        } else if (pref === 'love_pasta' && dishText.includes('pasta')) {
+          score += 5;
+        }
+      });
+    }
+
+    // Bonus pour les préférences alimentaires de base
+    if (userProfile.dietaryPreferences && userProfile.dietaryPreferences.length > 0) {
+      userProfile.dietaryPreferences.forEach(pref => {
+        if (pref === 'vegetarian' && dishText.includes('vegetarian')) {
+          score += 8;
+        } else if (pref === 'vegan' && dishText.includes('vegan')) {
+          score += 8;
+        }
+      });
+    }
+
+    return { ...dish, relevanceScore: score };
+  });
+
+  // Trier par score de pertinence (décroissant)
+  const sortedDishes = scoredDishes.sort((a, b) => b.relevanceScore - a.relevanceScore);
+
+  console.log(`✅ Filtered and scored ${sortedDishes.length} dishes`);
+  return sortedDishes;
 };
 
 /**
@@ -84,11 +202,16 @@ export const getAdditionalRecommendations = (allRecommendations) => {
 export const getDefaultUserProfile = () => {
   return {
     name: "Utilisateur",
-    dietaryPreferences: [], // ['vegetarian', 'gluten-free', 'vegan'] - CORRIGÉ pour correspondre au backend
+    dietaryPreferences: [], // ['vegetarian', 'gluten-free', 'vegan']
     budget: "medium", // 'low', 'medium', 'high'
     cuisinePreferences: [], // ['italien', 'français', 'asiatique', 'méditerranéen']
     allergies: [], // ['noix', 'lactose', 'gluten']
-    spiceTolerance: "medium" // 'low', 'medium', 'high'
+    spiceTolerance: "medium", // 'low', 'medium', 'high'
+    // Nouveaux champs de la section Advanced
+    dietaryLaws: 'none', // 'none', 'halal', 'kosher'
+    preferredProteinSources: [], // ['chicken', 'beef', 'fish', 'seafood', 'tofu_tempeh', 'eggs', 'legumes']
+    tasteAndPrepPreferences: [], // ['avoid_spicy', 'prefer_spicy', 'avoid_fried', 'prefer_grilled', 'love_pasta']
+    healthFlags: [] // ['diabetes', 'hypertension', 'high_cholesterol', 'ibs_sensitive']
   };
 };
 
