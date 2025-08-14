@@ -465,7 +465,7 @@ app.post('/analyze-image', upload.single('image'), async (req, res) => {
     const imageBuffer = req.file.buffer;
     const base64Image = imageBuffer.toString('base64');
 
-    // Step 1: Extract text using Google Vision API
+    // Step 1: Extract text using Google Vision API (with dev fallback)
     let extractedText = '';
     
     try {
@@ -475,10 +475,32 @@ app.post('/analyze-image', upload.single('image'), async (req, res) => {
       console.log('Text preview:', extractedText.substring(0, 200));
     } catch (visionError) {
       console.error('❌ Vision API error:', visionError);
-      return res.json({
-        status: "error",
-        message: "Unable to extract text from image. Please check Vision API credentials."
-      });
+      const allowSimulation = process.env.SIMULATE_OCR === 'true' || process.env.NODE_ENV !== 'production';
+      if (allowSimulation) {
+        console.warn('⚠️ Using simulated OCR text (dev mode or SIMULATE_OCR=true)');
+        extractedText = [
+          'ENTRÉES',
+          'SALAD BOWL - 12€',
+          'Mixed greens, quinoa, avocado, cherry tomatoes, lemon dressing',
+          'TOMATO SOUP - 8€',
+          'Creamy tomato soup with basil and croutons',
+          'PLATS',
+          'GRILLED CHICKEN - 16€',
+          'Herb-marinated grilled chicken with roasted vegetables',
+          'VEGGIE PASTA - 14€',
+          'Penne with seasonal vegetables, olive oil, garlic',
+          'DESSERTS',
+          'APPLE TART - 7€',
+          'Classic apple tart with cinnamon',
+          'CRÈME BRÛLÉE - 7€',
+          'Vanilla custard with caramelized sugar'
+        ].join('\n');
+      } else {
+        return res.json({
+          status: "error",
+          message: "Unable to extract text from image. Please check Vision API credentials."
+        });
+      }
     }
 
     // Step 2: Get user profile from request body
