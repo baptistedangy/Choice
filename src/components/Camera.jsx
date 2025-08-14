@@ -4,7 +4,77 @@ import Webcam from 'react-webcam';
 import { getRecommendationsFromMenu, loadExtendedUserProfile, getAdditionalRecommendations } from '../services/recommendations';
 import { analyzeMenuImage, checkBackendHealth } from '../services/backendService';
 import { trackMenuScan, trackError } from '../utils/analytics';
+import { BACKEND_URL } from '../config/backend';
 import AnalyzeMenuModal from './AnalyzeMenuModal';
+
+// Fonction pour extraire les plats du texte du menu
+const extractDishesFromText = (text) => {
+  console.log('🔍 extractDishesFromText called with text length:', text?.length);
+  console.log('🔍 Text preview:', text?.substring(0, 200) + '...');
+  
+  if (!text) {
+    console.log('❌ No text provided to extractDishesFromText');
+    return [];
+  }
+  
+  const lines = text.split('\n').filter(line => line.trim().length > 0);
+  console.log('📝 Processing', lines.length, 'lines');
+  
+  const dishes = [];
+  let currentSection = '';
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    
+    // Détecter les sections (en majuscules, souvent suivies de ":")
+    if (line.match(/^[A-Z\s]+:$/) || line.match(/^[A-Z\s]+$/)) {
+      currentSection = line.replace(':', '').trim();
+      console.log('🏷️ Found section:', currentSection);
+      continue;
+    }
+    
+    // Détecter les prix (format: 12.50€, 15€, etc.)
+    const priceMatch = line.match(/(\d+[.,]?\d*)\s*([€$£¥])?/);
+    if (priceMatch) {
+      const price = parseFloat(priceMatch[1].replace(',', '.'));
+      const currency = priceMatch[2] || '€';
+      
+      // Le titre est généralement avant le prix
+      const title = line.substring(0, priceMatch.index).trim();
+      
+      if (title.length > 2) {
+        // Estimation des macros basée sur les mots-clés
+        const txt = line.toLowerCase();
+        let protein = 25, carbs = 40, fat = 35; // baseline
+        
+        if (/(viande|beef|poulet|chicken|poisson|fish|tofu|legumes?|oeufs?)/.test(txt)) protein += 10;
+        if (/(pasta|riz|bread|pain|pomme|potato|quinoa|tortilla)/.test(txt)) carbs += 15;
+        if (/(frit|cream|beurre|butter|huile|oil|fromage|cheese|mayo)/.test(txt)) fat += 10;
+        
+        // Normaliser à 100%
+        const total = protein + carbs + fat;
+        protein = Math.round(protein / total * 100);
+        carbs = Math.round(carbs / total * 100);
+        fat = 100 - protein - carbs;
+        
+        const dish = {
+          title: title,
+          description: line,
+          price: price,
+          currency: currency,
+          section: currentSection || 'Main',
+          macros: { protein, carbs, fat }
+        };
+        
+        dishes.push(dish);
+        console.log('🍽️ Extracted dish:', dish.title, 'price:', dish.price, 'section:', dish.section);
+      }
+    }
+  }
+  
+  console.log('✅ extractDishesFromText returning', dishes.length, 'dishes');
+  return dishes;
+};
 
 const Camera = () => {
   console.log("🎬 Camera component rendering");
@@ -23,6 +93,12 @@ const Camera = () => {
   const [isGeneratingRecommendations, setIsGeneratingRecommendations] = useState(false);
   const [showAnalyzeModal, setShowAnalyzeModal] = useState(false);
   const [analysisContext, setAnalysisContext] = useState(null);
+  
+  // local state for the context modal
+  const [hunger, setHunger] = useState('moderate');
+  const [timing, setTiming] = useState('regular');
+  const [diagnostics, setDiagnostics] = useState(null);
+  
   const webcamRef = useRef(null);
 
   // Debug effect to monitor capturedImages changes
@@ -156,13 +232,6 @@ const Camera = () => {
       // Obtenir le profil utilisateur étendu
       const userProfile = loadExtendedUserProfile();
       
-      // Préparer les données pour l'API /recommend
-      const requestPayload = {
-        menuText: null, // Sera rempli après l'OCR
-        profile: userProfile,
-        context: context
-      };
-      
       // Analyse complète de la première image
       const firstImage = capturedImages[0];
       console.log('Analyzing first image...');
@@ -186,23 +255,41 @@ const Camera = () => {
       setMenuText(analysisResult.extractedText);
       setProcessingStep('analyzing');
       
-      // Maintenant appeler l'API /recommend avec le contexte
+      // Extraire les plats du texte du menu
+      console.log('🔍 Extracting dishes from menu text...');
+      console.log('📝 Raw OCR text:', analysisResult.extractedText);
+      const dishesFromText = await extractDishesFromText(analysisResult.extractedText);
+      console.log('✅ Extracted dishes:', dishesFromText);
+      
+      if (!dishesFromText || dishesFromText.length === 0) {
+        throw new Error('No dishes could be extracted from the menu text');
+      }
+      
+      // Maintenant appeler l'API /recommend avec les plats extraits
       const finalPayload = {
-        ...requestPayload,
-        menuText: analysisResult.extractedText
+        dishes: dishesFromText,
+        profile: userProfile,
+        context: context
       };
       
-      console.log('Calling /recommend API with payload:', finalPayload);
+      console.log('🚀 Calling /recommend API with payload:', finalPayload);
+      console.log('🌐 Backend URL:', BACKEND_URL);
+      console.log('📊 Payload size:', JSON.stringify(finalPayload).length, 'bytes');
       
       // Appeler l'API /recommend pour obtenir les recommandations contextuelles
-      const recommendationsResponse = await fetch('/recommend', {
+      const recommendationsResponse = await fetch(`${BACKEND_URL}/recommend`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(finalPayload)
       });
       
+      console.log('📡 Response status:', recommendationsResponse.status);
+      console.log('📡 Response headers:', Object.fromEntries(recommendationsResponse.headers.entries()));
+      
       if (!recommendationsResponse.ok) {
-        throw new Error(`Failed to get recommendations: ${recommendationsResponse.statusText}`);
+        const errorText = await recommendationsResponse.text();
+        console.error('❌ Error response body:', errorText);
+        throw new Error(`Failed to get recommendations: ${recommendationsResponse.statusText} (${recommendationsResponse.status})`);
       }
       
       const recommendationsData = await recommendationsResponse.json();
@@ -212,18 +299,18 @@ const Camera = () => {
         throw new Error(`Recommendations API error: ${recommendationsData.error}`);
       }
       
-      console.log('Recommendations generated:', recommendationsData.recommendations);
+      console.log('🎯 Recommendations generated:', recommendationsData.top3);
       
       // Redirection vers la page Recommendations avec les données de l'API /recommend
       trackMenuScan(true);
       navigate('/recommendations', { 
         state: { 
-          recommendations: recommendationsData.recommendations,
+          recommendations: recommendationsData.top3,
           menuText: analysisResult.extractedText,
           source: 'scan',
           context: context, // Passer le contexte d'analyse
-          fallback: recommendationsData.fallback, // Passer le flag fallback
-          debug: recommendationsData.debug
+          fallback: recommendationsData.diagnostics?.relaxedMode, // Passer le flag fallback
+          diagnostics: recommendationsData.diagnostics
         } 
       });
       
@@ -249,6 +336,35 @@ const Camera = () => {
       setIsGeneratingRecommendations(false);
     }, 2000);
   };
+
+  async function analyzeWithRecommender(dishesFromOCR, userProfile) {
+    const payload = {
+      dishes: dishesFromOCR.map(d => ({
+        id: d.id || undefined,
+        title: d.title || d.name,
+        description: d.description || '',
+        price: (typeof d.price === 'number' && isFinite(d.price)) ? d.price : null,
+        currency: d.currency || undefined,
+        section: d.section || undefined,
+        macros: d.macros || undefined   // may be % or grams; UI handles both
+      })),
+      profile: userProfile,             // keep this name: profile
+      context: { hunger, timing }       // session-only
+    };
+
+    const res = await fetch('/recommend', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+
+    // Expect shape: { success, top3: [{ dish, personalizedMatchScore, macros, reasons, subscores }], diagnostics }
+    console.log('🔎 /recommend response', data);
+
+    setRecommendations(Array.isArray(data.top3) ? data.top3 : []);
+    setDiagnostics(data.diagnostics || null);
+  }
 
   const handleCameraError = () => {
     console.error('❌ Camera error occurred');

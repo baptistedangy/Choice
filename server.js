@@ -14,10 +14,29 @@ const PORT = process.env.PORT || 3001;
 // Configuration CORS dynamique pour permettre LocalTunnel
 const corsOptions = {
   origin: function (origin, callback) {
+    // En développement, permettre toutes les origines locales
+    if (process.env.NODE_ENV === 'development' || !process.env.NODE_ENV) {
+      console.log(`🌐 CORS: Permettre l'origine en développement: ${origin}`);
+      callback(null, true);
+      return;
+    }
+    
     // Permettre les origines de développement
     const allowedOrigins = [
       'http://localhost:5173',
+      'http://localhost:5174',
+      'http://localhost:5175',
+      'http://localhost:5176',
+      'http://localhost:5177',
+      'http://localhost:5178',
+      'http://localhost:5179',
       'http://127.0.0.1:5173',
+      'http://127.0.0.1:5174',
+      'http://127.0.0.1:5175',
+      'http://127.0.0.1:5176',
+      'http://127.0.0.1:5177',
+      'http://127.0.0.1:5178',
+      'http://127.0.0.1:5179',
       'http://localhost:3000',
       'http://127.0.0.1:3000'
     ];
@@ -33,8 +52,9 @@ const corsOptions = {
       callback(new Error('Not allowed by CORS'));
     }
   },
-  methods: ['GET', 'POST'],
-  credentials: false
+  methods: ['GET', 'POST', 'OPTIONS'],
+  credentials: false,
+  optionsSuccessStatus: 200
 };
 
 // Middleware
@@ -2143,137 +2163,119 @@ Output ONLY the JSON response, nothing else.`;
   }
 });
 
-// Endpoint pour les recommandations contextuelles
+/**
+ * Extraction robuste des plats depuis un texte OCR bruité
+ * - Pas de NaN €
+ * - price/currency détectés proprement
+ * - macros en pourcentages estimés (P/C/F) -> total 100
+ * - champs normalisés: { title, description, price, currency, section? }
+ */
+function extractDishesFromText(menuText) {
+  console.log('🔍 Extracting dishes from text (robust)');
+  if (!menuText || typeof menuText !== 'string') return [];
+
+  // Normalisation de base
+  const norm = menuText
+    .replace(/\r/g, '')
+    .replace(/[·••]+/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+
+  const lines = norm.split('\n').map(l => l.trim()).filter(Boolean);
+
+  const priceRe = /(\d{1,3}(?:[.,]\d{2})?)\s*(€|eur|\$|usd|£)?/i;
+  const sectionRe = /^[A-ZÀ-Ü][A-ZÀ-Ü\s\-&/]{3,}$/; // lignes en MAJ = section
+  const dishes = [];
+  let currentSection = '';
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    // Section ?
+    if (sectionRe.test(line)) {
+      currentSection = line.replace(/\s+/g,' ').trim();
+      continue;
+    }
+
+    // Prix sur la ligne ?
+    const m = line.match(priceRe);
+    if (m) {
+      const rawPrice = m[1].replace(',', '.');
+      const currency = m[2] ? m[2].toUpperCase() : undefined;
+      const price = Number.isFinite(parseFloat(rawPrice)) ? parseFloat(rawPrice) : null;
+
+      // Titre = avant le prix; description = lignes suivantes jusqu'à prochaine section/prix
+      const title = line.slice(0, m.index).replace(/[.\-•]+$/,'').trim() || `Dish ${dishes.length+1}`;
+      let desc = '';
+      let j = i + 1;
+      while (j < lines.length && !priceRe.test(lines[j]) && !sectionRe.test(lines[j])) {
+        desc += (desc ? ' ' : '') + lines[j];
+        j++;
+      }
+      i = j - 1;
+
+      // Estimation macros % (total = 100) – utile pour le score local
+      const txt = `${title} ${desc}`.toLowerCase();
+      let P = 33, C = 34, F = 33; // baseline
+      if (/(chicken|beef|fish|tofu|legumes?|eggs?)/.test(txt)) P += 7;
+      if (/(pasta|rice|bread|potato|quinoa|tortilla)/.test(txt)) C += 10;
+      if (/(fried|cream|butter|oil|cheese|mayo)/.test(txt)) F += 8;
+      const S = P + C + F; P = Math.round(P/S*100); C = Math.round(C/S*100); F = 100 - P - C;
+
+      dishes.push({
+        title,
+        description: desc || line,
+        price: price ?? null,
+        currency: currency === 'EUR' ? '€' : (currency === 'USD' ? '$' : (currency === '£' ? '£' : currency)),
+        section: currentSection || undefined,
+        // macros en pourcentages; le recommender sait les lire
+        macros: { protein: P, carbs: C, fat: F }
+      });
+    }
+  }
+
+  console.log(`✅ Extracted ${dishes.length} dishes`);
+  return dishes;
+}
+
+// Endpoint pour les recommandations contextuelles (version simplifiée)
 app.post('/recommend', async (req, res) => {
   try {
-    console.log('🍽️ /recommend endpoint called');
-    
-    const { menuText, dishes, profile, context } = req.body;
-    
-    // Valider les paramètres requis
-    if (!menuText && !dishes) {
-      return res.status(400).json({
-        success: false,
-        error: 'Either menuText or dishes is required'
-      });
+    const { dishes = [], profile = {}, context = { hunger: 'moderate', timing: 'regular' } } = req.body || {};
+    if (!Array.isArray(dishes) || dishes.length === 0) {
+      return res.status(400).json({ success: false, error: 'dishes[] is required' });
     }
-    
-    // Valeurs par défaut pour le contexte
-    const analysisContext = { 
-      hunger: 'moderate', 
-      timing: 'regular', 
-      ...context 
-    };
-    
-    // Profil utilisateur par défaut si non fourni
-    const userProfile = profile || {};
-    
-    console.log('📋 Analysis context:', analysisContext);
-    console.log('👤 User profile:', userProfile);
-    
-    // Si des plats sont déjà fournis, les utiliser directement
-    let dishesToAnalyze = dishes;
-    
-    if (!dishesToAnalyze) {
-      // Sinon, analyser le texte du menu pour extraire les plats
-      console.log('🔍 No dishes provided, analyzing menu text...');
-      
-      try {
-        if (openai) {
-          // Utiliser OpenAI pour extraire les plats du texte
-          const openaiResponse = await openai.chat.completions.create({
-            model: "gpt-3.5-turbo",
-            messages: [
-              {
-                role: "system",
-                content: `You are a menu analysis expert. Extract dish information from menu text and return a JSON array of dishes. Each dish should have: name, description, price (if available), estimated calories, and estimated macros (protein, carbs, fat).`
-              },
-              {
-                role: "user",
-                content: `Extract dishes from this menu text: ${menuText}`
-              }
-            ],
-            temperature: 0.3,
-            max_tokens: 1000
-          });
-          
-          const extractedDishes = JSON.parse(openaiResponse.choices[0].message.content);
-          dishesToAnalyze = Array.isArray(extractedDishes) ? extractedDishes : [];
-          console.log('✅ Dishes extracted via OpenAI:', dishesToAnalyze.length);
-        } else {
-          // Fallback: créer des plats basiques à partir du texte
-          const lines = menuText.split('\n').filter(line => line.trim().length > 0);
-          dishesToAnalyze = lines.slice(0, 10).map((line, index) => ({
-            name: `Dish ${index + 1}`,
-            description: line.trim(),
-            price: null,
-            calories: null,
-            macros: null
-          }));
-          console.log('⚠️ OpenAI not available, using fallback dish extraction');
-        }
-      } catch (error) {
-        console.error('❌ Error extracting dishes from menu text:', error);
-        return res.status(500).json({
-          success: false,
-          error: 'Failed to extract dishes from menu text'
-        });
-      }
-    }
-    
-    if (!dishesToAnalyze || dishesToAnalyze.length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'No dishes found to analyze'
-      });
-    }
-    
-    console.log(`🍽️ Analyzing ${dishesToAnalyze.length} dishes with context`);
-    
+
     // Importer le service de recommandation
     const { filterAndScoreDishes } = await import('./src/services/recommender.js');
     
-    // Filtrer et scorer les plats
-    const result = filterAndScoreDishes(dishesToAnalyze, userProfile, analysisContext);
-    
-    // Préparer la réponse
-    const response = {
+    // Score déterministe (hard filters + soft + fallback)
+    const { filteredDishes, fallback } = filterAndScoreDishes(dishes, profile, context);
+
+    // Top 3 garanti si possible; jamais 0/10 (floor=1) sauf plat réellement dangereux (allergies/lois) filtré en amont
+    return res.json({
       success: true,
-      recommendations: result.filteredDishes.map(dish => ({
-        title: dish.name,
-        name: dish.name,
-        price: dish.price,
-        calories: dish.calories,
-        macros: dish.macros,
-        aiScore: dish.score, // Utiliser aiScore comme demandé
-        reasons: dish.reasons || [],
-        subscores: dish.subscores || {}
-      })),
-      fallback: result.fallback || false, // Flag fallback au niveau batch
-      debug: {
-        contextUsed: analysisContext,
-        targetsUsed: {
-          protein: `${analysisContext.timing === 'pre_workout' ? '15-25%' : analysisContext.timing === 'post_workout' ? '30-40%' : '25-35%'}`,
-          carbs: `${analysisContext.timing === 'pre_workout' ? '50-65%' : analysisContext.timing === 'post_workout' ? '30-45%' : '35-45%'}`,
-          fat: `${analysisContext.timing === 'pre_workout' ? '15-25%' : analysisContext.timing === 'post_workout' ? '20-30%' : '25-35%'}`
+      analyzedCount: dishes.length,
+      totalCount: dishes.length,
+      diagnostics: { relaxedMode: !!fallback },
+      top3: filteredDishes.map(d => ({
+        dish: {
+          id: d.id || (d.title || d.name),
+          title: d.title || d.name,
+          description: d.description || '',
+          price: (typeof d.price === 'number' && isFinite(d.price)) ? d.price : null,
+          currency: d.currency || undefined,
+          section: d.section || undefined
         },
-        filteredOutCount: result.debug?.filteredOutCount || 0,
-        fallback: result.fallback || false,
-        preFilterResults: result.debug?.preFilterResults || { safe: 0, rejected: 0 }
-      }
-    };
-    
-    console.log('✅ Recommendations generated successfully');
-    console.log('📊 Response debug info:', response.debug);
-    
-    res.json(response);
-    
-  } catch (error) {
-    console.error('❌ Error in /recommend endpoint:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Internal server error'
+        personalizedMatchScore: d.score,   // <- la note à afficher
+        macros: d.macros || null,          // peut être % (P/C/F) ou grams si dispo
+        reasons: d.reasons || [],
+        subscores: d.subscores || {}
+      }))
     });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ success: false, error: 'recommend failed' });
   }
 });
 

@@ -3,6 +3,11 @@ import Tooltip from './Tooltip';
 
 const DishDetailsModal = ({ dish, isOpen, onClose }) => {
   if (!isOpen || !dish) return null;
+  
+  // helpers
+  const num = v => (typeof v === 'number' && isFinite(v) ? v : null);
+  const valOrTilde = v => (num(v) !== null && v > 0 ? v : '∼');
+  const formatPrice = (p, cur) => (num(p) !== null ? `${p.toFixed(2)}${cur ? ' ' + cur : ''}` : '∼');
 
   // Fonction pour obtenir la couleur du score AI (cohérente avec NutritionCard)
   const getScoreColor = (score) => {
@@ -76,10 +81,11 @@ const DishDetailsModal = ({ dish, isOpen, onClose }) => {
 
     // Tags basés sur le profil nutritionnel du plat (seulement si pas assez de tags personnalisés)
     if (tags.length < 3) {
-      const protein = dish.protein || 0;
-      const carbs = dish.carbs || 0;
-      const fats = dish.fats || 0;
-      const calories = dish.calories || 0;
+      const macros = dish.macros || {};
+      const protein = macros.protein_g ?? macros.protein ?? 0;
+      const carbs = macros.carbs_g ?? macros.carbs ?? 0;
+      const fats = macros.fat_g ?? macros.fats ?? macros.fat ?? 0;
+      const calories = macros.kcal ?? dish.calories ?? 0;
 
       if (protein > 20) tags.push('High Protein');
       if (carbs > 50) tags.push('High Carb');
@@ -95,13 +101,7 @@ const DishDetailsModal = ({ dish, isOpen, onClose }) => {
   // Générer les tags pour l'affichage
   const metaTags = generateMetaTags();
 
-  // Fonction pour formater le prix avec la devise
-  const formatPrice = (price) => {
-    if (!price) return null;
-    if (typeof price === 'string' && price.includes('€')) return price;
-    if (typeof price === 'number') return `${price.toFixed(2)}€`;
-    return `${price}€`;
-  };
+
 
   // Fonction pour traduire la description en anglais si nécessaire
   const getEnglishDescription = (description) => {
@@ -147,16 +147,16 @@ const DishDetailsModal = ({ dish, isOpen, onClose }) => {
             <h3 className="text-2xl font-bold text-gray-900">
               {dish.name || dish.title}
             </h3>
-            {dish.aiScore !== undefined && (
+            {(dish.personalizedMatchScore !== undefined || dish.aiScore !== undefined) && (
               <Tooltip 
                 content="Calculé en fonction de la correspondance avec vos préférences alimentaires, objectifs nutritionnels et niveau d'activité."
                 position="left"
                 maxWidth="max-w-sm"
               >
-                <div className={`bg-gradient-to-r ${getScoreColor(dish.aiScore)} text-white rounded-full px-4 py-2 shadow-lg cursor-help`}>
+                <div className={`bg-gradient-to-r ${getScoreColor(dish.personalizedMatchScore ?? dish.aiScore ?? 1)} text-white rounded-full px-4 py-2 shadow-lg cursor-help`}>
                   <div className="text-center">
-                    <div className="text-xl font-bold">{dish.aiScore || 0}/10</div>
-                    <div className="text-xs opacity-90">{getScoreText(dish.aiScore || 0)}</div>
+                    <div className="text-xl font-bold">{dish.personalizedMatchScore ?? dish.aiScore ?? 1}/10</div>
+                    <div className="text-xs opacity-90">{getScoreText(dish.personalizedMatchScore ?? dish.aiScore ?? 1)}</div>
                   </div>
                 </div>
               </Tooltip>
@@ -166,7 +166,7 @@ const DishDetailsModal = ({ dish, isOpen, onClose }) => {
           {/* Prix avec devise */}
           {dish.price && (
             <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-4 py-2 rounded-lg inline-block">
-              <span className="font-bold text-lg">{formatPrice(dish.price)}</span>
+              <span className="font-bold text-lg">{formatPrice(dish.price, dish.currency)}</span>
             </div>
           )}
 
@@ -203,46 +203,40 @@ const DishDetailsModal = ({ dish, isOpen, onClose }) => {
               <h4 className="text-lg font-semibold text-gray-900 mb-2">Calories</h4>
               <div className="bg-gray-50 rounded-xl p-4">
                 <div className="text-2xl font-bold text-gray-900 text-center">
-                  {dish.calories || 0} kcal
+                  {valOrTilde(dish.macros?.kcal ?? dish.calories ?? 0)} kcal
                 </div>
               </div>
             </div>
           )}
 
           {/* Macronutriments */}
-          {(dish.protein !== undefined || dish.carbs !== undefined || dish.fats !== undefined) && (
+          {dish.macros && (
             <div>
               <h4 className="text-lg font-semibold text-gray-900 mb-3">Macronutrients</h4>
               <div className="grid grid-cols-3 gap-4">
                 {/* Protéines */}
-                {dish.protein !== undefined && (
-                  <div className="bg-red-50 rounded-xl p-4 text-center">
-                    <div className="text-2xl font-bold text-red-600">{dish.protein}g</div>
-                    <div className="text-sm text-red-500 font-medium">Protein</div>
-                  </div>
-                )}
+                <div className="bg-red-50 rounded-xl p-4 text-center">
+                  <div className="text-2xl font-bold text-red-600">{valOrTilde(dish.macros.protein_g ?? dish.macros.protein ?? 0)}g</div>
+                  <div className="text-sm text-red-500 font-medium">Protein</div>
+                </div>
                 
                 {/* Glucides */}
-                {dish.carbs !== undefined && (
-                  <div className="bg-yellow-50 rounded-xl p-4 text-center">
-                    <div className="text-2xl font-bold text-yellow-600">{dish.carbs}g</div>
-                    <div className="text-sm text-yellow-500 font-medium">Carbohydrates</div>
-                  </div>
-                )}
+                <div className="bg-yellow-50 rounded-xl p-4 text-center">
+                  <div className="text-2xl font-bold text-yellow-600">{valOrTilde(dish.macros.carbs_g ?? dish.macros.carbs ?? 0)}g</div>
+                  <div className="text-sm text-yellow-500 font-medium">Carbohydrates</div>
+                </div>
                 
                 {/* Lipides */}
-                {dish.fats !== undefined && (
-                  <div className="bg-green-50 rounded-xl p-4 text-center">
-                    <div className="text-2xl font-bold text-green-600">{dish.fats}g</div>
-                    <div className="text-sm text-green-500 font-medium">Fats</div>
-                  </div>
-                )}
+                <div className="bg-green-50 rounded-xl p-4 text-center">
+                  <div className="text-2xl font-bold text-green-600">{valOrTilde(dish.macros.fat_g ?? dish.macros.fats ?? dish.macros.fat ?? 0)}g</div>
+                  <div className="text-sm text-green-500 font-medium">Fats</div>
+                </div>
               </div>
               
               {/* Total des macronutriments */}
               <div className="mt-3 text-center">
                 <span className="text-sm text-gray-500">
-                  Total: {(dish.protein || 0) + (dish.carbs || 0) + (dish.fats || 0)}g
+                  Total: {valOrTilde((dish.macros.protein_g ?? dish.macros.protein ?? 0) + (dish.macros.carbs_g ?? dish.macros.carbs ?? 0) + (dish.macros.fat_g ?? dish.macros.fats ?? dish.macros.fat ?? 0))}g
                 </span>
               </div>
             </div>

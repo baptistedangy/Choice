@@ -8,12 +8,8 @@ const ExtendedProfile = () => {
     activityLevel: '',
     goal: '',
     dietaryPreferences: [],
-    // Advanced section
-    allergies: [],
-    dietaryLaws: 'none',
-    preferredProteinSources: [],
-    tasteAndPrepPreferences: [],
-    healthFlags: []
+    // Essential section only
+    allergies: []
   });
 
   const [isSaved, setIsSaved] = useState(false);
@@ -44,45 +40,12 @@ const ExtendedProfile = () => {
     { value: 'pescatarian', label: 'Pescatarian' }
   ];
 
-  // Advanced section options
+  // Essential options only
   const allergyOptions = [
+    { value: 'egg', label: 'Eggs' },
     { value: 'gluten', label: 'Gluten' },
     { value: 'dairy', label: 'Dairy' },
-    { value: 'nuts', label: 'Nuts' },
-    { value: 'soy', label: 'Soy' },
-    { value: 'egg', label: 'Egg' },
-    { value: 'shellfish', label: 'Shellfish' }
-  ];
-
-  const dietaryLawOptions = [
-    { value: 'none', label: 'None' },
-    { value: 'halal', label: 'Halal' },
-    { value: 'kosher', label: 'Kosher' }
-  ];
-
-  const proteinSourceOptions = [
-    { value: 'chicken', label: 'Chicken' },
-    { value: 'beef', label: 'Beef' },
-    { value: 'fish', label: 'Fish' },
-    { value: 'seafood', label: 'Seafood' },
-    { value: 'tofu_tempeh', label: 'Tofu/Tempeh' },
-    { value: 'eggs', label: 'Eggs' },
-    { value: 'legumes', label: 'Legumes' }
-  ];
-
-  const tasteAndPrepOptions = [
-    { value: 'avoid_spicy', label: 'Avoid Spicy' },
-    { value: 'prefer_spicy', label: 'Prefer Spicy' },
-    { value: 'avoid_fried', label: 'Avoid Fried' },
-    { value: 'prefer_grilled', label: 'Prefer Grilled' },
-    { value: 'love_pasta', label: 'Love Pasta' }
-  ];
-
-  const healthFlagOptions = [
-    { value: 'diabetes', label: 'Diabetes', info: 'May affect carbohydrate recommendations' },
-    { value: 'hypertension', label: 'Hypertension', info: 'May affect sodium and potassium intake' },
-    { value: 'high_cholesterol', label: 'High Cholesterol', info: 'May affect saturated fat recommendations' },
-    { value: 'ibs_sensitive', label: 'IBS Sensitive', info: 'May affect fiber and FODMAP recommendations' }
+    { value: 'nuts', label: 'Nuts' }
   ];
 
   // Debounced save function
@@ -160,41 +123,7 @@ const ExtendedProfile = () => {
     debouncedSave(newData);
   };
 
-  // Gestion des sources de protéines (multiselect)
-  const handleProteinSourceChange = (protein) => {
-    const newData = {
-      ...formData,
-      preferredProteinSources: formData.preferredProteinSources.includes(protein)
-        ? formData.preferredProteinSources.filter(p => p !== protein)
-        : [...formData.preferredProteinSources, protein]
-    };
-    setFormData(newData);
-    debouncedSave(newData);
-  };
 
-  // Gestion des préférences gustatives (multiselect)
-  const handleTastePreferenceChange = (preference) => {
-    const newData = {
-      ...formData,
-      tasteAndPrepPreferences: formData.tasteAndPrepPreferences.includes(preference)
-        ? formData.tasteAndPrepPreferences.filter(p => p !== preference)
-        : [...formData.tasteAndPrepPreferences, preference]
-    };
-    setFormData(newData);
-    debouncedSave(newData);
-  };
-
-  // Gestion des indicateurs de santé (multiselect)
-  const handleHealthFlagChange = (flag) => {
-    const newData = {
-      ...formData,
-      healthFlags: formData.healthFlags.includes(flag)
-        ? formData.healthFlags.filter(f => f !== flag)
-        : [...formData.healthFlags, flag]
-    };
-    setFormData(newData);
-    debouncedSave(newData);
-  };
 
   // Sauvegarde du profil
   const handleSave = () => {
@@ -347,20 +276,20 @@ const ExtendedProfile = () => {
                   </div>
                 </div>
 
-                {/* Advanced Section */}
+                {/* Essential Settings Only */}
                 <div>
                   <h2 className="text-xl font-semibold text-gray-900 mb-6 pb-2 border-b border-gray-200">
-                    Advanced Settings
+                    Essential Settings
                   </h2>
                   <p className="text-sm text-gray-600 mb-6 italic">
-                    These settings personalize your recommendations. Optional.
+                    Only critical dietary restrictions that affect your health and safety.
                   </p>
                   
                   <div className="space-y-6">
                     {/* Allergies */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-3">
-                        Allergies
+                        Food Allergies (Critical)
                       </label>
                       <div className="grid grid-cols-2 gap-3">
                         {allergyOptions.map(option => (
@@ -375,103 +304,9 @@ const ExtendedProfile = () => {
                           </label>
                         ))}
                       </div>
-                    </div>
-
-                    {/* Dietary Laws */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-3">
-                        Dietary Laws
-                      </label>
-                      <div className="space-y-2">
-                        {dietaryLawOptions.map(option => (
-                          <label key={option.value} className="flex items-center space-x-3 cursor-pointer">
-                            <input
-                              type="radio"
-                              name="dietaryLaws"
-                              value={option.value}
-                              checked={formData.dietaryLaws === option.value}
-                              onChange={(e) => handleInputChange('dietaryLaws', e.target.value)}
-                              className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
-                            />
-                            <span className="text-sm text-gray-700">{option.label}</span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Preferred Protein Sources */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-3">
-                        Preferred Protein Sources
-                      </label>
-                      <div className="flex flex-wrap gap-2">
-                        {proteinSourceOptions.map(option => (
-                          <label key={option.value} className="inline-flex items-center">
-                            <input
-                              type="checkbox"
-                              checked={formData.preferredProteinSources.includes(option.value)}
-                              onChange={() => handleProteinSourceChange(option.value)}
-                              className="sr-only"
-                            />
-                            <span className={`px-3 py-2 rounded-full text-sm font-medium cursor-pointer transition-all ${
-                              formData.preferredProteinSources.includes(option.value)
-                                ? 'bg-blue-100 text-blue-800 border-2 border-blue-300'
-                                : 'bg-gray-100 text-gray-700 border-2 border-gray-200 hover:bg-gray-200'
-                            }`}>
-                              {option.label}
-                            </span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Taste & Prep Preferences */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-3">
-                        Taste & Preparation Preferences
-                      </label>
-                      <div className="flex flex-wrap gap-2">
-                        {tasteAndPrepOptions.map(option => (
-                          <label key={option.value} className="inline-flex items-center">
-                            <input
-                              type="checkbox"
-                              checked={formData.tasteAndPrepPreferences.includes(option.value)}
-                              onChange={() => handleTastePreferenceChange(option.value)}
-                              className="sr-only"
-                            />
-                            <span className={`px-3 py-2 rounded-full text-sm font-medium cursor-pointer transition-all ${
-                              formData.tasteAndPrepPreferences.includes(option.value)
-                                ? 'bg-green-100 text-green-800 border-2 border-green-300'
-                                : 'bg-gray-100 text-gray-700 border-2 border-gray-200 hover:bg-gray-200'
-                            }`}>
-                              {option.label}
-                            </span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Health Flags */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-3">
-                        Health Considerations
-                      </label>
-                      <div className="space-y-3">
-                        {healthFlagOptions.map(option => (
-                          <label key={option.value} className="flex items-start space-x-3 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={formData.healthFlags.includes(option.value)}
-                              onChange={() => handleHealthFlagChange(option.value)}
-                              className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500 mt-0.5"
-                            />
-                            <div className="flex-1">
-                              <span className="text-sm font-medium text-gray-700">{option.label}</span>
-                              <p className="text-xs text-gray-500 mt-1">{option.info}</p>
-                            </div>
-                          </label>
-                        ))}
-                      </div>
+                      <p className="text-xs text-gray-500 mt-2">
+                        Only select allergies that are medically confirmed and life-threatening.
+                      </p>
                     </div>
                   </div>
                 </div>

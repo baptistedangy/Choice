@@ -1,6 +1,32 @@
 // Service de recommandation avancé avec scoring contextuel
 // Prend en compte la faim, le timing et le profil utilisateur
 
+// ---- Scoring constants
+export const SCORE_WEIGHTS = {
+  macroFit: 0.35,
+  portionFit: 0.10,
+  proteinSourceMatch: 0.20,
+  tasteMatch: 0.15,
+  goalAlignment: 0.10,
+  healthGuardrails: 0.10
+};
+export const FALLBACK_TRIGGER_MAX_RAW = 60; // si max<60, on relaxe
+export const SCORE_FLOOR = 1;
+export const SCORE_CEIL = 10;
+
+const mapGoal = (g) => (g === 'lose weight' || g === 'lose') ? 'lose' : (g === 'gain' ? 'gain' : 'maintain');
+
+// Convertit {protein|protein_g, carbs|carbs_g, fat|fats|fat_g} en ratios %
+const asRatios = (macros) => {
+  if (!macros) return null;
+  const p = Number(macros.protein ?? macros.protein_g ?? 0);
+  const c = Number(macros.carbs ?? macros.carbs_g ?? 0);
+  const f = Number(macros.fat ?? macros.fats ?? macros.fat_g ?? 0);
+  const sum = p + c + f;
+  if (!sum) return null;
+  return { p: (p / sum) * 100, c: (c / sum) * 100, f: (f / sum) * 100 };
+};
+
 /**
  * Filtre préliminaire avec contraintes dures uniquement
  * @param {Array} items - Liste des plats à filtrer
@@ -8,216 +34,90 @@
  * @returns {object} { safe: Array, rejected: Array }
  */
 export const preFilter = (items, profile) => {
-  if (!items || !Array.isArray(items)) {
-    return { safe: [], rejected: [] };
-  }
+  if (!Array.isArray(items)) return { safe: [], rejected: [], hardFilteredAll:false };
+  const safe = [], rejected = [];
 
-  console.log('🔒 Pre-filtering items with hard constraints...');
-  
-  const safe = [];
-  const rejected = [];
-  const rejectionReasons = {};
+  // dictionaries
+  const ALLERGY_MAP = {
+    egg: ['egg','eggs','oeuf','oeufs','huevo','mayonnaise','mayo'],
+    nuts: ['nut','nuts','noisette','noisettes','almond','noix','walnut','cajou','pistache','hazelnut'],
+    gluten: ['bread','bun','pain','pasta','pizza','flour','farine'],
+    dairy: ['cheese','fromage','milk','lait','cream','crème','butter','beurre','yogurt','yaourt'],
+    soy: ['soy','soja','tofu','tempeh'],
+    shellfish: ['shrimp','prawn','crevette','crab','crabe','lobster','homard','mussel','clam','oyster']
+  };
+  const containsAny = (t, arr) => arr.some(w => t.includes(w));
 
   items.forEach(item => {
-    const itemText = `${item.name} ${item.description} ${item.ingredients || ''}`.toLowerCase();
-    let isRejected = false;
-    let reason = '';
+    const txt = `${item.name||''} ${item.description||''} ${item.ingredients||''}`.toLowerCase();
+    let reject = false, reason='';
 
-    // 1. Vérifier les allergies (contrainte absolue)
-    if (profile.allergies && profile.allergies.length > 0) {
-      const hasAllergen = profile.allergies.some(allergy => 
-        itemText.includes(allergy.toLowerCase())
-      );
-      if (hasAllergen) {
-        isRejected = true;
-        reason = `Contains allergen: ${profile.allergies.find(a => itemText.includes(a.toLowerCase()))}`;
-        if (!rejectionReasons.allergies) rejectionReasons.allergies = 0;
-        rejectionReasons.allergies++;
+    // 1) allergies (hard)
+    if (Array.isArray(profile.allergies) && profile.allergies.length) {
+      for (const a of profile.allergies) {
+        const keys = ALLERGY_MAP[a] || [a.toLowerCase()];
+        if (containsAny(txt, keys)) { reject=true; reason=`Contains allergen: ${a}`; break; }
       }
     }
 
-    // 2. Vérifier les lois alimentaires (contrainte absolue)
-    if (!isRejected && profile.dietaryLaws && profile.dietaryLaws !== 'none') {
-      if (profile.dietaryLaws === 'halal' && itemText.includes('pork')) {
-        isRejected = true;
-        reason = 'Not halal compliant (contains pork)';
-        if (!rejectionReasons.dietaryLaws) rejectionReasons.dietaryLaws = 0;
-        rejectionReasons.dietaryLaws++;
-      } else if (profile.dietaryLaws === 'kosher' && itemText.includes('pork')) {
-        isRejected = true;
-        reason = 'Not kosher compliant (contains pork)';
-        if (!rejectionReasons.dietaryLaws) rejectionReasons.dietaryLaws = 0;
-        rejectionReasons.dietaryLaws++;
+    // 2) dietary laws (hard)
+   if (!reject && profile.dietaryLaws && profile.dietaryLaws!=='none') {
+      const hasPork = containsAny(txt, ['pork','porc','cochon','bacon','lardon','jamon']);
+      if (hasPork && (profile.dietaryLaws==='halal' || profile.dietaryLaws==='kosher')) {
+        reject=true; reason = `Not ${profile.dietaryLaws} compliant (pork)`;
       }
     }
 
-    // 3. Vérifier le régime alimentaire de base (contrainte absolue)
-    if (!isRejected && profile.dietaryPreferences && profile.dietaryPreferences.length > 0) {
-      if (profile.dietaryPreferences.includes('vegetarian')) {
-        if (itemText.includes('beef') || itemText.includes('chicken') || 
-            itemText.includes('pork') || itemText.includes('lamb') || 
-            itemText.includes('meat') || itemText.includes('steak')) {
-          isRejected = true;
-          reason = 'Not vegetarian (contains meat)';
-          if (!rejectionReasons.baseDiet) rejectionReasons.baseDiet = 0;
-          rejectionReasons.baseDiet++;
-        }
-      } else if (profile.dietaryPreferences.includes('vegan')) {
-        if (itemText.includes('beef') || itemText.includes('chicken') || 
-            itemText.includes('pork') || itemText.includes('lamb') || 
-            itemText.includes('meat') || itemText.includes('steak') ||
-            itemText.includes('cheese') || itemText.includes('milk') || 
-            itemText.includes('eggs') || itemText.includes('butter') ||
-            itemText.includes('cream') || itemText.includes('yogurt')) {
-          isRejected = true;
-          reason = 'Not vegan (contains animal products)';
-          if (!rejectionReasons.baseDiet) rejectionReasons.baseDiet = 0;
-          rejectionReasons.baseDiet++;
-        }
-      } else if (profile.dietaryPreferences.includes('pescatarian')) {
-        if (itemText.includes('beef') || itemText.includes('chicken') || 
-            itemText.includes('pork') || itemText.includes('lamb') || 
-            itemText.includes('meat') || itemText.includes('steak')) {
-          isRejected = true;
-          reason = 'Not pescatarian (contains meat)';
-          if (!rejectionReasons.baseDiet) rejectionReasons.baseDiet = 0;
-          rejectionReasons.baseDiet++;
-        }
+    // 3) base diet (hard, but only when confidently detected)
+    if (!reject && Array.isArray(profile.dietaryPreferences) && profile.dietaryPreferences.length) {
+      const veg = profile.dietaryPreferences.includes('vegetarian');
+      const vegan = profile.dietaryPreferences.includes('vegan');
+      const meatWords = ['beef','boeuf','steak','chicken','poulet','pollo','pork','porc','lamb','agneau','ribs','costillas','jamon','ham','turkey','thon','tuna','salmon','saumon','fish','poisson'];
+      const dairyEggWords = ['cheese','fromage','milk','lait','cream','crème','butter','beurre','egg','oeuf','huevo','yogurt','yaourt','mayo','mayonnaise','honey','miel'];
+      if (vegan && (containsAny(txt, [...meatWords, ...dairyEggWords]))) { reject=true; reason='Not vegan'; }
+      else if (veg && containsAny(txt, meatWords)) { reject=true; reason='Not vegetarian'; }
+    }
+
+    // 4) do-not-eat list (hard)
+    if (!reject && Array.isArray(profile.doNotEat) && profile.doNotEat.length) {
+      if (containsAny(txt, profile.doNotEat.map(x=>String(x).toLowerCase()))) {
+        reject=true; reason='Contains forbidden ingredient';
       }
     }
 
-    // 4. Vérifier les tags "do-not-eat" (contrainte absolue)
-    if (!isRejected && profile.doNotEat && profile.doNotEat.length > 0) {
-      const hasDoNotEat = profile.doNotEat.some(item => 
-        itemText.includes(item.toLowerCase())
-      );
-      if (hasDoNotEat) {
-        isRejected = true;
-        reason = `Contains forbidden item: ${profile.doNotEat.find(i => itemText.includes(i.toLowerCase()))}`;
-        if (!rejectionReasons.doNotEat) rejectionReasons.doNotEat = 0;
-        rejectionReasons.doNotEat++;
-      }
-    }
-
-    if (isRejected) {
-      rejected.push({ ...item, rejectionReason: reason });
-    } else {
-      safe.push(item);
-    }
+    if (reject) rejected.push({ ...item, rejectionReason: reason });
+    else safe.push(item);
   });
 
-  console.log(`🔒 Pre-filter results: ${safe.length} safe, ${rejected.length} rejected`);
-  if (Object.keys(rejectionReasons).length > 0) {
-    console.log('🚫 Rejection reasons:', rejectionReasons);
-  }
-
-  return { safe, rejected };
+  const hardFilteredAll = safe.length===0 && items.length>0;
+  return { safe, rejected, hardFilteredAll };
 };
 
-/**
- * Obtient les cibles macro selon le timing
- * @param {string} timing - 'regular', 'pre_workout', 'post_workout'
- * @returns {object} Cibles macro en pourcentages
- */
 export const getMacroTargets = (timing) => {
   switch (timing) {
-    case 'pre_workout':
-      return { protein: [15, 25], carbs: [50, 65], fat: [15, 25] };
-    case 'post_workout':
-      return { protein: [30, 40], carbs: [30, 45], fat: [20, 30] };
-    case 'regular':
-    default:
-      return { protein: [25, 35], carbs: [35, 45], fat: [25, 35] };
+    case 'pre_workout':  return { protein: [15, 25], carbs: [50, 65], fat: [15, 25] };
+    case 'post_workout': return { protein: [30, 40], carbs: [30, 45], fat: [20, 30] };
+    default:             return { protein: [25, 35], carbs: [35, 45], fat: [25, 35] };
   }
 };
 
-/**
- * Calcule le fit macro d'un plat
- * @param {object} dish - Plat avec macros
- * @param {object} targets - Cibles macro
- * @returns {number} Score de 0 à 1
- */
+const estimateMacroRatiosFromKeywords = (dish) => {
+  const t = `${dish.name || dish.title || ''} ${dish.description || ''} ${dish.ingredients || ''}`.toLowerCase();
+  let P = 33, C = 34, F = 33; // baseline équilibrée
+  if (/(chicken|beef|fish|tofu|legumes?|eggs?)/.test(t)) P += 7;
+  if (/(pasta|rice|bread|potato|quinoa|tortilla|bun)/.test(t)) C += 10;
+  if (/(fried|cream|butter|oil|cheese|mayo|avocado)/.test(t)) F += 8;
+  const S = P + C + F; return { p: (P / S) * 100, c: (C / S) * 100, f: (F / S) * 100 };
+};
+
 export const calculateMacroFit = (dish, targets) => {
-  if (!dish.macros) {
-    // Estimation basée sur les mots-clés si pas de macros
-    return estimateMacroFitFromKeywords(dish, targets);
-  }
-
-  const { protein, carbs, fat } = dish.macros;
-  const total = protein + carbs + fat;
-  
-  if (total === 0) return 0.5; // Valeur par défaut
-
-  const pRatio = (protein / total) * 100;
-  const cRatio = (carbs / total) * 100;
-  const fRatio = (fat / total) * 100;
-
-  let fitScore = 0;
-  
-  // Vérifier chaque macro
-  if (pRatio >= targets.protein[0] && pRatio <= targets.protein[1]) fitScore += 0.33;
-  if (cRatio >= targets.carbs[0] && cRatio <= targets.carbs[1]) fitScore += 0.33;
-  if (fRatio >= targets.fat[0] && fRatio <= targets.fat[1]) fitScore += 0.34;
-
-  return Math.round(fitScore * 100) / 100;
-};
-
-/**
- * Estime le fit macro basé sur les mots-clés du plat
- * @param {object} dish - Plat
- * @param {object} targets - Cibles macro
- * @returns {number} Score estimé de 0 à 1
- */
-const estimateMacroFitFromKeywords = (dish, targets) => {
-  const text = `${dish.name} ${dish.description} ${dish.ingredients || ''}`.toLowerCase();
-  
-  // Estimation basée sur les types d'aliments
-  let estimatedProtein = 0;
-  let estimatedCarbs = 0;
-  let estimatedFat = 0;
-
-  // Protéines
-  if (text.includes('chicken') || text.includes('beef') || text.includes('fish') || 
-      text.includes('tofu') || text.includes('eggs') || text.includes('legumes')) {
-    estimatedProtein = 30;
-  } else if (text.includes('cheese') || text.includes('yogurt') || text.includes('milk')) {
-    estimatedProtein = 20;
-  } else {
-    estimatedProtein = 15;
-  }
-
-  // Glucides
-  if (text.includes('pasta') || text.includes('rice') || text.includes('bread') || 
-      text.includes('potato') || text.includes('quinoa')) {
-    estimatedCarbs = 50;
-  } else if (text.includes('vegetables') || text.includes('salad')) {
-    estimatedCarbs = 30;
-  } else {
-    estimatedCarbs = 40;
-  }
-
-  // Lipides
-  if (text.includes('fried') || text.includes('cream') || text.includes('butter') || 
-      text.includes('oil')) {
-    estimatedFat = 35;
-  } else if (text.includes('grilled') || text.includes('steamed')) {
-    estimatedFat = 20;
-  } else {
-    estimatedFat = 25;
-  }
-
-  // Normaliser à 100%
-  const total = estimatedProtein + estimatedCarbs + estimatedFat;
-  const pRatio = (estimatedProtein / total) * 100;
-  const cRatio = (estimatedCarbs / total) * 100;
-  const fRatio = (estimatedFat / total) * 100;
-
-  let fitScore = 0;
-  if (pRatio >= targets.protein[0] && pRatio <= targets.protein[1]) fitScore += 0.33;
-  if (cRatio >= targets.carbs[0] && cRatio <= targets.carbs[1]) fitScore += 0.34;
-  if (fRatio >= targets.fat[0] && fRatio <= targets.fat[1]) fitScore += 0.33;
-
-  return Math.round(fitScore * 100) / 100;
+  const ratios = asRatios(dish.macros) ?? estimateMacroRatiosFromKeywords(dish);
+  const inRange = (x, [lo, hi]) => x >= lo && x <= hi;
+  let fit = 0;
+  if (inRange(ratios.p, targets.protein)) fit += 0.33;
+  if (inRange(ratios.c, targets.carbs))   fit += 0.33;
+  if (inRange(ratios.f, targets.fat))     fit += 0.34;
+  return Math.round(fit * 100) / 100; // 0..1
 };
 
 /**

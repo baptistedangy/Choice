@@ -104,6 +104,11 @@ const NutritionCard = ({ dish, rank, onViewDetails }) => {
       </div>
     );
   }
+  
+  // helpers
+  const num = v => (typeof v === 'number' && isFinite(v) ? v : null);
+  const valOrTilde = v => (num(v) !== null && v > 0 ? v : '∼');
+  const formatPrice = (p, cur) => (num(p) !== null ? `${p.toFixed(2)}${cur ? ' ' + cur : ''}` : '∼');
 
   // Fonction pour obtenir la couleur du score AI
   const getAIScoreColor = (score) => {
@@ -151,13 +156,19 @@ const NutritionCard = ({ dish, rank, onViewDetails }) => {
 
   // Fonction pour calculer les pourcentages des macros
   const getMacroPercentages = () => {
-    const total = (dish.protein || 0) + (dish.carbs || 0) + (dish.fats || 0);
+    // Use new macro structure: item.macros can be % (P/C/F) or grams
+    const macros = dish.macros || {};
+    const P = macros.protein_g ?? macros.protein ?? 0;
+    const C = macros.carbs_g ?? macros.carbs ?? 0;
+    const F = macros.fat_g ?? macros.fats ?? macros.fat ?? 0;
+    
+    const total = P + C + F;
     if (total === 0) return { protein: 0, carbs: 0, fats: 0 };
     
     return {
-      protein: Math.round(((dish.protein || 0) / total) * 100),
-      carbs: Math.round(((dish.carbs || 0) / total) * 100),
-      fats: Math.round(((dish.fats || 0) / total) * 100)
+      protein: Math.round((P / total) * 100),
+      carbs: Math.round((C / total) * 100),
+      fats: Math.round((F / total) * 100)
     };
   };
 
@@ -237,9 +248,9 @@ const NutritionCard = ({ dish, rank, onViewDetails }) => {
   const metaTags = generateMetaTags();
   const hasError = dish.shortJustification && dish.shortJustification.includes('Service temporarily unavailable');
   
-  // Récupérer le score AI (priorité au score AI, sinon au score classique)
-  const aiScore = dish.aiScore !== undefined ? dish.aiScore : (dish.score || 0);
-  const hasAIScore = dish.aiScore !== undefined;
+  // Récupérer le score personnalisé (priorité au nouveau champ, sinon au score classique)
+  const score = dish.personalizedMatchScore ?? dish.aiScore ?? dish.score ?? 1;
+  const hasAIScore = dish.personalizedMatchScore !== undefined || dish.aiScore !== undefined;
 
   return (
     <div className="group relative bg-white rounded-2xl shadow-lg hover:shadow-xl border border-gray-100 overflow-hidden transition-all duration-300 transform hover:-translate-y-2">
@@ -252,7 +263,7 @@ const NutritionCard = ({ dish, rank, onViewDetails }) => {
           {/* Badge de score AI personnalisé avec gradient futuriste et tooltip */}
           <Tooltip 
             content={hasAIScore 
-              ? `Score AI: ${aiScore}/10 - ${getAIScoreText(aiScore)}. Calculé en fonction de la correspondance avec vos préférences alimentaires, objectifs nutritionnels et niveau d'activité.`
+              ? `Score AI: ${score}/10 - ${getAIScoreText(score)}. Calculé en fonction de la correspondance avec vos préférences alimentaires, objectifs nutritionnels et niveau d'activité.`
               : "Score calculé en fonction de la correspondance avec vos préférences alimentaires, objectifs nutritionnels et niveau d'activité."
             }
             position="top"
@@ -260,10 +271,10 @@ const NutritionCard = ({ dish, rank, onViewDetails }) => {
           >
             <div 
               className={`flex items-center justify-center px-4 py-2 text-white rounded-full shadow-lg font-bold cursor-help transition-all duration-300 ${
-                hasAIScore ? 'bg-gradient-to-r ' + getAIScoreColor(aiScore) : 'bg-gradient-to-r from-purple-600 to-pink-600'
+                hasAIScore ? 'bg-gradient-to-r ' + getAIScoreColor(score) : 'bg-gradient-to-r from-purple-600 to-pink-600'
               }`}
             >
-              <span className="text-lg font-bold">{aiScore}</span>
+              <span className="text-lg font-bold">{score}</span>
               <span className="text-sm ml-1">/10</span>
               {hasAIScore && (
                 <span className="text-sm ml-2">{getAIScoreIcon(aiScore)}</span>
@@ -274,8 +285,7 @@ const NutritionCard = ({ dish, rank, onViewDetails }) => {
           
           {/* Badge de prix */}
           <div className="flex items-center justify-center px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-500 text-white rounded-full shadow-lg">
-            <span className="text-lg font-bold">{Number(dish.price || 0).toFixed(2)}</span>
-            <span className="text-sm ml-1">€</span>
+            <span className="text-lg font-bold">{formatPrice(dish.price, dish.currency)}</span>
           </div>
         </div>
 
@@ -284,17 +294,17 @@ const NutritionCard = ({ dish, rank, onViewDetails }) => {
           <div className="bg-gray-50 rounded-xl p-3">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium text-gray-700">Personalized Match Score</span>
-              <span className="text-xs text-gray-500">{getAIScoreText(aiScore)}</span>
+              <span className="text-xs text-gray-500">{getAIScoreText(score)}</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
               <div 
                 className={`h-2 rounded-full transition-all duration-500 ease-out ${
-                  aiScore >= 8 ? 'bg-gradient-to-r from-emerald-500 to-green-600' :
-                  aiScore >= 6 ? 'bg-gradient-to-r from-yellow-500 to-orange-500' :
-                  aiScore >= 4 ? 'bg-gradient-to-r from-orange-500 to-red-500' :
+                  score >= 8 ? 'bg-gradient-to-r from-emerald-500 to-green-600' :
+                  score >= 6 ? 'bg-gradient-to-r from-yellow-500 to-orange-500' :
+                  score >= 4 ? 'bg-gradient-to-r from-orange-500 to-red-500' :
                   'bg-gradient-to-r from-red-500 to-pink-600'
                 }`}
-                style={{ width: `${(aiScore / 10) * 100}%` }}
+                style={{ width: `${(score / 10) * 100}%` }}
               />
             </div>
             <div className="flex justify-between text-xs text-gray-500 mt-1">
@@ -358,20 +368,20 @@ const NutritionCard = ({ dish, rank, onViewDetails }) => {
         </div>
 
         {/* Calories */}
-        {dish.calories !== undefined && (
+        {dish.macros?.kcal && (
           <div className="bg-gray-50 rounded-xl p-3">
             <div className="text-lg font-bold text-gray-900 text-center">
-              {dish.calories || 0} kcal
+              {valOrTilde(dish.macros.kcal)} kcal
             </div>
           </div>
         )}
 
         {/* Macronutriments avec vraies barres de progression */}
-        {dish.protein !== undefined && (
+        {dish.macros && (
           <div className="space-y-2">
             <div className="flex items-center justify-between text-sm font-medium text-gray-700 mb-3">
               <span>Macronutrients</span>
-              <span className="text-xs text-gray-500">Total: {(dish.protein || 0) + (dish.carbs || 0) + (dish.fats || 0)}g</span>
+              <span className="text-xs text-gray-500">Total: {valOrTilde((dish.macros.protein_g ?? dish.macros.protein ?? 0) + (dish.macros.carbs_g ?? dish.macros.carbs ?? 0) + (dish.macros.fat_g ?? dish.macros.fats ?? dish.macros.fat ?? 0))}g</span>
             </div>
             
             <div className="space-y-1">
@@ -441,7 +451,7 @@ const NutritionCard = ({ dish, rank, onViewDetails }) => {
         {/* Bouton d'action */}
         <button 
           onClick={() => {
-            trackRecommendationClick(dish.name || dish.title, rank, dish.aiScore);
+            trackRecommendationClick(dish.name || dish.title, rank, score);
             onViewDetails(dish);
           }}
           className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-6 py-3 rounded-xl font-semibold text-sm transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"

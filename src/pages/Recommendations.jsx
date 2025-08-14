@@ -98,6 +98,11 @@ const Recommendations = () => {
   const tooltipRefs = useRef({});
 
   // Log quand les recommandations changent
+  
+  // helpers
+  const num = v => (typeof v === 'number' && isFinite(v) ? v : null);
+  const valOrTilde = v => (num(v) !== null && v > 0 ? v : '∼');
+  const formatPrice = (p, cur) => (num(p) !== null ? `${p.toFixed(2)}${cur ? ' ' + cur : ''}` : '∼');
   useEffect(() => {
     console.log('🔄 Recommendations state changed:', recommendations.length, 'dishes');
     console.log('📊 Current recommendations:', recommendations);
@@ -450,19 +455,21 @@ const Recommendations = () => {
     processRecommendations();
   }, [location.state]);
 
-  // Sort recommendations by AI score (descending) and add ranking
-        console.log('🔄 Sorting recommendations by personalized match score...');
+  // Sort recommendations by personalized match score (descending) and add ranking
+  console.log('🔄 Sorting recommendations by personalized match score...');
   console.log('📋 Original recommendations count:', recommendations.length);
   
   const sortedRecommendations = [...recommendations].sort((a, b) => {
-    const scoreA = a.aiScore || 0;
-    const scoreB = b.aiScore || 0;
+    // Use new score field structure
+    const scoreA = a.personalizedMatchScore ?? a.score ?? 1;
+    const scoreB = b.personalizedMatchScore ?? b.score ?? 1;
     return scoreB - scoreA;
   });
   
   console.log('📊 Sorted recommendations:');
   sortedRecommendations.forEach((dish, index) => {
-            console.log(`  ${index + 1}. "${dish.name}" - Personalized Match Score: ${dish.aiScore || 'N/A'}`);
+    const score = dish.personalizedMatchScore ?? dish.score ?? 1;
+    console.log(`  ${index + 1}. "${dish.name || dish.title}" - Personalized Match Score: ${score}`);
   });
 
   console.log('🔍 Filtering recommendations by category:', selectedCategory);
@@ -487,7 +494,8 @@ const Recommendations = () => {
   console.log('📋 Filtered recommendations count:', filteredRecommendations.length);
   console.log('📊 Filtered recommendations:');
   filteredRecommendations.forEach((dish, index) => {
-            console.log(`  ${index + 1}. "${dish.name}" - Personalized Match Score: ${dish.aiScore || 'N/A'}, Category: ${dish.category || 'N/A'}`);
+    const score = dish.personalizedMatchScore ?? dish.score ?? 1;
+    console.log(`  ${index + 1}. "${dish.name || dish.title}" - Personalized Match Score: ${score}, Category: ${dish.category || 'N/A'}`);
   });
   
   // Log excluded dishes by category filter
@@ -695,6 +703,22 @@ const Recommendations = () => {
               {/* Recommendations Grid */}
               {filteredRecommendations.length > 0 && (
                 <>
+                  {/* Fallback Banner */}
+                  {diagnostics?.relaxedMode && (
+                    <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                      <div className="flex items-center space-x-3">
+                        <div className="flex-shrink-0">
+                          <span className="text-blue-600 text-lg">ℹ️</span>
+                        </div>
+                        <div>
+                          <p className="text-sm text-blue-800">
+                            <strong>No perfect matches based on your settings</strong> — showing closest safe options.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
                   {/* Info Banner for Limited Results */}
                   {filteredRecommendations.length < 3 && (
                     <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
@@ -704,7 +728,7 @@ const Recommendations = () => {
                         </div>
                         <div>
                           <p className="text-sm text-amber-800">
-                            <strong>Limited Results:</strong> Only {filteredRecommendations.length} dish{filteredRecommendations.length > 1 ? 'es' : ''} met our quality standards. 
+                                                        <strong>Limited Results:</strong> Only {filteredRecommendations.length} dish{filteredRecommendations.length > 1 ? 'es' : ''} met our quality standards. 
                             We only show dishes with meaningful AI scores to ensure helpful recommendations.
                           </p>
                         </div>
