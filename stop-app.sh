@@ -1,19 +1,13 @@
 #!/bin/bash
 
 # Script pour arrêter l'application Choice
-cd /Users/baptistedangy/Desktop/Projects/Choice
+cd /workspace
 
 echo "🛑 Arrêt de l'application Choice..."
 
 # Arrêter le backend
 if [ -f backend.pid ]; then
-    BACKEND_PID=$(cat backend.pid)
-    if ps -p $BACKEND_PID > /dev/null; then
-        echo "🔧 Arrêt du serveur backend (PID: $BACKEND_PID)..."
-        kill $BACKEND_PID
-    else
-        echo "⚠️ Processus backend déjà arrêté"
-    fi
+    kill $(cat backend.pid) 2>/dev/null || true
     rm -f backend.pid
 else
     echo "⚠️ Fichier backend.pid non trouvé"
@@ -21,13 +15,7 @@ fi
 
 # Arrêter le frontend
 if [ -f frontend.pid ]; then
-    FRONTEND_PID=$(cat frontend.pid)
-    if ps -p $FRONTEND_PID > /dev/null; then
-        echo "🌐 Arrêt du frontend (PID: $FRONTEND_PID)..."
-        kill $FRONTEND_PID
-    else
-        echo "⚠️ Processus frontend déjà arrêté"
-    fi
+    kill $(cat frontend.pid) 2>/dev/null || true
     rm -f frontend.pid
 else
     echo "⚠️ Fichier frontend.pid non trouvé"
@@ -37,5 +25,8 @@ fi
 echo "🧹 Nettoyage des processus restants..."
 pkill -f "node server.js" 2>/dev/null
 pkill -f "vite" 2>/dev/null
+
+# Stop tunnels if any
+pkill -f cloudflared 2>/dev/null || true
 
 echo "✅ Application Choice arrêtée !" 
