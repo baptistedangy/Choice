@@ -23,8 +23,26 @@ const extractDishesFromText = (text) => {
   const dishes = [];
   let currentSection = '';
   
+  // Mots-clés qui indiquent des accompagnements (à ignorer)
+  const accompanimentKeywords = [
+    'écrasé', 'mousseline', 'frites', 'carottes', 'navet', 'chou', 'pommes', 'sauce',
+    'jus', 'compote', 'chantilly', 'crème', 'ricotta', 'parmesan', 'cheddar'
+  ];
+  
+  // Mots-clés qui indiquent des plats principaux
+  const mainDishKeywords = [
+    'dos de saumon', 'burger', 'risotto', 'paleron', 'magret', 'ris de veau', 
+    'cocotte', 'quenelles', 'noix d\'entrecôte', 'butternut', 'fondant', 'crème brûlée',
+    'brie', 'baba', 'poêlée', 'tarte'
+  ];
+  
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
+    
+    // Ignorer les artefacts OCR comme "Crop"
+    if (line.toLowerCase() === 'crop' || line.length < 3) {
+      continue;
+    }
     
     // Détecter les sections (en majuscules, souvent suivies de ":")
     if (line.match(/^[A-Z\s]+:$/) || line.match(/^[A-Z\s]+$/)) {
@@ -33,42 +51,92 @@ const extractDishesFromText = (text) => {
       continue;
     }
     
+    // Ignorer les traductions en anglais (lignes en italique)
+    if (line.match(/^[a-z]/) && !line.match(/^[A-Z]/)) {
+      continue;
+    }
+    
     // Détecter les prix (format: 12.50€, 15€, etc.)
     const priceMatch = line.match(/(\d+[.,]?\d*)\s*([€$£¥])?/);
+    
+    // Détecter les plats avec ou sans prix
+    let title = '';
+    let price = null;
+    let currency = '€';
+    let isVegetarian = false;
+    
     if (priceMatch) {
-      const price = parseFloat(priceMatch[1].replace(',', '.'));
-      const currency = priceMatch[2] || '€';
-      
-      // Le titre est généralement avant le prix
-      const title = line.substring(0, priceMatch.index).trim();
-      
-      if (title.length > 2) {
-        // Estimation des macros basée sur les mots-clés
-        const txt = line.toLowerCase();
-        let protein = 25, carbs = 40, fat = 35; // baseline
-        
-        if (/(viande|beef|poulet|chicken|poisson|fish|tofu|legumes?|oeufs?)/.test(txt)) protein += 10;
-        if (/(pasta|riz|bread|pain|pomme|potato|quinoa|tortilla)/.test(txt)) carbs += 15;
-        if (/(frit|cream|beurre|butter|huile|oil|fromage|cheese|mayo)/.test(txt)) fat += 10;
-        
-        // Normaliser à 100%
-        const total = protein + carbs + fat;
-        protein = Math.round(protein / total * 100);
-        carbs = Math.round(carbs / total * 100);
-        fat = 100 - protein - carbs;
-        
-        const dish = {
-          title: title,
-          description: line,
-          price: price,
-          currency: currency,
-          section: currentSection || 'Main',
-          macros: { protein, carbs, fat }
-        };
-        
-        dishes.push(dish);
-        console.log('🍽️ Extracted dish:', dish.title, 'price:', dish.price, 'section:', dish.section);
+      // Si un prix est trouvé, extraire le titre avant le prix
+      price = parseFloat(priceMatch[1].replace(',', '.'));
+      currency = priceMatch[2] || '€';
+      title = line.substring(0, priceMatch.index).trim();
+    } else {
+      // Si pas de prix, essayer de séparer le titre de la description
+      // Le titre est généralement la première partie avant une virgule
+      const titleMatch = line.match(/^([^,]+?)(?:,|$)/);
+      if (titleMatch) {
+        title = titleMatch[1].trim();
+      } else {
+        title = line;
       }
+    }
+    
+    // Vérifier que nous avons un titre valide et que c'est un plat principal
+    if (title && title.length > 3) {
+      const lowerTitle = title.toLowerCase();
+      
+      // Vérifier si c'est un accompagnement (à ignorer)
+      const isAccompaniment = accompanimentKeywords.some(keyword => 
+        lowerTitle.includes(keyword.toLowerCase())
+      );
+      
+      // Vérifier si c'est un plat principal
+      const isMainDish = mainDishKeywords.some(keyword => 
+        lowerTitle.includes(keyword.toLowerCase())
+      );
+      
+      // Ignorer les accompagnements et accepter seulement les plats principaux
+      if (isAccompaniment && !isMainDish) {
+        console.log('🚫 Skipping accompaniment:', title);
+        continue;
+      }
+      
+      // Détecter si c'est végétarien (marqué V)
+      isVegetarian = /\bV\b/.test(line) || /vegetarian|veggie/i.test(line);
+      
+      // Estimation des macros basée sur les mots-clés
+      const txt = line.toLowerCase();
+      let protein = 25, carbs = 40, fat = 35; // baseline
+      
+      if (/(viande|beef|poulet|chicken|poisson|fish|tofu|legumes?|oeufs?|saumon|salmon)/.test(txt)) protein += 10;
+      if (/(pasta|riz|bread|pain|pomme|potato|quinoa|tortilla|pommes de terre|risotto|coquillettes)/.test(txt)) carbs += 15;
+      if (/(frit|cream|beurre|butter|huile|oil|fromage|cheese|mayo|cheddar|parmesan)/.test(txt)) fat += 10;
+      
+      // Normaliser à 100%
+      const total = protein + carbs + fat;
+      protein = Math.round(protein / total * 100);
+      carbs = Math.round(carbs / total * 100);
+      fat = 100 - protein - carbs;
+      
+      const dish = {
+        title: title,
+        description: line,
+        price: price,
+        currency: currency,
+        section: currentSection || 'Main',
+        macros: { protein, carbs, fat },
+        isVegetarian: isVegetarian,
+        // Ajouter des classifications diététiques pour le filtrage
+        dietaryClassifications: {
+          vegetarian: isVegetarian,
+          vegan: false, // À améliorer si nécessaire
+          containsEggs: /oeuf|egg/i.test(line),
+          containsMeat: /(viande|beuf|poulet|chicken|poisson|fish|saumon|salmon|boeuf|canard|veau|volaille|brochet)/i.test(line)
+        }
+      };
+      
+      dishes.push(dish);
+      console.log('🍽️ Extracted dish:', dish.title, 'price:', dish.price, 'section:', dish.section, 'vegetarian:', isVegetarian);
     }
   }
   
@@ -273,6 +341,12 @@ const Camera = () => {
       };
       
       console.log('🚀 Calling /recommend API with payload:', finalPayload);
+      console.log('👤 User profile details:', {
+        dietaryPreferences: userProfile.dietaryPreferences,
+        allergies: userProfile.allergies,
+        goal: userProfile.goal,
+        activityLevel: userProfile.activityLevel
+      });
       console.log('🌐 Backend URL:', BACKEND_URL);
       console.log('📊 Payload size:', JSON.stringify(finalPayload).length, 'bytes');
       
@@ -301,11 +375,24 @@ const Camera = () => {
       
       console.log('🎯 Recommendations generated:', recommendationsData.top3);
       
-      // Redirection vers la page Recommendations avec les données de l'API /recommend
+      // Transformer les données de l'API pour le format attendu par le frontend
+      const transformedRecommendations = recommendationsData.top3.map(item => ({
+        ...item.dish, // Extraire les propriétés du plat
+        aiScore: item.personalizedMatchScore,
+        personalizedMatchScore: item.personalizedMatchScore,
+        score: item.personalizedMatchScore,
+        macros: item.macros,
+        reasons: item.reasons,
+        subscores: item.subscores
+      }));
+      
+      console.log('🔄 Transformed recommendations for frontend:', transformedRecommendations);
+      
+      // Redirection vers la page Recommendations avec les données transformées
       trackMenuScan(true);
       navigate('/recommendations', { 
         state: { 
-          recommendations: recommendationsData.top3,
+          recommendations: transformedRecommendations,
           menuText: analysisResult.extractedText,
           source: 'scan',
           context: context, // Passer le contexte d'analyse

@@ -95,6 +95,7 @@ const Recommendations = () => {
   const [tooltipVisible, setTooltipVisible] = useState(null);
   const [analysisContext, setAnalysisContext] = useState(null);
   const [fallbackMode, setFallbackMode] = useState(false);
+  const [diagnostics, setDiagnostics] = useState(null);
   const tooltipRefs = useRef({});
 
   // Log quand les recommandations changent
@@ -115,9 +116,27 @@ const Recommendations = () => {
       console.log('📋 Analysis context loaded:', location.state.context);
     }
     
-    if (location.state?.debug?.fallback) {
+    if (location.state?.fallback) {
       setFallbackMode(true);
       console.log('⚠️ Fallback mode detected');
+    }
+    
+    if (location.state?.diagnostics) {
+      setDiagnostics(location.state.diagnostics);
+      console.log('🔍 Diagnostics loaded:', location.state.diagnostics);
+    }
+    
+    // S'assurer que les recommandations ont des scores par défaut
+    if (location.state?.recommendations) {
+      const recommendationsWithScores = location.state.recommendations.map(dish => ({
+        ...dish,
+        aiScore: dish.aiScore || dish.personalizedMatchScore || dish.score || 7, // Score par défaut de 7/10
+        personalizedMatchScore: dish.personalizedMatchScore || dish.aiScore || dish.score || 7,
+        score: dish.score || dish.aiScore || dish.personalizedMatchScore || 7
+      }));
+      
+      setRecommendations(recommendationsWithScores);
+      console.log('🍽️ Recommendations loaded with default scores:', recommendationsWithScores);
     }
   }, [location.state]);
 

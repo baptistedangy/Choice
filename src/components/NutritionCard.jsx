@@ -277,7 +277,7 @@ const NutritionCard = ({ dish, rank, onViewDetails }) => {
               <span className="text-lg font-bold">{score}</span>
               <span className="text-sm ml-1">/10</span>
               {hasAIScore && (
-                <span className="text-sm ml-2">{getAIScoreIcon(aiScore)}</span>
+                <span className="text-sm ml-2">{getAIScoreIcon(score)}</span>
               )}
               <span className="text-xs ml-2 opacity-80">ⓘ</span>
             </div>

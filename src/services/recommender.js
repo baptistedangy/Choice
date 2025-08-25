@@ -37,6 +37,12 @@ export const preFilter = (items, profile) => {
   if (!Array.isArray(items)) return { safe: [], rejected: [], hardFilteredAll:false };
   const safe = [], rejected = [];
 
+  console.log('🔍 preFilter called with profile:', {
+    dietaryPreferences: profile.dietaryPreferences,
+    allergies: profile.allergies,
+    dietaryLaws: profile.dietaryLaws
+  });
+
   // dictionaries
   const ALLERGY_MAP = {
     egg: ['egg','eggs','oeuf','oeufs','huevo','mayonnaise','mayo'],
@@ -72,10 +78,32 @@ export const preFilter = (items, profile) => {
     if (!reject && Array.isArray(profile.dietaryPreferences) && profile.dietaryPreferences.length) {
       const veg = profile.dietaryPreferences.includes('vegetarian');
       const vegan = profile.dietaryPreferences.includes('vegan');
-      const meatWords = ['beef','boeuf','steak','chicken','poulet','pollo','pork','porc','lamb','agneau','ribs','costillas','jamon','ham','turkey','thon','tuna','salmon','saumon','fish','poisson'];
-      const dairyEggWords = ['cheese','fromage','milk','lait','cream','crème','butter','beurre','egg','oeuf','huevo','yogurt','yaourt','mayo','mayonnaise','honey','miel'];
-      if (vegan && (containsAny(txt, [...meatWords, ...dairyEggWords]))) { reject=true; reason='Not vegan'; }
-      else if (veg && containsAny(txt, meatWords)) { reject=true; reason='Not vegetarian'; }
+      
+      console.log(`🍽️ Checking diet for "${item.name || item.title}":`, {
+        isVegetarian: veg,
+        isVegan: vegan,
+        hasDietaryClassifications: !!item.dietaryClassifications,
+        dietaryClassifications: item.dietaryClassifications
+      });
+      
+      // Utiliser les classifications diététiques si disponibles (plus précises)
+      if (item.dietaryClassifications) {
+        if (vegan && (item.dietaryClassifications.containsMeat || item.dietaryClassifications.containsEggs)) {
+          reject = true; reason = 'Not vegan';
+          console.log(`🚫 Rejecting "${item.name || item.title}" - not vegan`);
+        } else if (veg && item.dietaryClassifications.containsMeat) {
+          reject = true; reason = 'Not vegetarian';
+          console.log(`🚫 Rejecting "${item.name || item.title}" - not vegetarian`);
+        } else {
+          console.log(`✅ Accepting "${item.name || item.title}" - diet compliant`);
+        }
+      } else {
+        // Fallback vers l'ancienne méthode basée sur le texte
+        const meatWords = ['beef','boeuf','steak','chicken','poulet','pollo','pork','porc','lamb','agneau','ribs','costillas','jamon','ham','turkey','thon','tuna','salmon','saumon','fish','poisson'];
+        const dairyEggWords = ['cheese','fromage','milk','lait','cream','crème','butter','beurre','egg','oeuf','huevo','yogurt','yaourt','mayo','mayonnaise','honey','miel'];
+        if (vegan && (containsAny(txt, [...meatWords, ...dairyEggWords]))) { reject=true; reason='Not vegan'; }
+        else if (veg && containsAny(txt, meatWords)) { reject=true; reason='Not vegetarian'; }
+      }
     }
 
     // 4) do-not-eat list (hard)
