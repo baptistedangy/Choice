@@ -57,6 +57,10 @@ export const preFilter = (items, profile) => {
   items.forEach(item => {
     const txt = `${item.name||''} ${item.description||''} ${item.ingredients||''}`.toLowerCase();
     let reject = false, reason='';
+    
+    console.log(`🔍 Analyzing item: "${item.name || item.title}"`);
+    console.log(`📝 Text content: "${txt}"`);
+    console.log(`🏷️ Dietary classifications:`, item.dietaryClassifications);
 
     // 1) allergies (hard)
     if (Array.isArray(profile.allergies) && profile.allergies.length) {
@@ -98,11 +102,21 @@ export const preFilter = (items, profile) => {
           console.log(`✅ Accepting "${item.name || item.title}" - diet compliant`);
         }
       } else {
-        // Fallback vers l'ancienne méthode basée sur le texte
-        const meatWords = ['beef','boeuf','steak','chicken','poulet','pollo','pork','porc','lamb','agneau','ribs','costillas','jamon','ham','turkey','thon','tuna','salmon','saumon','fish','poisson'];
+        // Fallback vers l'ancienne méthode basée sur le texte - PLUS STRICTE
+        const meatWords = ['beef','boeuf','steak','chicken','poulet','pollo','pork','porc','lamb','agneau','ribs','costillas','jamon','ham','turkey','thon','tuna','salmon','saumon','fish','poisson','canard','duck','veau','veau','volaille','brochet','angus'];
         const dairyEggWords = ['cheese','fromage','milk','lait','cream','crème','butter','beurre','egg','oeuf','huevo','yogurt','yaourt','mayo','mayonnaise','honey','miel'];
-        if (vegan && (containsAny(txt, [...meatWords, ...dairyEggWords]))) { reject=true; reason='Not vegan'; }
-        else if (veg && containsAny(txt, meatWords)) { reject=true; reason='Not vegetarian'; }
+        
+        if (vegan && (containsAny(txt, [...meatWords, ...dairyEggWords]))) { 
+          reject=true; reason='Not vegan'; 
+          console.log(`🚫 Rejecting "${item.name || item.title}" - not vegan (text analysis)`);
+        }
+        else if (veg && containsAny(txt, meatWords)) { 
+          reject=true; reason='Not vegetarian'; 
+          console.log(`🚫 Rejecting "${item.name || item.title}" - not vegetarian (text analysis)`);
+        }
+        else {
+          console.log(`✅ Accepting "${item.name || item.title}" - diet compliant (text analysis)`);
+        }
       }
     }
 
@@ -113,9 +127,18 @@ export const preFilter = (items, profile) => {
       }
     }
 
-    if (reject) rejected.push({ ...item, rejectionReason: reason });
-    else safe.push(item);
+    if (reject) {
+      rejected.push({ ...item, rejectionReason: reason });
+      console.log(`🚫 FINAL REJECTION: "${item.name || item.title}" - ${reason}`);
+    } else {
+      safe.push(item);
+      console.log(`✅ FINAL ACCEPTANCE: "${item.name || item.title}" - safe for consumption`);
+    }
   });
+
+  console.log(`📊 PreFilter Results:`);
+  console.log(`✅ Safe items (${safe.length}):`, safe.map(item => item.name || item.title));
+  console.log(`🚫 Rejected items (${rejected.length}):`, rejected.map(item => ({ name: item.name || item.title, reason: item.rejectionReason })));
 
   const hardFilteredAll = safe.length===0 && items.length>0;
   return { safe, rejected, hardFilteredAll };
@@ -529,7 +552,11 @@ export const rankRecommendations = (safeItems, profile, context) => {
   // Vérifier si le mode fallback a été activé
   const fallback = withScores.__fallback === true;
 
-  console.log(`🏆 Top 3 recommendations:`, top3.map(d => ({ name: d.item.name, score: d.score })));
+  console.log(`🏆 Top 3 recommendations:`, top3.map(d => ({ 
+    name: d.item.name || d.item.title, 
+    score: d.score,
+    raw: d.raw 
+  })));
   console.log(`🔄 Fallback mode: ${fallback}`);
 
   return {
@@ -563,6 +590,12 @@ export const filterAndScoreDishes = (dishes, profile, context) => {
 
   // 2. Classer les recommandations avec gestion du fallback
   const rankingResult = rankRecommendations(safe, profile, context);
+  
+  console.log(`📊 Ranking result:`, {
+    top3Count: rankingResult.top3.length,
+    allCount: rankingResult.all.length,
+    fallback: rankingResult.fallback
+  });
 
   // 3. Préparer la réponse finale
   const finalDishes = rankingResult.top3.map(item => ({
@@ -571,6 +604,11 @@ export const filterAndScoreDishes = (dishes, profile, context) => {
     reasons: item.reasons || [],
     subscores: item.subscores || {}
   }));
+  
+  console.log(`🍽️ Final dishes to return:`, finalDishes.map(dish => ({
+    name: dish.name || dish.title,
+    score: dish.score
+  })));
 
   return {
     filteredDishes: finalDishes,

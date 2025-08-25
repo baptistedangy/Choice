@@ -2249,8 +2249,18 @@ app.post('/recommend', async (req, res) => {
     // Importer le service de recommandation
     const { filterAndScoreDishes } = await import('./src/services/recommender.js');
     
+    console.log('🔍 Backend received dishes:', dishes.length);
+    console.log('👤 User profile:', profile);
+    
     // Score déterministe (hard filters + soft + fallback)
     const { filteredDishes, fallback } = filterAndScoreDishes(dishes, profile, context);
+    
+    console.log('✅ Backend filtered dishes:', filteredDishes.length);
+    console.log('🍽️ Backend top dishes:', filteredDishes.map(d => ({
+      title: d.title || d.name,
+      score: d.score,
+      isVegetarian: d.isVegetarian
+    })));
 
     // Top 3 garanti si possible; jamais 0/10 (floor=1) sauf plat réellement dangereux (allergies/lois) filtré en amont
     return res.json({
