@@ -28,16 +28,9 @@ const ExtendedProfile = () => {
   ];
 
   const dietaryOptions = [
-    { value: 'vegan', label: 'Vegan' },
-    { value: 'vegetarian', label: 'Vegetarian' },
-    { value: 'gluten-free', label: 'Gluten-Free' },
-    { value: 'dairy-free', label: 'Dairy-Free' },
-    { value: 'nut-free', label: 'Nut-Free' },
-    { value: 'low-carb', label: 'Low-Carb' },
-    { value: 'keto', label: 'Keto' },
-    { value: 'paleo', label: 'Paleo' },
-    { value: 'mediterranean', label: 'Mediterranean' },
-    { value: 'pescatarian', label: 'Pescatarian' }
+    { value: 'vegetarian', label: 'Vegetarian', desc: 'No meat, but eggs and dairy OK' },
+    { value: 'vegan', label: 'Vegan', desc: 'No animal products at all' },
+    { value: 'flexitarian', label: 'Flexitarian', desc: 'Mostly plant-based, some meat' }
   ];
 
   // Essential options only
@@ -78,10 +71,7 @@ const ExtendedProfile = () => {
           ...prev,
           ...parsedProfile,
           allergies: parsedProfile.allergies || [],
-          dietaryLaws: parsedProfile.dietaryLaws || 'none',
-          preferredProteinSources: parsedProfile.preferredProteinSources || [],
-          tasteAndPrepPreferences: parsedProfile.tasteAndPrepPreferences || [],
-          healthFlags: parsedProfile.healthFlags || []
+          dietaryPreferences: parsedProfile.dietaryPreferences || []
         }));
       } catch (error) {
         console.error('Error loading profile:', error);
@@ -99,13 +89,11 @@ const ExtendedProfile = () => {
     debouncedSave(newData);
   };
 
-  // Gestion des préférences alimentaires (multiselect)
+  // Gestion des préférences alimentaires (sélection unique)
   const handleDietaryPreferenceChange = (preference) => {
     const newData = {
       ...formData,
-      dietaryPreferences: formData.dietaryPreferences.includes(preference)
-        ? formData.dietaryPreferences.filter(p => p !== preference)
-        : [...formData.dietaryPreferences, preference]
+      dietaryPreferences: [preference] // Only one selection allowed
     };
     setFormData(newData);
     debouncedSave(newData);
@@ -259,16 +247,24 @@ const ExtendedProfile = () => {
                       <label className="block text-sm font-medium text-gray-700 mb-3">
                         Dietary Preferences
                       </label>
-                      <div className="grid grid-cols-2 gap-3">
+                      <p className="text-sm text-gray-600 mb-4 italic">
+                        Choose your primary dietary preference for personalized recommendations.
+                      </p>
+                      <div className="space-y-3">
                         {dietaryOptions.map(option => (
-                          <label key={option.value} className="flex items-center space-x-3 cursor-pointer">
+                          <label key={option.value} className="flex items-start space-x-3 cursor-pointer p-3 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
                             <input
-                              type="checkbox"
-                              checked={formData.dietaryPreferences.includes(option.value)}
+                              type="radio"
+                              name="dietaryPreference"
+                              value={option.value}
+                              checked={formData.dietaryPreferences[0] === option.value}
                               onChange={() => handleDietaryPreferenceChange(option.value)}
-                              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mt-0.5"
                             />
-                            <span className="text-sm text-gray-700">{option.label}</span>
+                            <div className="flex-1">
+                              <div className="text-sm font-medium text-gray-700">{option.label}</div>
+                              <div className="text-xs text-gray-500 mt-1">{option.desc}</div>
+                            </div>
                           </label>
                         ))}
                       </div>

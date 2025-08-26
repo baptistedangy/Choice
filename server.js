@@ -1061,25 +1061,19 @@ Output ONLY the JSON response, nothing else.`
       // Filtrer les plats non conformes pour exclure ceux avec un score AI de 0
       const validNonMatchingDishes = sortedNonMatchingDishes.filter(dish => (dish.aiScore || 0) > 0);
       
-      if (matchingDishes.length >= 3) {
-        // Si on a 3+ plats conformes, prendre les 3 meilleurs
-        finalDishes = sortedMatchingDishes.slice(0, 3);
-        console.log('\n✅ Using top 3 matching dishes');
-      } else if (matchingDishes.length > 0) {
-        // Si on a 1-2 plats conformes, les compléter avec les meilleurs non conformes (score > 0)
-        const matchingCount = matchingDishes.length;
-        const neededNonMatching = Math.min(3 - matchingCount, validNonMatchingDishes.length);
-        
+      // MODIFICATION: Au lieu de limiter à 3 plats, envoyer tous les plats valides
+      // Le système MVP fera la sélection finale
+      if (matchingDishes.length > 0) {
+        // Si on a des plats conformes, les inclure tous
         finalDishes = [
           ...sortedMatchingDishes,
-          ...validNonMatchingDishes.slice(0, neededNonMatching)
+          ...validNonMatchingDishes
         ];
-        console.log(`\n⚠️ Using ${matchingCount} matching + ${neededNonMatching} non-matching dishes (score > 0)`);
+        console.log(`\n✅ Using ${matchingDishes.length} matching + ${validNonMatchingDishes.length} non-matching dishes (all valid dishes)`);
       } else if (validNonMatchingDishes.length > 0) {
         // Si aucun plat conforme mais des plats non conformes avec score > 0
-        const maxDishes = Math.min(3, validNonMatchingDishes.length);
-        finalDishes = validNonMatchingDishes.slice(0, maxDishes);
-        console.log(`\n⚠️ No matching dishes - using ${maxDishes} non-matching dishes with score > 0`);
+        finalDishes = validNonMatchingDishes;
+        console.log(`\n⚠️ No matching dishes - using ${validNonMatchingDishes.length} non-matching dishes with score > 0`);
       } else {
         // Aucun plat valide à afficher
         finalDishes = [];
@@ -2247,12 +2241,44 @@ app.post('/recommend', async (req, res) => {
     }
 
     // Importer le service de recommandation
-    const { filterAndScoreDishes } = await import('./src/services/recommender.js');
+    const { filterAndScoreDishes, simpleTop3ForMVP } = await import('./src/services/recommender.js');
     
     console.log('🔍 Backend received dishes:', dishes.length);
     console.log('👤 User profile:', profile);
     
-    // Score déterministe (hard filters + soft + fallback)
+    // 0) Mode MVP rapide: produire un top3 immédiatement (garantie MVP)
+    const mvpTop3 = simpleTop3ForMVP(dishes, profile);
+    if (mvpTop3 && mvpTop3.length > 0) {
+      console.log('🥇 Using MVP simpleTop3 fallback, count:', mvpTop3.length);
+      
+      // Forcer de nouvelles analyses pour éviter le cache
+      const forceNewAnalysis = true;
+      
+      return res.json({
+        success: true,
+        analyzedCount: dishes.length,
+        totalCount: dishes.length,
+        diagnostics: { relaxedMode: true, mvpMode: true, forcedMvp: true, forceNewAnalysis },
+        top3: mvpTop3.map(d => ({
+          dish: {
+            id: d.id || (d.title || d.name),
+            title: d.title || d.name,
+            description: d.description || '',
+            price: (typeof d.price === 'number' && isFinite(d.price)) ? d.price : null,
+            currency: d.currency || undefined,
+            section: d.section || undefined
+          },
+          personalizedMatchScore: d.score,
+          macros: d.macros || null,
+          reasons: [],
+          subscores: {}
+        }))
+      });
+    } else {
+      console.log('⚠️ MVP mode failed, falling back to full pipeline');
+    }
+
+    // 1) Pipeline complet
     const { filteredDishes, fallback } = filterAndScoreDishes(dishes, profile, context);
     
     console.log('✅ Backend filtered dishes:', filteredDishes.length);
@@ -2262,12 +2288,42 @@ app.post('/recommend', async (req, res) => {
       isVegetarian: d.isVegetarian
     })));
 
-    // Top 3 garanti si possible; jamais 0/10 (floor=1) sauf plat réellement dangereux (allergies/lois) filtré en amont
+    // 2) Vérification MVP: si tous les scores sont 0, on force le mode MVP
+    const allScoresZero = filteredDishes.length > 0 && filteredDishes.every(d => (d.score || 0) <= 0);
+    if (allScoresZero) {
+      console.log('⚠️ All scores are 0, forcing MVP mode');
+      const mvpTop3 = simpleTop3ForMVP(dishes, profile);
+      if (mvpTop3 && mvpTop3.length > 0) {
+        console.log('🥇 MVP fallback activated, count:', mvpTop3.length);
+        return res.json({
+          success: true,
+          analyzedCount: dishes.length,
+          totalCount: dishes.length,
+          diagnostics: { relaxedMode: true, mvpMode: true, forcedMvp: true },
+          top3: mvpTop3.map(d => ({
+            dish: {
+              id: d.id || (d.title || d.name),
+              title: d.title || d.name,
+              description: d.description || '',
+              price: (typeof d.price === 'number' && isFinite(d.price)) ? d.price : null,
+              currency: d.currency || undefined,
+              section: d.section || undefined
+            },
+            personalizedMatchScore: d.score,
+            macros: d.macros || null,
+            reasons: [],
+            subscores: {}
+          }))
+        });
+      }
+    }
+
+    // Top 3 garanti
     return res.json({
       success: true,
       analyzedCount: dishes.length,
       totalCount: dishes.length,
-      diagnostics: { relaxedMode: !!fallback },
+      diagnostics: { relaxedMode: !!fallback, mvpMode: false },
       top3: filteredDishes.map(d => ({
         dish: {
           id: d.id || (d.title || d.name),
@@ -2277,8 +2333,8 @@ app.post('/recommend', async (req, res) => {
           currency: d.currency || undefined,
           section: d.section || undefined
         },
-        personalizedMatchScore: d.score,   // <- la note à afficher
-        macros: d.macros || null,          // peut être % (P/C/F) ou grams si dispo
+        personalizedMatchScore: d.score,
+        macros: d.macros || null,
         reasons: d.reasons || [],
         subscores: d.subscores || {}
       }))

@@ -136,44 +136,44 @@ const WelcomeStep = ({ onNext, isFirst }) => (
 // Dietary Preferences Step
 const DietaryStep = ({ formData, setFormData, onNext, onPrev }) => {
   const dietaryOptions = [
-    { value: 'vegetarian', label: 'Vegetarian', icon: '🥬' },
-    { value: 'vegan', label: 'Vegan', icon: '🌱' },
-    { value: 'gluten-free', label: 'Gluten-Free', icon: '🌾' },
-    { value: 'dairy-free', label: 'Dairy-Free', icon: '🥛' },
-    { value: 'keto', label: 'Keto', icon: '🥑' },
-    { value: 'paleo', label: 'Paleo', icon: '🥩' }
+    { value: 'vegetarian', label: 'Vegetarian', icon: '🥬', desc: 'No meat, but eggs and dairy OK' },
+    { value: 'vegan', label: 'Vegan', icon: '🌱', desc: 'No animal products at all' },
+    { value: 'flexitarian', label: 'Flexitarian', icon: '🍽️', desc: 'Mostly plant-based, some meat' }
   ];
 
-  const togglePreference = (preference) => {
+  const selectPreference = (preference) => {
     setFormData(prev => ({
       ...prev,
-      dietaryPreferences: prev.dietaryPreferences.includes(preference)
-        ? prev.dietaryPreferences.filter(p => p !== preference)
-        : [...prev.dietaryPreferences, preference]
+      dietaryPreferences: [preference] // Only one selection allowed
     }));
   };
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-3">
+      <div className="space-y-3">
         {dietaryOptions.map(option => (
           <button
             key={option.value}
-            onClick={() => togglePreference(option.value)}
-            className={`p-4 rounded-lg border-2 transition-colors text-center ${
+            onClick={() => selectPreference(option.value)}
+            className={`w-full p-4 rounded-lg border-2 transition-colors text-left ${
               formData.dietaryPreferences.includes(option.value)
                 ? 'border-purple-600 bg-purple-50 text-purple-700'
                 : 'border-gray-200 hover:border-gray-300'
             }`}
           >
-            <div className="text-2xl mb-1">{option.icon}</div>
-            <div className="text-sm font-medium">{option.label}</div>
+            <div className="flex items-center space-x-3">
+              <div className="text-2xl">{option.icon}</div>
+              <div className="text-left">
+                <div className="font-medium">{option.label}</div>
+                <div className="text-sm text-gray-500">{option.desc}</div>
+              </div>
+            </div>
           </button>
         ))}
       </div>
       
       <div className="text-center text-sm text-gray-500">
-        Select all that apply (optional)
+        Choose your primary dietary preference
       </div>
 
       <div className="flex space-x-3">
@@ -185,7 +185,12 @@ const DietaryStep = ({ formData, setFormData, onNext, onPrev }) => {
         </button>
         <button
           onClick={onNext}
-          className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg font-semibold hover:from-purple-700 hover:to-pink-700 transition-colors"
+          disabled={formData.dietaryPreferences.length === 0}
+          className={`flex-1 py-3 rounded-lg font-semibold transition-colors ${
+            formData.dietaryPreferences.length === 0
+              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              : 'bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-700 hover:to-pink-700'
+          }`}
         >
           Continue
         </button>

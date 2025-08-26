@@ -33,115 +33,69 @@ const asRatios = (macros) => {
  * @param {object} profile - Profil utilisateur
  * @returns {object} { safe: Array, rejected: Array }
  */
-export const preFilter = (items, profile) => {
-  if (!Array.isArray(items)) return { safe: [], rejected: [], hardFilteredAll:false };
-  const safe = [], rejected = [];
+export const preFilter = (dishes, profile = {}) => {
+  if (!Array.isArray(dishes) || dishes.length === 0) {
+    return { safe: [], rejected: [] };
+  }
 
-  console.log('🔍 preFilter called with profile:', {
-    dietaryPreferences: profile.dietaryPreferences,
-    allergies: profile.allergies,
-    dietaryLaws: profile.dietaryLaws
-  });
+  const dietaryPreference = Array.isArray(profile.dietaryPreferences) && profile.dietaryPreferences.length > 0 
+    ? profile.dietaryPreferences[0] 
+    : null;
+  
+  const allergies = Array.isArray(profile.allergies) ? profile.allergies : [];
+  
+  const MEAT_WORDS = ['beef','boeuf','steak','chicken','poulet','pollo','pork','porc','lamb','agneau','ham','dinde','turkey','thon','tuna','salmon','saumon','fish','poisson','canard','duck','veau','volaille','brochet','sweetbread','ris de veau','entrecôte','angus','foie','gésier'];
+  const RED_MEAT_WORDS = ['beef','boeuf','steak','pork','porc','lamb','agneau','ham','veau','entrecôte','angus','foie','gésier']; // Viande rouge à éviter pour flexitarien
+  const WHITE_MEAT_WORDS = ['chicken','poulet','pollo','dinde','turkey','volaille']; // Viande blanche OK pour flexitarien
+  const FISH_WORDS = ['thon','tuna','salmon','saumon','fish','poisson','thon','saumon']; // Poisson OK pour flexitarien
+  const DAIRY_WORDS = ['cheddar','cheese','fromage','lait','milk','crème','cream','beurre','butter','yogurt','yaourt'];
+  const EGG_WORDS = ['oeuf','egg','œuf','omelette','mayonnaise','mayo'];
 
-  // dictionaries
-  const ALLERGY_MAP = {
-    egg: ['egg','eggs','oeuf','oeufs','huevo','mayonnaise','mayo'],
-    nuts: ['nut','nuts','noisette','noisettes','almond','noix','walnut','cajou','pistache','hazelnut'],
-    gluten: ['bread','bun','pain','pasta','pizza','flour','farine'],
-    dairy: ['cheese','fromage','milk','lait','cream','crème','butter','beurre','yogurt','yaourt'],
-    soy: ['soy','soja','tofu','tempeh'],
-    shellfish: ['shrimp','prawn','crevette','crab','crabe','lobster','homard','mussel','clam','oyster']
-  };
-  const containsAny = (t, arr) => arr.some(w => t.includes(w));
+  const hasAny = (txt, arr) => arr.some(w => txt.includes(w));
 
-  items.forEach(item => {
-    const txt = `${item.name||''} ${item.description||''} ${item.ingredients||''}`.toLowerCase();
-    let reject = false, reason='';
+  const safe = [];
+  const rejected = [];
+
+  for (const item of dishes) {
+    const txt = `${item.name || item.title || ''} ${item.description || ''} ${item.ingredients || ''}`.toLowerCase();
     
-    console.log(`🔍 Analyzing item: "${item.name || item.title}"`);
-    console.log(`📝 Text content: "${txt}"`);
-    console.log(`🏷️ Dietary classifications:`, item.dietaryClassifications);
+    let rejectReason = null;
 
-    // 1) allergies (hard)
-    if (Array.isArray(profile.allergies) && profile.allergies.length) {
-      for (const a of profile.allergies) {
-        const keys = ALLERGY_MAP[a] || [a.toLowerCase()];
-        if (containsAny(txt, keys)) { reject=true; reason=`Contains allergen: ${a}`; break; }
-      }
+    // 1) Vérification des allergies (priorité absolue)
+    if (allergies.includes('egg') && (hasAny(txt, EGG_WORDS) || item.dietaryClassifications?.containsEggs)) {
+      rejectReason = 'Contains allergen: egg';
     }
-
-    // 2) dietary laws (hard)
-   if (!reject && profile.dietaryLaws && profile.dietaryLaws!=='none') {
-      const hasPork = containsAny(txt, ['pork','porc','cochon','bacon','lardon','jamon']);
-      if (hasPork && (profile.dietaryLaws==='halal' || profile.dietaryLaws==='kosher')) {
-        reject=true; reason = `Not ${profile.dietaryLaws} compliant (pork)`;
-      }
-    }
-
-    // 3) base diet (hard, but only when confidently detected)
-    if (!reject && Array.isArray(profile.dietaryPreferences) && profile.dietaryPreferences.length) {
-      const veg = profile.dietaryPreferences.includes('vegetarian');
-      const vegan = profile.dietaryPreferences.includes('vegan');
-      
-      console.log(`🍽️ Checking diet for "${item.name || item.title}":`, {
-        isVegetarian: veg,
-        isVegan: vegan,
-        hasDietaryClassifications: !!item.dietaryClassifications,
-        dietaryClassifications: item.dietaryClassifications
-      });
-      
-      // Utiliser les classifications diététiques si disponibles (plus précises)
-      if (item.dietaryClassifications) {
-        if (vegan && (item.dietaryClassifications.containsMeat || item.dietaryClassifications.containsEggs)) {
-          reject = true; reason = 'Not vegan';
-          console.log(`🚫 Rejecting "${item.name || item.title}" - not vegan`);
-        } else if (veg && item.dietaryClassifications.containsMeat) {
-          reject = true; reason = 'Not vegetarian';
-          console.log(`🚫 Rejecting "${item.name || item.title}" - not vegetarian`);
-        } else {
-          console.log(`✅ Accepting "${item.name || item.title}" - diet compliant`);
+    
+    // 2) Vérification des préférences alimentaires
+    if (!rejectReason && dietaryPreference) {
+      if (dietaryPreference === 'vegan') {
+        if (hasAny(txt, MEAT_WORDS) || item.dietaryClassifications?.containsMeat) {
+          rejectReason = 'Not vegan (contains meat)';
+        } else if (hasAny(txt, DAIRY_WORDS)) {
+          rejectReason = 'Not vegan (contains dairy)';
+        } else if (hasAny(txt, EGG_WORDS) || item.dietaryClassifications?.containsEggs) {
+          rejectReason = 'Not vegan (contains eggs)';
         }
-      } else {
-        // Fallback vers l'ancienne méthode basée sur le texte - PLUS STRICTE
-        const meatWords = ['beef','boeuf','steak','chicken','poulet','pollo','pork','porc','lamb','agneau','ribs','costillas','jamon','ham','turkey','thon','tuna','salmon','saumon','fish','poisson','canard','duck','veau','veau','volaille','brochet','angus'];
-        const dairyEggWords = ['cheese','fromage','milk','lait','cream','crème','butter','beurre','egg','oeuf','huevo','yogurt','yaourt','mayo','mayonnaise','honey','miel'];
-        
-        if (vegan && (containsAny(txt, [...meatWords, ...dairyEggWords]))) { 
-          reject=true; reason='Not vegan'; 
-          console.log(`🚫 Rejecting "${item.name || item.title}" - not vegan (text analysis)`);
-        }
-        else if (veg && containsAny(txt, meatWords)) { 
-          reject=true; reason='Not vegetarian'; 
-          console.log(`🚫 Rejecting "${item.name || item.title}" - not vegetarian (text analysis)`);
-        }
-        else {
-          console.log(`✅ Accepting "${item.name || item.title}" - diet compliant (text analysis)`);
+      } else if (dietaryPreference === 'vegetarian') {
+        if (hasAny(txt, MEAT_WORDS) || item.dietaryClassifications?.containsMeat) {
+          rejectReason = 'Not vegetarian';
         }
       }
+      // Flexitarian: pas de filtrage strict, tout est permis
     }
 
-    // 4) do-not-eat list (hard)
-    if (!reject && Array.isArray(profile.doNotEat) && profile.doNotEat.length) {
-      if (containsAny(txt, profile.doNotEat.map(x=>String(x).toLowerCase()))) {
-        reject=true; reason='Contains forbidden ingredient';
-      }
-    }
-
-    if (reject) {
-      rejected.push({ ...item, rejectionReason: reason });
-      console.log(`🚫 FINAL REJECTION: "${item.name || item.title}" - ${reason}`);
+    if (rejectReason) {
+      rejected.push({ item, reason: rejectReason });
     } else {
       safe.push(item);
-      console.log(`✅ FINAL ACCEPTANCE: "${item.name || item.title}" - safe for consumption`);
     }
-  });
+  }
 
-  console.log(`📊 PreFilter Results:`);
-  console.log(`✅ Safe items (${safe.length}):`, safe.map(item => item.name || item.title));
-  console.log(`🚫 Rejected items (${rejected.length}):`, rejected.map(item => ({ name: item.name || item.title, reason: item.rejectionReason })));
+  console.log(`🔍 PreFilter Results (${dietaryPreference || 'none'}):`);
+  console.log(`✅ Safe items (${safe.length}):`, safe.map(d => d.name || d.title));
+  console.log(`🚫 Rejected items (${rejected.length}):`, rejected.map(r => ({ name: r.item.name || r.item.title, reason: r.reason })));
 
-  const hardFilteredAll = safe.length===0 && items.length>0;
-  return { safe, rejected, hardFilteredAll };
+  return { safe, rejected };
 };
 
 export const getMacroTargets = (timing) => {
@@ -573,52 +527,151 @@ export const rankRecommendations = (safeItems, profile, context) => {
  * @param {object} context - Contexte d'analyse
  * @returns {object} Résultats filtrés et scorés
  */
-export const filterAndScoreDishes = (dishes, profile, context) => {
-  if (!dishes || !Array.isArray(dishes)) {
-    return { filteredDishes: [], fallback: false };
+export const filterAndScoreDishes = (dishes, profile = {}, context = {}) => {
+  if (!Array.isArray(dishes) || dishes.length === 0) {
+    return { filteredDishes: [], fallback: true };
   }
 
-  console.log('🔍 Filtering and scoring dishes:', { dishesCount: dishes.length, profile, context });
+  console.log(`🍽️ Filtering and scoring ${dishes.length} dishes for profile:`, {
+    dietaryPreferences: profile.dietaryPreferences,
+    allergies: profile.allergies
+  });
 
-  // 1. Appliquer le pre-filter avec contraintes dures
+  // 1) Pre-filtering basé sur les préférences et allergies
   const { safe, rejected } = preFilter(dishes, profile);
   
   if (safe.length === 0) {
-    console.log('❌ No safe dishes found after hard constraints');
-    return { filteredDishes: [], fallback: false };
+    console.log('⚠️ No dishes passed pre-filtering, using fallback');
+    return { filteredDishes: [], fallback: true };
   }
 
-  // 2. Classer les recommandations avec gestion du fallback
+  // 2) Ranking des plats safe
   const rankingResult = rankRecommendations(safe, profile, context);
   
-  console.log(`📊 Ranking result:`, {
-    top3Count: rankingResult.top3.length,
-    allCount: rankingResult.all.length,
-    fallback: rankingResult.fallback
+  console.log(`🏆 Ranking result:`, rankingResult);
+  
+  return {
+    filteredDishes: rankingResult.top3 || [],
+    fallback: rankingResult.fallback || false
+  };
+};
+
+/**
+ * MVP-simple: sélectionne Top3 avec filtrage strict selon les 3 préférences simplifiées
+ */
+export const simpleTop3ForMVP = (dishes, profile = {}) => {
+  if (!Array.isArray(dishes) || dishes.length === 0) return [];
+
+  const dietaryPreference = Array.isArray(profile.dietaryPreferences) && profile.dietaryPreferences.length > 0 
+    ? profile.dietaryPreferences[0] 
+    : null;
+
+  // Validation des plats : rejeter les plats avec des titres vides ou trop courts
+  const validDishes = dishes.filter(d => {
+    const title = d.title || d.name || '';
+    return title.length > 3 && 
+           !title.includes('Crop') && 
+           !title.includes('crop') &&
+           !title.includes('Pour deux personnes') &&
+           !title.includes("C'est pas les petites patates");
   });
 
-  // 3. Préparer la réponse finale
-  const finalDishes = rankingResult.top3.map(item => ({
-    ...item.item,
-    score: item.score,
-    reasons: item.reasons || [],
-    subscores: item.subscores || {}
-  }));
-  
-  console.log(`🍽️ Final dishes to return:`, finalDishes.map(dish => ({
-    name: dish.name || dish.title,
-    score: dish.score
-  })));
+  if (validDishes.length === 0) {
+    console.log('⚠️ No valid dishes found after filtering, returning empty array');
+    return [];
+  }
 
-  return {
-    filteredDishes: finalDishes,
-    fallback: rankingResult.fallback,
-    debug: {
-      contextUsed: context,
-      targetsUsed: getMacroTargets(context.timing),
-      filteredOutCount: rejected.length,
-      fallback: rankingResult.fallback,
-      preFilterResults: { safe: safe.length, rejected: rejected.length }
+  console.log(`🔍 Valid dishes for MVP (${validDishes.length}/${dishes.length}):`, validDishes.map(d => d.title || d.name));
+
+  const MEAT_WORDS = ['beef','boeuf','steak','chicken','poulet','pollo','pork','porc','lamb','agneau','ham','dinde','turkey','thon','tuna','salmon','saumon','fish','poisson','canard','duck','veau','volaille','brochet','sweetbread','ris de veau','entrecôte','angus','foie','gésier'];
+  const RED_MEAT_WORDS = ['beef','boeuf','steak','pork','porc','lamb','agneau','ham','veau','entrecôte','angus','foie','gésier']; // Viande rouge à éviter pour flexitarien
+  const WHITE_MEAT_WORDS = ['chicken','poulet','pollo','dinde','turkey','volaille']; // Viande blanche OK pour flexitarien
+  const FISH_WORDS = ['thon','tuna','salmon','saumon','fish','poisson','thon','saumon']; // Poisson OK pour flexitarien
+  const DAIRY_WORDS = ['cheddar','cheese','fromage','lait','milk','crème','cream','beurre','butter','yogurt','yaourt'];
+  const EGG_WORDS = ['oeuf','egg','œuf','omelette','mayonnaise','mayo'];
+  const DESSERT_HINTS = ['dessert','fondant','tarte','crème brûlée','brulee','baba','chantilly','strawberries','cake','chocolate','chocolat','citron'];
+  const GOOD_VEG_HINTS = ['veggie','vegetarian','végétar','butternut','risotto','salade','salad','tofu','légume','legume','coquillettes','légumes','legumes','fruits','grains','céréales','cereales','lentilles','lentils','haricots','beans','noix','nuts','graines','seeds'];
+
+  const textOf = (d) => `${d.name || d.title || ''} ${d.description || ''}`.toLowerCase();
+  const hasAny = (txt, arr) => arr.some(w => txt.includes(w));
+
+  // 1) Filtrage selon la préférence alimentaire
+  let candidates = validDishes.filter(d => {
+    const txt = textOf(d);
+    
+    if (dietaryPreference === 'vegan') {
+      // Vegan: pas de viande, pas de produits laitiers, pas d'œufs
+      if (hasAny(txt, MEAT_WORDS)) return false;
+      if (hasAny(txt, DAIRY_WORDS)) return false;
+      if (hasAny(txt, EGG_WORDS)) return false;
+      if (d.dietaryClassifications?.containsMeat === true) return false;
+      if (d.dietaryClassifications?.containsEggs === true) return false;
     }
-  };
+    else if (dietaryPreference === 'vegetarian') {
+      // Vegetarian: pas de viande, mais œufs et produits laitiers OK
+      if (hasAny(txt, MEAT_WORDS)) return false;
+      if (d.dietaryClassifications?.containsMeat === true) return false;
+    }
+    else if (dietaryPreference === 'flexitarian') {
+      // Flexitarian: tout est permis, mais on privilégie le végétarien
+      // Pas de filtrage strict, juste scoring préférentiel
+    }
+    
+    return true;
+  });
+
+  // 2) Scoring simple selon la préférence
+  const scored = candidates.map(d => {
+    const txt = textOf(d);
+    let score = 5;
+    
+    if (dietaryPreference === 'vegan') {
+      if (d.dietaryClassifications?.vegan) score += 4;
+      if (hasAny(txt, GOOD_VEG_HINTS)) score += 2;
+      if (hasAny(txt, MEAT_WORDS)) score -= 100;
+      if (hasAny(txt, DAIRY_WORDS)) score -= 100;
+      if (hasAny(txt, EGG_WORDS)) score -= 100;
+    }
+    else if (dietaryPreference === 'vegetarian') {
+      if (d.dietaryClassifications?.vegetarian) score += 4;
+      if (hasAny(txt, GOOD_VEG_HINTS)) score += 2;
+      if (hasAny(txt, MEAT_WORDS)) score -= 100;
+    }
+    else if (dietaryPreference === 'flexitarian') {
+      // Flexitarian: scoring préférentiel
+      if (d.dietaryClassifications?.vegetarian) score += 3;
+      if (hasAny(txt, GOOD_VEG_HINTS)) score += 3; // Fort bonus pour les aliments végétaux
+      
+      // Viande blanche et poisson: OK mais pas prioritaire
+      if (hasAny(txt, WHITE_MEAT_WORDS)) score += 1;
+      if (hasAny(txt, FISH_WORDS)) score += 2; // Poisson bien vu
+      
+      // Viande rouge: pénalité modérée (pas d'exclusion)
+      if (hasAny(txt, RED_MEAT_WORDS)) score -= 1;
+      
+      // Produits laitiers et œufs: OK
+      if (hasAny(txt, DAIRY_WORDS)) score += 1;
+      if (hasAny(txt, EGG_WORDS)) score += 1;
+    }
+    
+    // Éviter desserts dans top si autre choix dispo
+    const isDessert = hasAny(txt, DESSERT_HINTS);
+    if (isDessert) score -= 2;
+
+    return { item: d, score };
+  });
+
+  // 3) Tri, déduplication par titre, top 3
+  const dedup = new Map();
+  for (const s of scored) {
+    const key = (s.item.title || s.item.name || '').toLowerCase().trim();
+    if (!dedup.has(key)) dedup.set(key, s);
+  }
+  const top3 = Array.from(dedup.values())
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 3)
+    .map(s => ({ ...s.item, score: Math.max(1, Math.round(s.score)) }));
+
+  console.log(`🥇 MVP simpleTop3 result (${dietaryPreference || 'none'}):`, top3.map(d => ({ title: d.title || d.name, score: d.score })));
+  return top3;
 };
