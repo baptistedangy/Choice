@@ -5,8 +5,6 @@ const Navigation = () => {
   const location = useLocation();
 
   const navItems = [
-    { path: '/profile', name: 'Profile', icon: '👤' },
-    { path: '/extended-profile', name: 'Extended Profile', icon: '⚙️' },
     { path: '/menu-scan', name: 'Scan Menu', icon: '📷' },
     { path: '/recommendations', name: 'Recommendations', icon: '⭐' },
   ];

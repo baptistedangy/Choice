@@ -1,11 +1,11 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Webcam from 'react-webcam';
-import { getRecommendationsFromMenu, loadExtendedUserProfile, getAdditionalRecommendations } from '../services/recommendations';
+import { getRecommendationsFromMenu, getAdditionalRecommendations } from '../services/recommendations';
 import { analyzeMenuImage, checkBackendHealth } from '../services/backendService';
 import { trackMenuScan, trackError } from '../utils/analytics';
 import { BACKEND_URL } from '../config/backend';
-import AnalyzeMenuModal from './AnalyzeMenuModal';
+import { scoreAndLabel } from '../lib/mvpRecommender';
 
 const Camera = () => {
   console.log("🎬 Camera component rendering");
@@ -22,13 +22,6 @@ const Camera = () => {
   const [allRecommendations, setAllRecommendations] = useState(null);
   const [showMoreOptions, setShowMoreOptions] = useState(false);
   const [isGeneratingRecommendations, setIsGeneratingRecommendations] = useState(false);
-  const [showAnalyzeModal, setShowAnalyzeModal] = useState(false);
-  const [analysisContext, setAnalysisContext] = useState(null);
-  
-  // local state for the context modal
-  const [hunger, setHunger] = useState('moderate');
-  const [timing, setTiming] = useState('regular');
-  const [diagnostics, setDiagnostics] = useState(null);
   
   const webcamRef = useRef(null);
 
@@ -85,7 +78,7 @@ const Camera = () => {
       
       // NOUVELLE LOGIQUE : Détecter les titres en majuscules suivis de ":"
       // Pattern amélioré pour capturer "GREEN BUT NOT BORING V GF:" ou "EL COLIFLOR V GF:"
-      const titleMatch = line.match(/^([A-Z][A-Z\s]+?(?:\s+V\s+GF?)?)(?:\s*[:]|\s*$)/);
+      const titleMatch = line.match(/^([A-Z][A-Z\s]+?(?:\s+V\s+GF?)?)(?:\s*[:]||\s*$)/);
       
       if (titleMatch) {
         // Si on avait un titre précédent, sauvegarder le plat complet
@@ -101,11 +94,6 @@ const Camera = () => {
         currentTitle = titleMatch[1].trim();
         currentDescription = line; // Commencer avec la ligne complète
         console.log('🎯 Found new title:', currentTitle);
-        
-        // Si le titre contient "V GF", c'est probablement végétarien
-        if (currentTitle.includes('V GF') || currentTitle.includes('V G')) {
-          console.log('🥬 Detected vegetarian indicator in title:', currentTitle);
-        }
       } else {
         // Si pas de titre en majuscules, c'est probablement une description
         if (currentTitle) {
@@ -170,9 +158,6 @@ const Camera = () => {
       return null;
     }
     
-    // Détecter si c'est végétarien (marqué V)
-    const isVegetarian = /\bV\b/.test(description) || /vegetarian|veggie/i.test(description);
-    
     // Estimation des macros basée sur les mots-clés
     const txt = description.toLowerCase();
     let protein = 25, carbs = 40, fat = 35; // baseline
@@ -194,17 +179,9 @@ const Camera = () => {
       currency: '€',
       section: section || 'Main',
       macros: { protein, carbs, fat },
-      isVegetarian: isVegetarian,
-      // Ajouter des classifications diététiques pour le filtrage
-      dietaryClassifications: {
-        vegetarian: isVegetarian,
-        vegan: false, // À améliorer si nécessaire
-        containsEggs: /oeuf|egg/i.test(description),
-        containsMeat: /(viande|beuf|poulet|chicken|poisson|fish|saumon|salmon|boeuf|canard|veau|volaille|brochet)/i.test(description)
-      }
     };
     
-    console.log('🍽️ Created dish:', dish.title, 'section:', dish.section, 'vegetarian:', isVegetarian);
+    console.log('🍽️ Created dish:', dish.title, 'section:', dish.section);
     return dish;
   };
 
@@ -261,17 +238,13 @@ const Camera = () => {
       currentImageIndex
     });
     
-    // Check if we've reached the maximum of 5 pages
     if (capturedImages.length >= 5) {
       console.log('⚠️ Maximum 5 pages reached');
       return;
     }
     
-    // Start camera preview mode - same as first capture
     startCamera();
     console.log('📹 Camera preview started for new page capture');
-    
-    // Don't take screenshot automatically - wait for user to click "Prendre une photo"
   }, [capturedImages.length, isCameraActive, isCaptured, currentImageIndex, startCamera]);
 
   const deleteImage = (index) => {
@@ -279,7 +252,6 @@ const Camera = () => {
       const newImages = prev.filter((_, i) => i !== index);
       console.log(`🗑️ Deleting image at index ${index}, new count: ${newImages.length}`);
       
-      // Adjust currentImageIndex if necessary
       if (newImages.length === 0) {
         setIsCaptured(false);
         setCurrentImageIndex(0);
@@ -312,156 +284,80 @@ const Camera = () => {
       return;
     }
 
-    // Ouvrir le modal d'analyse au lieu de commencer directement
-    setShowAnalyzeModal(true);
-  };
-
-  const handleAnalysisContextConfirm = async (context) => {
-    console.log('Analysis context confirmed:', context);
-    setAnalysisContext(context);
-    setShowAnalyzeModal(false);
-    
+    // No modal/context in no-profile MVP
     setIsProcessing(true);
     setProcessingStep('ocr');
 
     try {
-      console.log(`Starting analysis for ${capturedImages.length} page(s) with context:`, context);
-      
-      // Vérifier si le backend est disponible
       const backendAvailable = await checkBackendHealth();
-      console.log('Backend available:', backendAvailable);
-      
       if (!backendAvailable) {
         trackMenuScan(false, 'Backend service not available');
         throw new Error('Backend service not available. Please ensure the server is running.');
       }
-      
-      // Obtenir le profil utilisateur étendu
-      const userProfile = loadExtendedUserProfile();
-      
-      // Analyse complète de la première image
+
       const firstImage = capturedImages[0];
-      console.log('Analyzing first image...');
-      
-      const analysisResult = await analyzeMenuImage(firstImage, userProfile);
-      
-      console.log('=== MENU ANALYSIS RESULT ===');
-      console.log('Extracted text length:', analysisResult.extractedText?.length);
-      console.log('Extracted text preview:', analysisResult.extractedText?.substring(0, 200) + '...');
-      console.log('Recommendations count:', analysisResult.recommendations?.length);
-      console.log('Full extracted text:', analysisResult.extractedText);
-      console.log('Text quality check:');
-      console.log('- Contains numbers:', /\d/.test(analysisResult.extractedText));
-      console.log('- Contains currency symbols:', /[€$£¥]/.test(analysisResult.extractedText));
-      console.log('- Contains food words:', /(menu|plat|entrée|dessert|salade|viande|poisson|pasta|pizza)/i.test(analysisResult.extractedText));
-      console.log('- Contains food words:', /(menu|plat|entrée|dessert|salade|viande|poisson|pasta|pizza)/i.test(analysisResult.extractedText));
-      console.log('- Contains prices:', /\d+[€$£¥]/.test(analysisResult.extractedText));
-      console.log('=== END MENU ANALYSIS ===');
-      
-      // Stocker le texte extrait
+      const analysisResult = await analyzeMenuImage(firstImage, {});
+
       setMenuText(analysisResult.extractedText);
       setProcessingStep('analyzing');
-      
-      // Vérifier que nous avons des recommandations du backend
+
       if (!analysisResult.recommendations || analysisResult.recommendations.length === 0) {
         throw new Error('No recommendations received from backend analysis');
       }
-      
-      console.log('✅ Backend provided recommendations:', analysisResult.recommendations.length);
-      
-      // Transformer les recommandations du backend pour le format attendu par l'API /recommend
+
       const dishesFromBackend = analysisResult.recommendations.map(dish => ({
         title: dish.title,
         description: dish.description,
-        price: dish.price,
+        price: dish.price ?? null,
         currency: '€',
         section: dish.section || 'Main',
         macros: dish.macros || { protein: 25, carbs: 40, fat: 35 },
-        isVegetarian: dish.dietaryClassifications?.vegetarian || false,
-        dietaryClassifications: dish.dietaryClassifications || {
-          vegetarian: dish.dietaryClassifications?.vegetarian || false,
-          vegan: dish.dietaryClassifications?.vegan || false,
-          containsEggs: dish.dietaryClassifications?.containsEggs || false,
-          containsMeat: dish.dietaryClassifications?.containsMeat || false
-        }
       }));
-      
-      console.log('🔄 Transformed backend dishes for /recommend API:', dishesFromBackend);
-      
-      // Maintenant appeler l'API /recommend avec les plats du backend
-      const finalPayload = {
-        dishes: dishesFromBackend,
-        profile: userProfile,
-        context: context,
-        timestamp: Date.now(), // Cache-busting: forcer de nouvelles analyses
-        forceNewAnalysis: true // Forcer de nouvelles analyses
+
+      // Log parsed dishes count and titles
+      console.log('[MVP] parsed dishes', dishesFromBackend.length, dishesFromBackend.map(d => d.title));
+
+      // Local MVP scoring
+      console.log('[MVP] About to call scoreAndLabel with', dishesFromBackend.length, 'dishes');
+      const { top3, all } = scoreAndLabel(dishesFromBackend);
+      console.log('[MVP] scoreAndLabel returned:', { top3Length: top3?.length, allLength: all?.length });
+
+      // Add MVP logs before navigation
+      console.debug('[MVP] parsed dishes =>', dishesFromBackend.length);
+      console.debug('[MVP] received scored recommendations:', top3?.length || 0);
+      console.debug('[MVP] received all scored dishes:', all?.length || 0);
+
+      // Navigate with MVP data structure
+      const mvpState = {
+        mvp: { 
+          top3: top3.map(x => ({
+            name: x.title,
+            title: x.title,
+            description: x.description,
+            price: x.price,
+            score: x.score,
+            label: x.label,
+            reasons: x.reasons,
+          })),
+          all: all.map(x => ({
+            name: x.title,
+            title: x.title,
+            description: x.description,
+            price: x.price,
+            score: x.score,
+            label: x.label,
+            reasons: x.reasons,
+          })),
+          origin: 'mvp'
+        },
+        menuText: analysisResult.extractedText,
+        source: 'scan',
       };
       
-      console.log('🚀 Calling /recommend API with payload:', finalPayload);
-      console.log('👤 User profile details:', {
-        dietaryPreferences: userProfile.dietaryPreferences,
-        allergies: userProfile.allergies,
-        goal: userProfile.goal,
-        activityLevel: userProfile.activityLevel
-      });
-      console.log('🌐 Backend URL:', BACKEND_URL);
-      console.log('📊 Payload size:', JSON.stringify(finalPayload).length, 'bytes');
-      
-      // Appeler l'API /recommend pour obtenir les recommandations contextuelles
-      const recommendationsResponse = await fetch(`${BACKEND_URL}/recommend`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache', // Forcer de nouvelles analyses
-          'Pragma': 'no-cache'
-        },
-        body: JSON.stringify(finalPayload)
-      });
-      
-      console.log('📡 Response status:', recommendationsResponse.status);
-      console.log('📡 Response headers:', Object.fromEntries(recommendationsResponse.headers.entries()));
-      
-      if (!recommendationsResponse.ok) {
-        const errorText = await recommendationsResponse.text();
-        console.error('❌ Error response body:', errorText);
-        throw new Error(`Failed to get recommendations: ${recommendationsResponse.statusText} (${recommendationsResponse.status})`);
-      }
-      
-      const recommendationsData = await recommendationsResponse.json();
-      console.log('✅ Recommendations API response:', recommendationsData);
-      
-      if (!recommendationsData.success) {
-        throw new Error(`Recommendations API error: ${recommendationsData.error}`);
-      }
-      
-      console.log('🎯 Recommendations generated:', recommendationsData.top3);
-      
-      // Transformer les données de l'API pour le format attendu par le frontend
-      const transformedRecommendations = recommendationsData.top3.map(item => ({
-        ...item.dish, // Extraire les propriétés du plat
-        aiScore: item.personalizedMatchScore,
-        personalizedMatchScore: item.personalizedMatchScore,
-        score: item.personalizedMatchScore,
-        macros: item.macros,
-        reasons: item.reasons,
-        subscores: item.subscores
-      }));
-      
-      console.log('🔄 Transformed recommendations for frontend:', transformedRecommendations);
-      
-      // Redirection vers la page Recommendations avec les données transformées
+      console.log('[MVP] Navigating with state:', mvpState);
       trackMenuScan(true);
-      navigate('/recommendations', { 
-        state: { 
-          recommendations: transformedRecommendations,
-          menuText: analysisResult.extractedText,
-          source: 'scan',
-          context: context, // Passer le contexte d'analyse
-          fallback: recommendationsData.diagnostics?.relaxedMode, // Passer le flag fallback
-          diagnostics: recommendationsData.diagnostics
-        } 
-      });
-      
+      navigate('/recommendations', { state: mvpState });
+
     } catch (error) {
       console.error('Error during menu analysis:', error);
       trackMenuScan(false, error.message);
@@ -477,8 +373,7 @@ const Camera = () => {
     
     // Simulation d'un délai pour la génération des recommandations (2 secondes)
     setTimeout(() => {
-      const userProfile = loadExtendedUserProfile();
-      const { topRecommendations, allRecommendations: allRecs } = getRecommendationsFromMenu(text, userProfile);
+      const { topRecommendations, allRecommendations: allRecs } = getRecommendationsFromMenu(text, {});
       setRecommendations(topRecommendations);
       setAllRecommendations(allRecs);
       setIsGeneratingRecommendations(false);
@@ -523,10 +418,9 @@ const Camera = () => {
   const videoConstraints = {
     width: 640,
     height: 480,
-    facingMode: "environment" // Utilise la caméra arrière si disponible
+    facingMode: "environment"
   };
 
-  // Affichage d'erreur si la caméra n'est pas disponible
   if (cameraError) {
     return (
       <div className="flex flex-col items-center space-y-6">
@@ -538,7 +432,6 @@ const Camera = () => {
             Unable to access the camera. Check permissions.
           </p>
         </div>
-        
         <div className="card p-8 max-w-md">
           <div className="text-center space-y-4">
             <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto">
@@ -674,8 +567,6 @@ const Camera = () => {
                 </div>
               </div>
               
-
-              
               {/* Bouton Ajouter une autre page */}
               <div className="text-center">
                 <button
@@ -736,7 +627,7 @@ const Camera = () => {
                       {dish.name}
                     </h3>
                     <div className="bg-primary-600 text-white px-3 py-1 rounded-full text-sm font-bold shadow-medium">
-                      {dish.price.toFixed(2)}€
+                      {dish.price?.toFixed ? dish.price.toFixed(2) : dish.price || ''}{dish.price ? '€' : ''}
                     </div>
                   </div>
                   
@@ -746,16 +637,18 @@ const Camera = () => {
                   </p>
                   
                   {/* Tags */}
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {dish.tags.slice(0, 3).map((tag, tagIndex) => (
-                      <span 
-                        key={tagIndex}
-                        className="px-3 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded-full border border-gray-200"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
+                  {Array.isArray(dish.tags) && (
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      {dish.tags.slice(0, 3).map((tag, tagIndex) => (
+                        <span 
+                          key={tagIndex}
+                          className="px-3 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded-full border border-gray-200"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 
                 {/* Bouton d'action */}
@@ -763,7 +656,6 @@ const Camera = () => {
                   <button 
                     onClick={() => {
                       console.log('Voir détails pour:', dish.name);
-                      // TODO: Implémenter la navigation vers les détails
                     }}
                     className="w-full btn btn-primary py-3 text-sm font-semibold shadow-medium hover:shadow-large transition-shadow"
                   >
@@ -855,9 +747,7 @@ const Camera = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="card p-8 max-w-sm mx-4">
             <div className="text-center space-y-4">
-              {/* Spinner */}
               <div className="w-16 h-16 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin mx-auto"></div>
-              
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
                   {processingStep === 'ocr' ? 'Text Extraction...' : 'Dish Analysis for Recommendations...'}
@@ -865,12 +755,9 @@ const Camera = () => {
                 <p className="text-gray-600 text-sm">
                   {processingStep === 'ocr' 
                     ? 'Extracting text from menu using Google Vision API'
-                    : 'AI-powered dish analysis to generate personalized recommendations'
-                  }
+                    : 'AI-powered dish analysis to generate recommendations'}
                 </p>
               </div>
-              
-              {/* Barre de progression */}
               <div className="w-full bg-gray-200 rounded-full h-2">
                 <div 
                   className="bg-primary-600 h-2 rounded-full animate-pulse" 
@@ -887,9 +774,7 @@ const Camera = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="card p-8 max-w-sm mx-4">
             <div className="text-center space-y-4">
-              {/* Spinner */}
               <div className="w-16 h-16 border-4 border-green-200 border-t-green-600 rounded-full animate-spin mx-auto"></div>
-              
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
                   Generating recommendations...
@@ -898,8 +783,6 @@ const Camera = () => {
                   Menu analysis and personalized suggestions creation
                 </p>
               </div>
-              
-              {/* Barre de progression */}
               <div className="w-full bg-gray-200 rounded-full h-2">
                 <div className="bg-green-600 h-2 rounded-full animate-pulse" style={{ width: '80%' }}></div>
               </div>
@@ -910,8 +793,6 @@ const Camera = () => {
 
       {/* Action buttons */}
       <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md">
-
-        
         {isCameraActive ? (
           <button
             onClick={capture}
@@ -933,15 +814,6 @@ const Camera = () => {
             >
               🔄 New Scan
             </button>
-            <button
-              onClick={() => {
-                setMenuText(null);
-                setRecommendations(null);
-              }}
-              className="btn btn-primary px-6 py-4 text-base font-medium w-full sm:w-auto shadow-medium"
-            >
-              🔄 Re-analyze
-            </button>
             {!recommendations && !isGeneratingRecommendations && (
               <button
                 onClick={() => generateRecommendations(menuText)}
@@ -950,21 +822,6 @@ const Camera = () => {
                 ⭐ Generate Recommendations
               </button>
             )}
-          </>
-        ) : recommendations ? (
-          <>
-            <button
-              onClick={retake}
-              className="btn btn-secondary px-6 py-4 text-base font-medium w-full sm:w-auto"
-            >
-              📸 New Scan
-            </button>
-            <button
-              onClick={() => setRecommendations(null)}
-              className="btn btn-primary px-6 py-4 text-base font-medium w-full sm:w-auto shadow-medium"
-            >
-              🔄 New Recommendations
-            </button>
           </>
         ) : (
           <>
@@ -985,19 +842,11 @@ const Camera = () => {
         )}
       </div>
 
-      {/* Instructions */}
       {!isCaptured && (
         <div className="text-center text-sm text-gray-500 max-w-md">
           <p>Make sure the menu is well lit and readable</p>
         </div>
       )}
-
-      {/* Analyze Menu Modal */}
-      <AnalyzeMenuModal
-        isOpen={showAnalyzeModal}
-        onClose={() => setShowAnalyzeModal(false)}
-        onConfirm={handleAnalysisContextConfirm}
-      />
     </div>
   );
 };

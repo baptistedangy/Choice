@@ -5,22 +5,9 @@
  * Charge le profil utilisateur étendu depuis localStorage
  * @returns {object} Profil utilisateur étendu ou profil par défaut
  */
-export const loadExtendedUserProfile = () => {
-  try {
-    const savedProfile = localStorage.getItem('extendedProfile');
-    if (savedProfile) {
-      const parsedProfile = JSON.parse(savedProfile);
-      console.log('✅ Extended profile loaded from localStorage:', parsedProfile);
-      return parsedProfile;
-    }
-  } catch (error) {
-    console.error('❌ Error loading extended profile:', error);
-  }
-  
-  // Retourner le profil par défaut si aucun profil étendu n'est trouvé
-  console.log('⚠️ No extended profile found, using default profile');
-  return getDefaultUserProfile();
-};
+export function loadExtendedUserProfile() {
+  return {};
+}
 
 /**
  * Génère des recommandations de plats basées sur le texte du menu et le profil utilisateur
@@ -53,7 +40,7 @@ export const getRecommendationsFromMenu = (menuText, userProfile = {}) => {
  * @param {object} userProfile - Profil utilisateur étendu
  * @returns {Array} Plats filtrés et triés par pertinence
  */
-export const filterDishesByUserPreferences = (dishes, userProfile) => {
+export function filterDishesByUserPreferences(dishes, userProfile = {}) {
   if (!dishes || !Array.isArray(dishes)) {
     console.log('⚠️ No dishes to filter');
     return [];
@@ -199,20 +186,9 @@ export const getAdditionalRecommendations = (allRecommendations) => {
  * Génère un profil utilisateur par défaut pour les tests
  * @returns {object} Profil utilisateur par défaut
  */
-export const getDefaultUserProfile = () => {
-  return {
-    name: "Utilisateur",
-    dietaryPreferences: [], // ['vegetarian', 'gluten-free', 'vegan']
-    budget: "medium", // 'low', 'medium', 'high'
-    cuisinePreferences: [], // ['italien', 'français', 'asiatique', 'méditerranéen']
-    allergies: [], // ['noix', 'lactose', 'gluten']
-    spiceTolerance: "medium", // 'low', 'medium', 'high'
-    // Nouveaux champs de la section Advanced
-    dietaryLaws: 'none', // 'none', 'halal', 'kosher'
-    preferredProteinSources: [], // ['chicken', 'beef', 'fish', 'seafood', 'tofu_tempeh', 'eggs', 'legumes']
-    tasteAndPrepPreferences: [], // ['avoid_spicy', 'prefer_spicy', 'avoid_fried', 'prefer_grilled', 'love_pasta']
-    healthFlags: [] // ['diabetes', 'hypertension', 'high_cholesterol', 'ibs_sensitive']
-  };
+export const DEFAULT_USER_PROFILE = {
+  dietaryPreferences: [],
+  allergies: [],
 };
 
 /**
