@@ -102,13 +102,13 @@ const Recommendations = () => {
     console.log('📊 Current recommendations:', recommendations);
   }, [recommendations]);
 
-  // MVP: Détecter le payload MVP et utiliser les données appropriées
+  // MVP: Utiliser uniquement le pipeline MVP
   useEffect(() => {
     console.log('🎯 Recommendations component mounted');
     console.log('📍 Location state:', location.state);
     console.log('📍 Location state keys:', location.state ? Object.keys(location.state) : 'null');
 
-    // Détecter le payload MVP
+    // Utiliser uniquement le payload MVP
     const mvpPayload = location.state?.mvp?.top3;
     const mvpAll = location.state?.mvp?.all;
     
@@ -130,35 +130,11 @@ const Recommendations = () => {
         }));
       } catch {}
     } else {
-      // Fallback vers l'ancien pipeline
-      console.log('🔄 MVP mode not detected - using fallback pipeline');
-      
-      const scoredRecommendations = location.state?.recommendations || [];
-      const allScoredDishes = location.state?.allRecommendations || [];
-
-      console.log('[MVP] received scored recommendations:', scoredRecommendations.length);
-      console.log('[MVP] received all scored dishes:', allScoredDishes.length);
-
-      // Debug: afficher les données reçues
-      if (scoredRecommendations.length > 0) {
-        console.log('[MVP] parsed dishes ->', scoredRecommendations.map(d => d.title));
-        console.table(allScoredDishes.map(x => ({ score: x.score, label: x.label, title: x.title })));
-        console.log('[MVP] rendering top3 ->', scoredRecommendations.map(x => ({ score: x.score, label: x.label, title: x.title })));
-      }
-
-      setMenuText(location.state?.menuText || '');
-      setSource(location.state?.source || 'scan');
-      setRecommendations(scoredRecommendations);
-      
-      // Conserver all pour un affichage "More" ultérieur via localStorage léger
-      try {
-        localStorage.setItem('lastRecommendations', JSON.stringify({
-          recommendations: allScoredDishes,
-          menuText: location.state?.menuText || '',
-          source: location.state?.source || 'scan',
-          timestamp: Date.now()
-        }));
-      } catch {}
+      // Pas de données MVP - état vide
+      console.log('❌ No MVP data found - showing empty state');
+      setMenuText('');
+      setSource('default');
+      setRecommendations([]);
     }
   }, [location.state]);
 

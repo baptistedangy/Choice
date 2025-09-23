@@ -2,7 +2,7 @@ import OpenAI from 'openai';
 
 // Initialisation du client OpenAI
 const openai = new OpenAI({
-  apiKey: import.meta.env.VITE_OPENAI_API_KEY,
+  apiKey: process.env.OPENAI_API_KEY,
   dangerouslyAllowBrowser: true // Nécessaire pour Vite/React
 });
 

@@ -154,28 +154,29 @@ export function scoreAndLabel(dishes = []) {
       const h = scoreHealthy(d.text);
       const c = scoreComforting(d.text);
 
-      // Priority rule for label assignment (only one label per dish):
-      // Recovery > Healthy > Comforting
+      // Improved label assignment based on highest score, not priority order
       let label, reasons, score;
       const base = 5;
       
-      if (r.s > 0) {
-        // Recovery hit
-        label = 'Recovery';
-        reasons = [...r.reasons, 'protein-focused'];
-        score = clamp(Math.round(base + r.s + 0.5), 1, 10);
-      } else if (h.s > 0) {
-        // Healthy hit
-        label = 'Healthy';
-        reasons = [...h.reasons, 'veg-forward / lighter prep'];
-        score = clamp(Math.round(base + h.s + 0.5), 1, 10);
-      } else if (c.s > 0) {
-        // Comforting hit
-        label = 'Comforting';
-        reasons = [...c.reasons, 'indulgent / richer prep'];
-        score = clamp(Math.round(base + c.s + 0.5), 1, 10);
+      // Compare all scores and assign label to the highest one
+      const scores = [
+        { type: 'Recovery', score: r.s, reasons: r.reasons, bonus: 'protein-focused' },
+        { type: 'Healthy', score: h.s, reasons: h.reasons, bonus: 'veg-forward / lighter prep' },
+        { type: 'Comforting', score: c.s, reasons: c.reasons, bonus: 'indulgent / richer prep' }
+      ];
+      
+      // Find the category with the highest score
+      const bestCategory = scores.reduce((best, current) => 
+        current.score > best.score ? current : best
+      );
+      
+      if (bestCategory.score > 0) {
+        // Use the category with the highest score
+        label = bestCategory.type;
+        reasons = [...bestCategory.reasons, bestCategory.bonus];
+        score = clamp(Math.round(base + bestCategory.score + 0.5), 1, 10);
       } else {
-        // Default fallback
+        // Default fallback when no category scores > 0
         label = 'Healthy';
         reasons = ['balanced option'];
         score = base;
@@ -214,13 +215,16 @@ export function scoreAndLabel(dishes = []) {
       byLabel[label].sort((a, b) => b.score - a.score);
     });
 
-    // Start top3 with at most one item from each label in priority order
+    // Start top3 with at most one item from each label, prioritizing diversity
     const top3 = [];
     const usedTitles = new Set();
     const usedLabels = new Set();
     
-    // Priority: Recovery > Healthy > Comforting
-    ['Recovery', 'Healthy', 'Comforting'].forEach(label => {
+    // Try to get one from each category for balanced distribution
+    // Order: Healthy first (most common), then Recovery, then Comforting
+    const labelOrder = ['Healthy', 'Recovery', 'Comforting'];
+    
+    labelOrder.forEach(label => {
       if (byLabel[label].length > 0 && top3.length < 3 && !usedLabels.has(label)) {
         const item = byLabel[label][0];
         top3.push(item);

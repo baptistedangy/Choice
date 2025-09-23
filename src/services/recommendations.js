@@ -1,36 +1,65 @@
 // Service de recommandations pour l'application Choice
 // Génère des recommandations de plats basées sur le menu scanné et le profil utilisateur
 
+import { generateMindsetRecommendations, getMindsetInfo } from './mindsetRecommendations.js';
+import { scoreAndLabel } from '../lib/mvpRecommender.js';
+
 /**
  * Charge le profil utilisateur étendu depuis localStorage
  * @returns {object} Profil utilisateur étendu ou profil par défaut
  */
 export function loadExtendedUserProfile() {
-  return {};
+  try {
+    const saved = localStorage.getItem('extendedProfile');
+    return saved ? JSON.parse(saved) : {};
+  } catch (error) {
+    console.warn('Failed to load extended profile:', error);
+    return {};
+  }
 }
 
 /**
  * Génère des recommandations de plats basées sur le texte du menu et le profil utilisateur
  * @param {string} menuText - Le texte extrait du menu par OCR
  * @param {object} userProfile - Le profil utilisateur avec préférences
- * @returns {Array} Array d'objets plats recommandés
+ * @param {object} options - Options supplémentaires (mindset, activity, etc.)
+ * @returns {Object} Recommandations avec top3 et toutes les recommandations
  */
-export const getRecommendationsFromMenu = (menuText, userProfile = {}) => {
-  // Charger le profil étendu si aucun profil n'est fourni
+export const getRecommendationsFromMenu = (menuText, userProfile = {}, options = {}) => {
+  console.log('📋 Generating recommendations from menu text...');
+  console.log('Menu text length:', menuText?.length);
+  console.log('User profile:', userProfile);
+  console.log('Options:', options);
+
+  // Si pas de texte de menu, retourner des recommandations vides
+  if (!menuText || menuText.trim().length === 0) {
+    console.log('⚠️ No menu text provided');
+    return {
+      topRecommendations: [],
+      allRecommendations: [],
+      error: 'No menu text provided'
+    };
+  }
+
+  // Charger le profil étendu
   const extendedProfile = userProfile && Object.keys(userProfile).length > 0 
     ? userProfile 
     : loadExtendedUserProfile();
 
-  console.log('📋 Menu analysis:', menuText?.substring(0, 100) + '...');
-  console.log('👤 Extended user profile:', extendedProfile);
+  // Extraire le mindset (par défaut: healthy)
+  const mindset = options.mindset || extendedProfile.mindset || 'healthy';
+  console.log('🎯 Using mindset:', mindset);
 
-  // Aucun plat hardcodé - seuls les plats extraits du menu scanné sont utilisés
-  console.log('✅ No hardcoded dishes - only scanned menu dishes will be used');
+  // Pour l'instant, retourner des recommandations vides car les plats 
+  // viendront de l'analyse AI du menu scanné via le backend
+  // Cette fonction sera appelée après que le backend ait parsé les plats
+  console.log('✅ Recommendations will be generated after menu parsing');
   
-  // Retourner un objet vide car les plats viendront de l'analyse AI du menu scanné
   return {
     topRecommendations: [],
-    allRecommendations: []
+    allRecommendations: [],
+    mindset: mindset,
+    status: 'pending_parsing'
   };
 };
 
@@ -174,6 +203,68 @@ const generateRecommendations = (availableDishes, menuKeywords, userProfile) => 
 };
 
 /**
+ * Génère des recommandations à partir de plats déjà parsés
+ * @param {Array} dishes - Liste des plats parsés
+ * @param {object} userProfile - Profil utilisateur
+ * @param {object} options - Options (mindset, activity, etc.)
+ * @returns {Object} Recommandations avec top3 et toutes les recommandations
+ */
+export const generateRecommendationsFromDishes = (dishes, userProfile = {}, options = {}) => {
+  console.log('🍽️ Generating recommendations from parsed dishes...');
+  console.log('Dishes count:', dishes?.length);
+  console.log('User profile:', userProfile);
+  console.log('Options:', options);
+
+  if (!Array.isArray(dishes) || dishes.length === 0) {
+    console.log('⚠️ No dishes provided');
+    return {
+      topRecommendations: [],
+      allRecommendations: [],
+      error: 'No dishes provided'
+    };
+  }
+
+  // Charger le profil étendu
+  const extendedProfile = userProfile && Object.keys(userProfile).length > 0 
+    ? userProfile 
+    : loadExtendedUserProfile();
+
+  // Extraire le mindset
+  const mindset = options.mindset || extendedProfile.mindset || 'healthy';
+  console.log('🎯 Using mindset:', mindset);
+
+  // Option 1: Utiliser le MVP recommender (logique actuelle)
+  if (options.useMvpRecommender !== false) {
+    console.log('📊 Using MVP recommender...');
+    const { top3, all } = scoreAndLabel(dishes);
+    
+    return {
+      topRecommendations: top3,
+      allRecommendations: all,
+      mindset: mindset,
+      method: 'mvp_recommender',
+      summary: {
+        totalDishes: dishes.length,
+        recommendationsGenerated: top3.length,
+        averageScore: top3.length > 0 ? top3.reduce((sum, dish) => sum + (dish.score || 0), 0) / top3.length : 0
+      }
+    };
+  }
+
+  // Option 2: Utiliser le mindset recommender
+  console.log('🎯 Using mindset recommender...');
+  const mindsetResult = generateMindsetRecommendations(dishes, mindset, options);
+  
+  return {
+    topRecommendations: mindsetResult.top3,
+    allRecommendations: mindsetResult.all,
+    mindset: mindset,
+    method: 'mindset_recommender',
+    summary: mindsetResult.summary
+  };
+};
+
+/**
  * Obtient des recommandations supplémentaires (plats 4-8)
  * @param {Array} allRecommendations - Toutes les recommandations disponibles
  * @returns {Array} Array de 5 plats supplémentaires
@@ -202,4 +293,55 @@ export const updateUserProfile = (currentProfile, newPreferences) => {
     ...currentProfile,
     ...newPreferences
   };
+};
+
+/**
+ * Sauvegarde le profil utilisateur dans localStorage
+ * @param {object} profile - Profil à sauvegarder
+ * @returns {boolean} Succès de la sauvegarde
+ */
+export const saveUserProfile = (profile) => {
+  try {
+    localStorage.setItem('extendedProfile', JSON.stringify(profile));
+    console.log('✅ User profile saved');
+    return true;
+  } catch (error) {
+    console.error('❌ Failed to save user profile:', error);
+    return false;
+  }
+};
+
+/**
+ * Obtient les informations sur un mindset
+ * @param {string} mindset - Nom du mindset
+ * @returns {object} Informations sur le mindset
+ */
+export const getMindsetInfo = (mindset) => {
+  return getMindsetInfo(mindset);
+};
+
+/**
+ * Liste tous les mindsets disponibles
+ * @returns {Array} Liste des mindsets
+ */
+export const getAvailableMindsets = () => {
+  return getAvailableMindsets();
+};
+
+/**
+ * Valide un mindset
+ * @param {string} mindset - Mindset à valider
+ * @returns {boolean} True si le mindset est valide
+ */
+export const isValidMindset = (mindset) => {
+  const availableMindsets = getAvailableMindsets();
+  return availableMindsets.some(m => m.key === mindset);
+};
+
+/**
+ * Obtient le mindset par défaut
+ * @returns {string} Mindset par défaut
+ */
+export const getDefaultMindset = () => {
+  return 'healthy';
 }; 

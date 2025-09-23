@@ -4,6 +4,8 @@ import dotenv from 'dotenv';
 import multer from 'multer';
 import { ImageAnnotatorClient } from '@google-cloud/vision';
 import OpenAI from 'openai';
+import { parseMenu } from './src/lib/menuParser.js';
+import { MenuAnalysisService } from './src/services/menuAnalysisService.js';
 
 // Charger les variables d'environnement
 dotenv.config();
@@ -484,8 +486,8 @@ app.post('/analyze-image', upload.single('image'), async (req, res) => {
     // Step 2: Get user profile from request body
     const userProfile = req.body.userProfile ? JSON.parse(req.body.userProfile) : {};
 
-    // Step 3: Extract dishes using OpenAI (more reliable than regex detection)
-    console.log('🔍 EXTRACTING DISHES USING OPENAI FROM OCR TEXT...');
+    // Step 3: Extract dishes using parseMenu() (unified parsing)
+    console.log('🔍 EXTRACTING DISHES USING parseMenu() FROM OCR TEXT...');
     
     let recommendations = []; // Define recommendations variable in the outer scope
     
@@ -2231,6 +2233,87 @@ function extractDishesFromText(menuText) {
   console.log(`✅ Extracted ${dishes.length} dishes`);
   return dishes;
 }
+
+// Endpoint pour parser un menu avec JSON input
+app.post('/parse-menu', async (req, res) => {
+  try {
+    const { menuText, mindset, activity } = req.body;
+    
+    if (!menuText) {
+      return res.status(400).json({
+        success: false,
+        error: 'menuText is required'
+      });
+    }
+    
+    console.log('🔍 Parsing menu with MenuAnalysisService...');
+    console.log('Menu text length:', menuText.length);
+    console.log('Mindset:', mindset);
+    console.log('Activity:', activity);
+    
+    // Utiliser MenuAnalysisService pour parser le menu
+    const result = MenuAnalysisService.parseMenu(menuText, { mindset, activity });
+    
+    if (!result.success) {
+      return res.status(400).json(result);
+    }
+    
+    console.log('📋 Parsed dishes:', result.dishes.map(d => ({
+      title: d.title,
+      price: d.price,
+      hasDescription: !!d.description
+    })));
+    
+    res.json(result);
+    
+  } catch (error) {
+    console.error('❌ Error in /parse-menu:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to parse menu',
+      message: error.message
+    });
+  }
+});
+
+// Endpoint pour l'analyse complète d'un menu (parsing + recommandations)
+app.post('/analyze-menu', async (req, res) => {
+  try {
+    const { menuText, userProfile, mindset, activity } = req.body;
+    
+    if (!menuText) {
+      return res.status(400).json({
+        success: false,
+        error: 'menuText is required'
+      });
+    }
+    
+    console.log('🔬 Starting complete menu analysis...');
+    console.log('Menu text length:', menuText.length);
+    console.log('User profile:', userProfile);
+    console.log('Context:', { mindset, activity });
+    
+    // Utiliser MenuAnalysisService pour l'analyse complète
+    const result = MenuAnalysisService.analyzeMenu(menuText, userProfile, { mindset, activity });
+    
+    if (!result.success) {
+      return res.status(400).json(result);
+    }
+    
+    console.log('✅ Complete analysis successful');
+    console.log('Summary:', result.summary);
+    
+    res.json(result);
+    
+  } catch (error) {
+    console.error('❌ Error in /analyze-menu:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to analyze menu',
+      message: error.message
+    });
+  }
+});
 
 // Endpoint pour les recommandations contextuelles (version simplifiée)
 app.post('/recommend', async (req, res) => {

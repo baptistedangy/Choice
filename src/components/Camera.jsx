@@ -6,6 +6,7 @@ import { analyzeMenuImage, checkBackendHealth } from '../services/backendService
 import { trackMenuScan, trackError } from '../utils/analytics';
 import { BACKEND_URL } from '../config/backend';
 import { scoreAndLabel } from '../lib/mvpRecommender';
+import { parseMenu } from '../lib/menuParser';
 
 const Camera = () => {
   console.log("🎬 Camera component rendering");
@@ -25,7 +26,7 @@ const Camera = () => {
   
   const webcamRef = useRef(null);
 
-  // Fonction pour extraire les plats du texte du menu
+  // Fonction pour extraire les plats du texte du menu en utilisant menuParser.js
   const extractDishesFromText = (text) => {
     console.log('🔍 extractDishesFromText called with text length:', text?.length);
     console.log('🔍 Text preview:', text?.substring(0, 200) + '...');
@@ -35,154 +36,22 @@ const Camera = () => {
       return [];
     }
     
-    const lines = text.split('\n').filter(line => line.trim().length > 0);
-    console.log('📝 Processing', lines.length, 'lines');
+    // Utiliser parseMenu() de menuParser.js comme unique fonction de parsing
+    const parsedDishes = parseMenu(text);
+    console.log('✅ parseMenu returned', parsedDishes.length, 'dishes');
     
-    const dishes = [];
-    let currentSection = '';
-    let currentTitle = null;
-    let currentDescription = '';
-    
-    // Mots-clés qui indiquent des accompagnements (à ignorer)
-    const accompanimentKeywords = [
-      'écrasé', 'mousseline', 'frites', 'carottes', 'navet', 'chou', 'pommes', 'sauce',
-      'jus', 'compote', 'chantilly', 'crème', 'ricotta', 'parmesan', 'cheddar'
-    ];
-    
-    // Mots-clés qui indiquent des plats principaux
-    const mainDishKeywords = [
-      'dos de saumon', 'burger', 'risotto', 'paleron', 'magret', 'ris de veau', 
-      'cocotte', 'quenelles', 'noix d\'entrecôte', 'butternut', 'fondant', 'crème brûlée',
-      'brie', 'baba', 'poêlée', 'tarte', 'quinoa', 'coliflor', 'cauliflower', 'chule', 'costillas'
-    ];
-    
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim();
-      
-      // Ignorer les artefacts OCR comme "Crop"
-      if (line.toLowerCase() === 'crop' || line.length < 3) {
-        continue;
-      }
-      
-      // Détecter les sections (en majuscules, souvent suivies de ":")
-      if (line.match(/^[A-Z\s]+:$/) || line.match(/^[A-Z\s]+$/)) {
-        currentSection = line.replace(':', '').trim();
-        console.log('🏷️ Found section:', currentSection);
-        continue;
-      }
-      
-      // Ignorer les traductions en anglais (lignes en italique)
-      if (line.match(/^[a-z]/) && !line.match(/^[A-Z]/)) {
-        continue;
-      }
-      
-      // NOUVELLE LOGIQUE : Détecter les titres en majuscules suivis de ":"
-      // Pattern amélioré pour capturer "GREEN BUT NOT BORING V GF:" ou "EL COLIFLOR V GF:"
-      const titleMatch = line.match(/^([A-Z][A-Z\s]+?(?:\s+V\s+GF?)?)(?:\s*[:]||\s*$)/);
-      
-      if (titleMatch) {
-        // Si on avait un titre précédent, sauvegarder le plat complet
-        if (currentTitle) {
-          const dish = createDish(currentTitle, currentDescription, currentSection);
-          if (dish) {
-            dishes.push(dish);
-            console.log('🍽️ Completed dish:', dish.title, 'with description length:', dish.description.length);
-          }
-        }
-        
-        // Nouveau titre trouvé
-        currentTitle = titleMatch[1].trim();
-        currentDescription = line; // Commencer avec la ligne complète
-        console.log('🎯 Found new title:', currentTitle);
-      } else {
-        // Si pas de titre en majuscules, c'est probablement une description
-        if (currentTitle) {
-          // Ajouter à la description existante
-          currentDescription += ' ' + line;
-          console.log('📝 Added to description:', line.substring(0, 50) + '...');
-        }
-      }
-    }
-    
-    // Sauvegarder le dernier plat
-    if (currentTitle) {
-      const dish = createDish(currentTitle, currentDescription, currentSection);
-      if (dish) {
-        dishes.push(dish);
-        console.log('🍽️ Final dish:', dish.title, 'with description length:', dish.description.length);
-      }
-    }
+    // Convertir le format de menuParser vers le format attendu par le reste de l'application
+    const dishes = parsedDishes.map(dish => ({
+      title: dish.title,
+      description: dish.description,
+      price: dish.price,
+      currency: '€',
+      section: 'Main', // menuParser ne gère pas les sections pour l'instant
+      macros: { protein: 25, carbs: 40, fat: 35 }, // valeurs par défaut
+    }));
     
     console.log('✅ extractDishesFromText returning', dishes.length, 'dishes');
     return dishes;
-  };
-
-  // Fonction helper pour créer un plat
-  const createDish = (title, description, section) => {
-    if (!title || title.length < 3) return null;
-    
-    const lowerTitle = title.toLowerCase();
-    
-    // FILTRER LES SECTIONS DE MENU (pas des plats)
-    if (lowerTitle.includes('drinks') || lowerTitle.includes('menu') || 
-        lowerTitle.includes('desserts') || lowerTitle.includes('kids') ||
-        lowerTitle.includes('y más') || lowerTitle.includes('asados')) {
-      console.log('🚫 Skipping menu section:', title);
-      return null;
-    }
-    
-    // Vérifier si c'est un accompagnement (à ignorer)
-    const accompanimentKeywords = [
-      'écrasé', 'mousseline', 'frites', 'carottes', 'navet', 'chou', 'pommes', 'sauce',
-      'jus', 'compote', 'chantilly', 'crème', 'ricotta', 'parmesan', 'cheddar'
-    ];
-    
-    const isAccompaniment = accompanimentKeywords.some(keyword => 
-      lowerTitle.includes(keyword.toLowerCase())
-    );
-    
-    // Vérifier si c'est un plat principal
-    const mainDishKeywords = [
-      'dos de saumon', 'burger', 'risotto', 'paleron', 'magret', 'ris de veau', 
-      'cocotte', 'quenelles', 'noix d\'entrecôte', 'butternut', 'fondant', 'crème brûlée',
-      'brie', 'baba', 'poêlée', 'tarte', 'quinoa', 'coliflor', 'cauliflower', 'chule', 'costillas'
-    ];
-    
-    const isMainDish = mainDishKeywords.some(keyword => 
-      lowerTitle.includes(keyword.toLowerCase())
-    );
-    
-    // Ignorer les accompagnements et accepter seulement les plats principaux
-    if (isAccompaniment && !isMainDish) {
-      console.log('🚫 Skipping accompaniment:', title);
-      return null;
-    }
-    
-    // Estimation des macros basée sur les mots-clés
-    const txt = description.toLowerCase();
-    let protein = 25, carbs = 40, fat = 35; // baseline
-    
-    if (/(viande|beef|poulet|chicken|poisson|fish|tofu|legumes?|oeufs?|saumon|salmon)/.test(txt)) protein += 10;
-    if (/(pasta|riz|bread|pain|pomme|potato|quinoa|tortilla|pommes de terre|risotto|coquillettes)/.test(txt)) carbs += 15;
-    if (/(frit|cream|beurre|butter|huile|oil|fromage|cheese|mayo|cheddar|parmesan)/.test(txt)) fat += 10;
-    
-    // Normaliser à 100%
-    const total = protein + carbs + fat;
-    protein = Math.round(protein / total * 100);
-    carbs = Math.round(carbs / total * 100);
-    fat = 100 - protein - carbs;
-    
-    const dish = {
-      title: title,
-      description: description,
-      price: null, // Pas de prix pour l'instant
-      currency: '€',
-      section: section || 'Main',
-      macros: { protein, carbs, fat },
-    };
-    
-    console.log('🍽️ Created dish:', dish.title, 'section:', dish.section);
-    return dish;
   };
 
   // Debug effect to monitor capturedImages changes
